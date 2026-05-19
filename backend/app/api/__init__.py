@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from flask import Flask
 
+from app.api.auth import bp as auth_bp
+from app.api.files import bp as files_bp
 from app.api.health import bp as health_bp
 
 
 def register_blueprints(app: Flask) -> None:
     """Register all blueprints on the app."""
     app.register_blueprint(health_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(files_bp)

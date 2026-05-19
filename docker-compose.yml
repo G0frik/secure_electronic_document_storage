@@ -75,6 +75,8 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-documents}
       MINIO_SECURE: "false"
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me}
+      ALLOW_PUBLIC_REGISTRATION: ${ALLOW_PUBLIC_REGISTRATION:-true}
+      HIBP_USER_AGENT: ${HIBP_USER_AGENT:-secure-docstore-dev}
       MAIL_SERVER: mailhog
       MAIL_PORT: "1025"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -104,6 +106,7 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-documents}
       MINIO_SECURE: "false"
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me}
+      HIBP_USER_AGENT: ${HIBP_USER_AGENT:-secure-docstore-dev}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./backend:/app
