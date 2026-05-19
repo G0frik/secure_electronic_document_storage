@@ -17,6 +17,32 @@ export interface FileListResponse {
   total: number;
 }
 
+export type ClassificationStatus = "pending" | "running" | "completed" | "failed" | "missing";
+export type Tier = "public" | "internal" | "confidential" | "restricted";
+
+export interface ClassificationResult {
+  file_id: string;
+  version: number;
+  status: ClassificationStatus;
+  final_tier: Tier | null;
+  zero_shot_tier: Tier | null;
+  presidio_tier: Tier | null;
+  categories_triggered: string[] | null;
+  raw_scores: Record<string, number> | null;
+  presidio_entities: Record<string, { count: number; max_score: number; samples: string[] }> | null;
+  classifier_version: string | null;
+  error_message: string | null;
+  created_at: string | null;
+  classified_at: string | null;
+}
+
+export async function fetchClassification(fileId: string): Promise<ClassificationResult> {
+  const { data } = await apiClient.get<ClassificationResult>(
+    `/api/files/${fileId}/classification`,
+  );
+  return data;
+}
+
 export async function listFiles(page = 1, perPage = 50): Promise<FileListResponse> {
   const { data } = await apiClient.get<FileListResponse>("/api/files", {
     params: { page, per_page: perPage },

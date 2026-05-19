@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     kek_base64: str = Field(default="", alias="KEK")
     kek_version: int = Field(default=1, alias="KEK_VERSION")
 
+    # Classifier (Phase 4)
+    # Default is the v6 English DeBERTa-v3 base. Set CLASSIFIER_MULTILINGUAL=true
+    # to switch to bge-m3 (XLM-RoBERTa) for Cyrillic / CJK / non-English content.
+    classifier_multilingual: bool = Field(default=False, alias="CLASSIFIER_MULTILINGUAL")
+    classifier_disable_presidio: bool = Field(default=False, alias="CLASSIFIER_DISABLE_PRESIDIO")
+
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 

@@ -42,7 +42,10 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
     """
     with app.app_context():
         _db.session.execute(
-            text("TRUNCATE TABLE audit_log, files, users, departments RESTART IDENTITY CASCADE")
+            text(
+                "TRUNCATE TABLE classifications, audit_log, files, users, departments "
+                "RESTART IDENTITY CASCADE"
+            )
         )
         _db.session.commit()
         # MinIO cleanup — best-effort
@@ -100,6 +103,18 @@ def seeded_other_user(db_session) -> User:
     db_session.add(user)
     db_session.commit()
     return user
+
+
+@pytest.fixture(autouse=True)
+def _stub_celery_enqueue():
+    """Replace the classify_file.delay() call with a no-op so upload tests
+    don't actually push to Redis. Tests that want to invoke the real task
+    do so directly via `services.classification.run_classification(...)`.
+    """
+    import unittest.mock
+
+    with unittest.mock.patch("app.tasks.classification.classify_file.delay"):
+        yield
 
 
 @pytest.fixture

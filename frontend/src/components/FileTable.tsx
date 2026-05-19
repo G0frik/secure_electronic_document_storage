@@ -1,5 +1,12 @@
-import { downloadFile, StoredFile } from "@/api/files";
+import { useEffect, useRef, useState } from "react";
+import {
+  ClassificationResult,
+  downloadFile,
+  fetchClassification,
+  StoredFile,
+} from "@/api/files";
 import { formatBytes, formatDateTime } from "@/utils/format";
+import TierBadge from "@/components/TierBadge";
 
 interface Props {
   files: StoredFile[];
@@ -9,7 +16,56 @@ interface Props {
   onPageChange: (newPage: number) => void;
 }
 
+const POLL_INTERVAL_MS = 2000;
+const TERMINAL_STATUSES = new Set(["completed", "failed", "missing"]);
+
 export default function FileTable({ files, page, perPage, total, onPageChange }: Props) {
+  const [classifications, setClassifications] = useState<Record<string, ClassificationResult>>({});
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollOnce() {
+      const pendingIds = files
+        .map((f) => f.id)
+        .filter((id) => {
+          const c = classifications[id];
+          return !c || !TERMINAL_STATUSES.has(c.status);
+        });
+
+      const results = await Promise.allSettled(pendingIds.map((id) => fetchClassification(id)));
+      if (cancelled) return;
+      const updates: Record<string, ClassificationResult> = {};
+      results.forEach((r, idx) => {
+        if (r.status === "fulfilled") updates[pendingIds[idx]!] = r.value;
+      });
+      if (Object.keys(updates).length > 0) {
+        setClassifications((prev) => ({ ...prev, ...updates }));
+      }
+
+      const stillPending = files.some((f) => {
+        const c = { ...classifications, ...updates }[f.id];
+        return !c || !TERMINAL_STATUSES.has(c.status);
+      });
+      if (stillPending && !cancelled) {
+        timerRef.current = window.setTimeout(pollOnce, POLL_INTERVAL_MS);
+      }
+    }
+
+    if (files.length > 0) {
+      pollOnce();
+    }
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files]);
+
   if (files.length === 0) {
     return <p className="status-pending">No files yet — upload one above.</p>;
   }
@@ -22,6 +78,7 @@ export default function FileTable({ files, page, perPage, total, onPageChange }:
         <thead>
           <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
             <th style={{ padding: "0.5rem" }}>Name</th>
+            <th style={{ padding: "0.5rem" }}>Tier</th>
             <th style={{ padding: "0.5rem" }}>Type</th>
             <th style={{ padding: "0.5rem", textAlign: "right" }}>Size</th>
             <th style={{ padding: "0.5rem" }}>Uploaded</th>
@@ -32,6 +89,9 @@ export default function FileTable({ files, page, perPage, total, onPageChange }:
           {files.map((f) => (
             <tr key={f.id} style={{ borderBottom: "1px solid #eaeef2" }}>
               <td style={{ padding: "0.5rem" }}>{f.original_filename}</td>
+              <td style={{ padding: "0.5rem" }}>
+                <TierBadge classification={classifications[f.id]} />
+              </td>
               <td style={{ padding: "0.5rem", color: "#6e7781" }}>
                 <code>{f.mime_type}</code>
               </td>

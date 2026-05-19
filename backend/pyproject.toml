@@ -38,6 +38,26 @@ dependencies = [
 
     # Logging
     "structlog==24.4.0",
+
+    # --- Phase 4: classifier ---
+    # PyTorch CPU build (the +cpu wheel index is added in the Dockerfile to
+    # avoid pulling a multi-GB CUDA wheel). Versions pinned to match the
+    # standalone classify_sensitivity.py development environment.
+    "torch==2.4.1",
+    "transformers==4.45.2",
+    "sentencepiece==0.2.0",
+    "accelerate==0.34.2",
+    # Text extraction
+    "pdfplumber==0.11.4",
+    "python-docx==1.1.2",
+    "python-pptx==1.0.2",
+    "openpyxl==3.1.5",
+    "striprtf==0.0.28",
+    "pyyaml==6.0.2",
+    # PII detection
+    "presidio-analyzer==2.2.355",
+    "presidio-anonymizer==2.2.355",
+    "spacy==3.7.5",
 ]
 
 [project.optional-dependencies]

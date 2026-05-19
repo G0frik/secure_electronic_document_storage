@@ -97,7 +97,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.tasks.celery_app.celery worker --loglevel=info
+    command: celery -A app.tasks.celery_app.celery worker --loglevel=info --concurrency=1 -Q classification,av_scan,cleanup,notify,default
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-docstore}:${POSTGRES_PASSWORD:-docstore}@db:5432/${POSTGRES_DB:-docstore}
       REDIS_URL: redis://redis:6379/0
@@ -109,9 +109,11 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me}
       KEK: ${KEK:-}
       HIBP_USER_AGENT: ${HIBP_USER_AGENT:-secure-docstore-dev}
+      CLASSIFIER_MULTILINGUAL: ${CLASSIFIER_MULTILINGUAL:-false}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./backend:/app
+      - hf-cache:/cache/huggingface
     depends_on:
       db:
         condition: service_healthy
@@ -136,3 +138,4 @@ services:
 volumes:
   pgdata:
   miniodata:
+  hf-cache:

@@ -16,7 +16,7 @@ from app.logging_config import get_logger
 from app.models.audit import AuditSeverity
 from app.models.file import File
 from app.models.user import User
-from app.services import audit, crypto, storage
+from app.services import audit, classification, crypto, storage
 
 log = get_logger(__name__)
 
@@ -97,7 +97,16 @@ def create_from_upload(*, owner: User, uploaded: FileStorage) -> File:
         },
         commit=False,
     )
+
+    # Phase 4: insert PENDING Classification row alongside the file commit,
+    # then enqueue the worker task AFTER commit so the worker sees both rows.
+    classification.create_pending(file_record.id, commit=False)
     db.session.commit()
+
+    from app.tasks.classification import classify_file  # lazy import
+
+    classify_file.delay(str(file_record.id))
+
     return file_record
 
 

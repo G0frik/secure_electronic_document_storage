@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 
 from app.models.file import File
 from app.schemas.files import FileListParams
-from app.services import csrf, files
+from app.services import classification, csrf, files
 from app.services.files import EmptyUploadError, FileNotFoundError
 from app.utils.auth_decorators import current_user_or_none, login_required
 
@@ -97,3 +97,19 @@ def download(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
         ),
     }
     return Response(chunks, mimetype=record.mime_type, headers=headers)
+
+
+@bp.get("/<uuid:file_id>/classification")
+@login_required
+def get_classification(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    """Latest classification result for the file. Used by the SPA for polling."""
+    user = current_user_or_none()
+    try:
+        record = files.get_for_owner(file_id, user)
+    except FileNotFoundError:
+        abort(404, description="File not found.")
+
+    classification_row = classification.get_latest(record.id)
+    if classification_row is None:
+        return jsonify({"file_id": str(record.id), "status": "missing"}), 200
+    return jsonify(classification.to_payload(classification_row)), 200
