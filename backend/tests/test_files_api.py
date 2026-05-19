@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.models.audit import AuditLog
 from app.models.file import File
+from app.services import storage
 
 
 def _upload(client, csrf_token, filename, content, content_type="text/plain"):
@@ -117,6 +118,10 @@ def test_list_only_shows_own_files(
         mime_type="text/plain",
         size_bytes=10,
         sha256="0" * 64,
+        wrapped_dek=b"\x00" * 60,
+        nonce=b"\x00" * 12,
+        auth_tag=b"\x00" * 16,
+        kek_version=1,
     )
     db_session.add(other_file)
     db_session.commit()
@@ -149,6 +154,10 @@ def test_get_metadata_for_other_users_file_returns_404(
         mime_type="text/plain",
         size_bytes=10,
         sha256="0" * 64,
+        wrapped_dek=b"\x00" * 60,
+        nonce=b"\x00" * 12,
+        auth_tag=b"\x00" * 16,
+        kek_version=1,
     )
     db_session.add(other_file)
     db_session.commit()
@@ -173,6 +182,34 @@ def test_download_returns_original_bytes_and_audits(
     assert len(audits) == 1
 
 
+def test_minio_stores_ciphertext_not_plaintext(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    """The bytes in MinIO must NOT match the plaintext upload — they're AES-GCM ciphertext."""
+    plaintext = b"plaintext-marker-must-not-appear-in-minio-storage"
+    up = _upload(client, csrf_token, "encrypted.txt", plaintext, "text/plain")
+    file_id = up.json["id"]
+
+    record = db_session.scalar(select(File).where(File.id == uuid.UUID(file_id)))
+    assert record is not None
+    assert len(record.wrapped_dek) == 60  # nonce(12) + ct(32) + tag(16)
+    assert len(record.nonce) == 12
+    assert len(record.auth_tag) == 16
+    assert record.kek_version >= 1
+
+    response = storage.get(str(record.storage_key))
+    try:
+        on_disk = b"".join(response.stream(64 * 1024))
+    finally:
+        response.close()
+        response.release_conn()
+
+    assert on_disk != plaintext
+    assert plaintext not in on_disk
+    # Ciphertext length matches plaintext length (GCM is a stream cipher; tag stored separately).
+    assert len(on_disk) == len(plaintext)
+
+
 def test_download_other_users_file_returns_404(
     client, db_session, logged_in_admin, seeded_other_user
 ) -> None:
@@ -183,6 +220,10 @@ def test_download_other_users_file_returns_404(
         mime_type="application/octet-stream",
         size_bytes=5,
         sha256="1" * 64,
+        wrapped_dek=b"\x00" * 60,
+        nonce=b"\x00" * 12,
+        auth_tag=b"\x00" * 16,
+        kek_version=1,
     )
     db_session.add(other_file)
     db_session.commit()

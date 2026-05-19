@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     # Files (Phase 2)
     max_upload_size_mb: int = Field(default=50, alias="MAX_UPLOAD_SIZE_MB")
 
+    # Envelope encryption (Phase 3)
+    # 32 random bytes, base64-encoded. In dev we fall back to a derivation
+    # from SECRET_KEY (deterministic, with a loud warning).
+    kek_base64: str = Field(default="", alias="KEK")
+    kek_version: int = Field(default=1, alias="KEK_VERSION")
+
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
