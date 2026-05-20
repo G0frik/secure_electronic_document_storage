@@ -13,13 +13,17 @@ import {
   fetchMe,
   login as apiLogin,
   logout as apiLogout,
+  submitTotpChallenge,
 } from "@/api/auth";
 import { registerUnauthorizedHandler } from "@/api/client";
+
+export type LoginOutcome = "complete" | "requires_totp";
 
 interface AuthContextValue {
   user: CurrentUser | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginOutcome>;
+  submitTotpCode: (code: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -55,9 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return registerUnauthorizedHandler(() => setUser(null));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginOutcome> => {
     await fetchCsrfToken();
-    const loggedIn = await apiLogin(email, password);
+    const result = await apiLogin(email, password);
+    if (result.kind === "requires_totp") {
+      setUser(null);
+      return "requires_totp";
+    }
+    setUser(result.user);
+    return "complete";
+  }, []);
+
+  const submitTotpCode = useCallback(async (code: string) => {
+    const loggedIn = await submitTotpChallenge(code);
     setUser(loggedIn);
   }, []);
 
@@ -70,8 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isLoading, login, logout, refresh }),
-    [user, isLoading, login, logout, refresh],
+    () => ({ user, isLoading, login, submitTotpCode, logout, refresh }),
+    [user, isLoading, login, submitTotpCode, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

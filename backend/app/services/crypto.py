@@ -141,6 +141,58 @@ def encrypt_file(plaintext: bytes) -> EncryptedBlob:
     )
 
 
+# --- Small-blob helpers (Phase 6: TOTP secrets, future: any small at-rest
+#     secret that doesn't justify a per-record DEK). Encrypts the blob
+#     directly with the KEK — fine for small payloads because GCM nonce
+#     uniqueness is preserved by `os.urandom(12)` per call, and the data
+#     volume per key stays well below the AES-GCM ~2^32 invocations limit. ---
+
+
+@dataclass(frozen=True)
+class EncryptedSecret:
+    """KEK-wrapped small payload. Persisted on the relevant row."""
+
+    ciphertext: bytes
+    nonce: bytes
+    auth_tag: bytes
+    kek_version: int
+
+
+def encrypt_secret(plaintext: bytes) -> EncryptedSecret:
+    """Encrypt a small blob (≤ a few KB) under the KEK directly."""
+    kek = load_kek()
+    nonce = os.urandom(_GCM_NONCE_BYTES)
+    ct_with_tag = AESGCM(kek).encrypt(nonce, plaintext, None)
+    ciphertext = ct_with_tag[:-_GCM_TAG_BYTES]
+    auth_tag = ct_with_tag[-_GCM_TAG_BYTES:]
+    return EncryptedSecret(
+        ciphertext=ciphertext,
+        nonce=nonce,
+        auth_tag=auth_tag,
+        kek_version=settings.kek_version,
+    )
+
+
+def decrypt_secret(
+    *, ciphertext: bytes, nonce: bytes, auth_tag: bytes, kek_version: int
+) -> bytes:
+    """Inverse of `encrypt_secret`. Raises CryptoError on tampering."""
+    if kek_version != settings.kek_version:
+        raise CryptoError(
+            f"Secret was wrapped under KEK version {kek_version}; "
+            f"current version is {settings.kek_version}."
+        )
+    if len(nonce) != _GCM_NONCE_BYTES:
+        raise CryptoError(f"Secret nonce must be {_GCM_NONCE_BYTES} bytes.")
+    if len(auth_tag) != _GCM_TAG_BYTES:
+        raise CryptoError(f"Secret auth tag must be {_GCM_TAG_BYTES} bytes.")
+    kek = load_kek()
+    try:
+        return AESGCM(kek).decrypt(nonce, ciphertext + auth_tag, None)
+    except InvalidTag as exc:
+        raise CryptoError("Secret ciphertext failed authentication (tampered).") from exc
+
+
 def decrypt_file(
     *,
     ciphertext: bytes,

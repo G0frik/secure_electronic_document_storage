@@ -45,8 +45,9 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
     with app.app_context():
         _db.session.execute(
             text(
-                "TRUNCATE TABLE policy_evaluations, access_policies, classifications, "
-                "audit_log, files, users, departments RESTART IDENTITY CASCADE"
+                "TRUNCATE TABLE user_totp, policy_evaluations, access_policies, "
+                "classifications, audit_log, files, users, departments "
+                "RESTART IDENTITY CASCADE"
             )
         )
         _db.session.commit()

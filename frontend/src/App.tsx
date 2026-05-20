@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
+import SecuritySettingsPage from "@/pages/SecuritySettingsPage";
 import ProtectedRoute from "@/routes/ProtectedRoute";
 
 export default function App() {
@@ -12,6 +13,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/security"
+        element={
+          <ProtectedRoute>
+            <SecuritySettingsPage />
           </ProtectedRoute>
         }
       />

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { fetchHealth } from "@/api/health";
 import { listFiles, StoredFile } from "@/api/files";
@@ -71,7 +71,25 @@ export default function HomePage() {
           <small style={{ color: "#6e7781" }}>
             {user.email} ({user.role}
             {user.department ? ` · ${user.department}` : ""}){" "}
-            <button onClick={onLogout} style={{ marginLeft: "0.5rem" }}>
+            {user.two_factor_enabled && (
+              <span
+                title="Two-factor authentication enabled"
+                style={{
+                  marginLeft: "0.25rem",
+                  fontSize: "0.75em",
+                  padding: "0.1em 0.4em",
+                  border: "1px solid #1f883d",
+                  borderRadius: "3px",
+                  color: "#1f883d",
+                }}
+              >
+                2FA
+              </span>
+            )}
+            <Link to="/settings/security" style={{ marginLeft: "0.5rem" }}>
+              Security
+            </Link>{" "}
+            <button onClick={onLogout} style={{ marginLeft: "0.25rem" }}>
               Logout
             </button>
           </small>

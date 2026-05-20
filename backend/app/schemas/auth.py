@@ -28,3 +28,11 @@ class RegisterRequest(BaseModel):
 
 class CsrfResponse(BaseModel):
     csrf_token: str
+
+
+class TotpCodeRequest(BaseModel):
+    """Used for /totp/challenge, /verify, /disable. `code` is the 6-digit TOTP
+    OR a 14-char `XXXX-XXXX-XXXX` recovery code.
+    """
+
+    code: str = Field(min_length=1, max_length=32)

@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import secrets
+import uuid
 
 from flask import g, session
 
 from app.models.user import User, UserStatus
-from app.services import audit, passwords, users
+from app.services import audit, passwords, totp, users
 from app.services.audit import AuditSeverity
 
 # Real Argon2id hash of a random throwaway secret. Used to keep the timing of
 # "unknown user" responses close to that of "wrong password" — verify_password
 # still does full Argon2 work even though no real password can match this hash.
 _DUMMY_HASH = passwords.hash_password(secrets.token_urlsafe(32))
+
+# Session key used between password-step and TOTP-step of a 2FA login.
+_PENDING_TOTP_KEY = "pending_totp_user_id"
 
 
 class AuthError(Exception):
@@ -58,6 +62,47 @@ def authenticate(email: str, password: str) -> User:
     return user
 
 
+def requires_totp(user: User) -> bool:
+    """Phase 6 — does this user have TOTP 2FA enabled?"""
+    return totp.is_enabled(user)
+
+
+def start_pending_totp(user: User) -> None:
+    """Password-step succeeded but 2FA is enabled: mark the session as
+    half-authenticated. The user can read /csrf and POST /totp/challenge
+    but cannot reach any @login_required endpoint until they finish 2FA.
+    """
+    session[_PENDING_TOTP_KEY] = str(user.id)
+    session.pop("user_id", None)
+    session.permanent = True
+    session.modified = True
+    # Invalidate any cached current_user from earlier requests in the same
+    # app context (Flask test client + db_session share `g` across requests).
+    g.pop("current_user", None)
+    audit.record(
+        "auth.totp.challenge_issued",
+        actor=user,
+        target_type="user",
+        target_id=user.id,
+        metadata={"email": user.email},
+    )
+
+
+def pending_totp_user_id() -> uuid.UUID | None:
+    raw = session.get(_PENDING_TOTP_KEY)
+    if not raw:
+        return None
+    try:
+        return uuid.UUID(raw)
+    except (TypeError, ValueError):
+        session.pop(_PENDING_TOTP_KEY, None)
+        return None
+
+
+def clear_pending_totp() -> None:
+    session.pop(_PENDING_TOTP_KEY, None)
+
+
 def start_session(user: User) -> None:
     """Mark the Flask session as authenticated for *user*.
 
@@ -66,15 +111,20 @@ def start_session(user: User) -> None:
     session ID, so it provides no real session-fixation defense. Proper
     session-ID rotation is a deferred concern (see threat model).
     """
+    session.pop(_PENDING_TOTP_KEY, None)
     session["user_id"] = str(user.id)
     session.permanent = True
+    session.modified = True
+    # Invalidate any cached current_user from earlier requests in the same
+    # app context (Flask test client + db_session share `g` across requests).
+    g.pop("current_user", None)
     users.update_last_login(user)
     audit.record(
         "auth.login.success",
         actor=user,
         target_type="user",
         target_id=user.id,
-        metadata={"email": user.email},
+        metadata={"email": user.email, "two_factor": requires_totp(user)},
     )
 
 
