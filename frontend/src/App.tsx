@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import AdminTierOverridesPage from "@/pages/AdminTierOverridesPage";
 import FoldersPage from "@/pages/FoldersPage";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
@@ -41,6 +42,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <SecuritySettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/overrides"
+        element={
+          <ProtectedRoute>
+            <AdminTierOverridesPage />
           </ProtectedRoute>
         }
       />

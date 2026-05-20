@@ -10,6 +10,9 @@ import {
 import { formatBytes, formatDateTime } from "@/utils/format";
 import TierBadge from "@/components/TierBadge";
 import ShareDialog from "@/components/ShareDialog";
+import TagsDialog from "@/components/TagsDialog";
+import OverrideRequestDialog from "@/components/OverrideRequestDialog";
+import { Tier } from "@/api/tierOverrides";
 
 interface Props {
   files: StoredFile[];
@@ -40,6 +43,8 @@ export default function FileTable({
 }: Props) {
   const [classifications, setClassifications] = useState<Record<string, ClassificationResult>>({});
   const [shareTarget, setShareTarget] = useState<StoredFile | null>(null);
+  const [tagsTarget, setTagsTarget] = useState<StoredFile | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<StoredFile | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -148,6 +153,23 @@ export default function FileTable({
                 )}
                 {showDelete && (
                   <button
+                    onClick={() => setTagsTarget(f)}
+                    style={{ marginLeft: "0.25rem" }}
+                  >
+                    Tags…
+                  </button>
+                )}
+                {showDelete && classifications[f.id]?.final_tier && (
+                  <button
+                    onClick={() => setOverrideTarget(f)}
+                    style={{ marginLeft: "0.25rem" }}
+                    title="Request a tier change from an admin"
+                  >
+                    Override…
+                  </button>
+                )}
+                {showDelete && (
+                  <button
                     onClick={async () => {
                       if (
                         !window.confirm(
@@ -196,6 +218,28 @@ export default function FileTable({
           targetLabel={shareTarget.original_filename}
           onClose={() => setShareTarget(null)}
           onShared={() => {
+            /* Could surface a toast here. */
+          }}
+        />
+      )}
+
+      {tagsTarget && (
+        <TagsDialog
+          fileId={tagsTarget.id}
+          fileLabel={tagsTarget.original_filename}
+          onClose={() => setTagsTarget(null)}
+        />
+      )}
+
+      {overrideTarget && (
+        <OverrideRequestDialog
+          fileId={overrideTarget.id}
+          fileLabel={overrideTarget.original_filename}
+          currentTier={
+            (classifications[overrideTarget.id]?.final_tier as Tier | null) ?? null
+          }
+          onClose={() => setOverrideTarget(null)}
+          onSubmitted={() => {
             /* Could surface a toast here. */
           }}
         />
