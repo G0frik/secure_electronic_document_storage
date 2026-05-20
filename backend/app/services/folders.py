@@ -101,7 +101,13 @@ def create_folder(
 
 
 def delete_folder(folder: Folder, *, actor: User) -> None:
-    """Delete an empty folder. Refuses if it has subfolders or files."""
+    """Delete an empty folder. Refuses if it has subfolders or *live* files.
+
+    Trashed files (Phase 9) don't block deletion — they get their `folder_id`
+    NULLed by the FK `ON DELETE SET NULL` cascade. On restore they land at
+    root, matching Google-Drive-style "parent disappeared while in trash"
+    behaviour.
+    """
     sub_count = (
         db.session.scalar(
             select(func.count()).select_from(Folder).where(Folder.parent_id == folder.id)
@@ -110,7 +116,9 @@ def delete_folder(folder: Folder, *, actor: User) -> None:
     )
     file_count = (
         db.session.scalar(
-            select(func.count()).select_from(File).where(File.folder_id == folder.id)
+            select(func.count())
+            .select_from(File)
+            .where(File.folder_id == folder.id, File.deleted_at.is_(None))
         )
         or 0
     )

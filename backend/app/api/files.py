@@ -11,8 +11,8 @@ from werkzeug.utils import secure_filename
 
 from app.models.file import File
 from app.schemas.files import FileListParams
-from app.services import classification, csrf, files, folders, policy
-from app.services.files import EmptyUploadError
+from app.services import classification, csrf, files, folders, policy, trash
+from app.services.files import EmptyUploadError, FileNotFoundError
 from app.services.folders import FolderNotFoundError
 from app.utils.auth_decorators import current_user_or_none, login_required
 
@@ -171,6 +171,23 @@ def download(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
         ),
     }
     return Response(chunks, mimetype=record.mime_type, headers=headers)
+
+
+@bp.delete("/<uuid:file_id>")
+@login_required
+@csrf.csrf_protect
+def soft_delete(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    """Phase 9 — move the file to the user's trash. Owner-only (admins use
+    the same path on their own files; cross-owner deletion isn't supported
+    here even for admins — that would be an explicit admin action in Phase 14).
+    """
+    user = current_user_or_none()
+    try:
+        record = files.get_for_owner(file_id, user)
+    except FileNotFoundError:
+        abort(404, description="File not found.")
+    trash.soft_delete(record, actor=user)
+    return ("", 204)
 
 
 @bp.get("/<uuid:file_id>/classification")

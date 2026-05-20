@@ -20,7 +20,7 @@ celery = Celery(
     "docstore",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.classification"],
+    include=["app.tasks.classification", "app.tasks.cleanup"],
 )
 
 celery.conf.update(

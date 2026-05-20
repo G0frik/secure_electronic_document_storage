@@ -12,6 +12,7 @@ from app.api.health import bp as health_bp
 from app.api.public_share_links import bp as public_share_links_bp
 from app.api.share_links import bp as share_links_bp
 from app.api.shares import bp as shares_bp
+from app.api.trash import bp as trash_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -23,4 +24,5 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(shares_bp)
     app.register_blueprint(share_links_bp)
     app.register_blueprint(public_share_links_bp)
+    app.register_blueprint(trash_bp)
     app.register_blueprint(admin_policies_bp)

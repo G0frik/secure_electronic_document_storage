@@ -119,24 +119,37 @@ def create_from_upload(
     return file_record
 
 
-def get_for_owner(file_id: uuid.UUID, owner: User) -> File:
+def get_for_owner(
+    file_id: uuid.UUID, owner: User, *, include_trashed: bool = False
+) -> File:
     """Return the file IF the owner owns it; otherwise raise FileNotFoundError.
 
     Used by code paths that should NEVER serve non-owned files (e.g. upload-time
     self-reference). Endpoints that need to honour Phase 5 RBAC should use
     `get_by_id` + `services.policy.can_user_access` instead.
+
+    Trash (Phase 9): soft-deleted rows are hidden unless `include_trashed=True`
+    (the trash endpoint flips it).
     """
-    record = db.session.scalar(
-        select(File).where(File.id == file_id, File.owner_id == owner.id)
-    )
+    stmt = select(File).where(File.id == file_id, File.owner_id == owner.id)
+    if not include_trashed:
+        stmt = stmt.where(File.deleted_at.is_(None))
+    record = db.session.scalar(stmt)
     if record is None:
         raise FileNotFoundError(str(file_id))
     return record
 
 
-def get_by_id(file_id: uuid.UUID) -> File | None:
-    """Plain lookup — no ownership filter. Caller MUST run the policy check."""
-    return db.session.scalar(select(File).where(File.id == file_id))
+def get_by_id(file_id: uuid.UUID, *, include_trashed: bool = False) -> File | None:
+    """Plain lookup — no ownership filter. Caller MUST run the policy check.
+
+    Trashed rows are hidden by default; pass `include_trashed=True` from the
+    trash endpoints when the owner is operating on their own deleted file.
+    """
+    stmt = select(File).where(File.id == file_id)
+    if not include_trashed:
+        stmt = stmt.where(File.deleted_at.is_(None))
+    return db.session.scalar(stmt)
 
 
 def list_for_owner(
@@ -153,7 +166,9 @@ def list_for_owner(
       - "all": every file the owner has, regardless of folder. Default.
       - "folder": files whose `folder_id == folder_id` (None = root level).
     """
-    base = select(File).where(File.owner_id == owner.id)
+    base = select(File).where(
+        File.owner_id == owner.id, File.deleted_at.is_(None)
+    )
     if folder_scope == "folder":
         if folder_id is None:
             base = base.where(File.folder_id.is_(None))
@@ -195,7 +210,13 @@ def list_shared_with(user: User) -> list[File]:
     file_ids = shares.accessible_file_ids_via_shares(user)
     if not file_ids:
         return []
-    records = list(db.session.scalars(select(File).where(File.id.in_(file_ids))))
+    records = list(
+        db.session.scalars(
+            select(File).where(
+                File.id.in_(file_ids), File.deleted_at.is_(None)
+            )
+        )
+    )
     # Honour policy: shared files denied by a category rule are filtered out.
     visible = [
         f

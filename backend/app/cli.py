@@ -71,6 +71,25 @@ DEV_USERS: list[_DevUser] = [
 
 def register_cli(app: Flask) -> None:
     app.cli.add_command(seed_dev)
+    app.cli.add_command(reap_trash)
+
+
+@click.command("reap-trash")
+@click.option(
+    "--retention-days",
+    default=30,
+    show_default=True,
+    help="Hard-delete files trashed before now() - retention_days.",
+)
+@with_appcontext
+def reap_trash(retention_days: int) -> None:
+    """Phase 9 — hard-delete files past the trash retention window. Equivalent
+    to the `trash.reap` Celery task; intended for cron / manual sweeps.
+    """
+    from app.services import trash
+
+    count = trash.reap_expired_trash(retention_days=retention_days)
+    click.echo(f"Reaped {count} file(s) past the {retention_days}-day retention.")
 
 
 @click.command("seed-dev")

@@ -30,6 +30,7 @@ export interface StoredFile {
   size_bytes: number;
   sha256: string;
   uploaded_at: string;
+  deleted_at?: string | null;
 }
 
 export interface FileListResponse {
@@ -111,6 +112,31 @@ export async function uploadFile(
 export function downloadFileUrl(fileId: string): string {
   const base = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   return `${base}/api/files/${fileId}/download`;
+}
+
+export async function softDeleteFile(fileId: string): Promise<void> {
+  await apiClient.delete(`/api/files/${fileId}`);
+}
+
+export interface TrashedFile extends StoredFile {
+  deleted_at: string;
+}
+
+export async function listTrash(): Promise<TrashedFile[]> {
+  const { data } = await apiClient.get<{ items: TrashedFile[] }>("/api/trash");
+  return data.items;
+}
+
+export async function restoreFile(fileId: string): Promise<TrashedFile> {
+  const { data } = await apiClient.post<TrashedFile>(
+    `/api/trash/${fileId}/restore`,
+    {},
+  );
+  return data;
+}
+
+export async function hardDeleteFile(fileId: string): Promise<void> {
+  await apiClient.delete(`/api/trash/${fileId}`);
 }
 
 export async function downloadFile(file: StoredFile): Promise<void> {

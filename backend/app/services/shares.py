@@ -121,7 +121,13 @@ def user_has_share_access(recipient: User, file: File) -> Share | None:
     """Return the matching active Share if *recipient* reaches *file* via any
     active share (direct on file OR on any of its folder ancestors). Return
     None if no such share exists.
+
+    Trashed files (Phase 9) are NOT reachable via shares — the share row may
+    still exist, but `file.deleted_at IS NOT NULL` blocks the grant. The
+    file becomes share-accessible again automatically on restore.
     """
+    if file.deleted_at is not None:
+        return None
     received = active_shares_for_recipient(recipient)
     if not received:
         return None
@@ -164,7 +170,8 @@ def accessible_file_ids_via_shares(recipient: User) -> set[uuid.UUID]:
         # Walk DOWN: every descendant folder of any shared folder root.
         reachable_folders = folders.descendant_folder_ids(folder_roots)
         for file_obj in folders.files_in_folders(reachable_folders):
-            file_ids.add(file_obj.id)
+            if file_obj.deleted_at is None:
+                file_ids.add(file_obj.id)
 
     return file_ids
 

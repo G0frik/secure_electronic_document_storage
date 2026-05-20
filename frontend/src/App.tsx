@@ -4,6 +4,7 @@ import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import PublicSharePage from "@/pages/PublicSharePage";
 import SecuritySettingsPage from "@/pages/SecuritySettingsPage";
+import TrashPage from "@/pages/TrashPage";
 import ProtectedRoute from "@/routes/ProtectedRoute";
 
 export default function App() {
@@ -24,6 +25,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <FoldersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trash"
+        element={
+          <ProtectedRoute>
+            <TrashPage />
           </ProtectedRoute>
         }
       />

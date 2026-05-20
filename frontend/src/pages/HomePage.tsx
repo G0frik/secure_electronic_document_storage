@@ -114,6 +114,9 @@ export default function HomePage() {
             <Link to="/folders" style={{ marginLeft: "0.5rem" }}>
               Folders
             </Link>{" "}
+            <Link to="/trash" style={{ marginLeft: "0.25rem" }}>
+              Trash
+            </Link>{" "}
             <Link to="/settings/security" style={{ marginLeft: "0.25rem" }}>
               Security
             </Link>{" "}
@@ -141,6 +144,7 @@ export default function HomePage() {
           perPage={PER_PAGE}
           total={total}
           onPageChange={(p) => reload(p)}
+          onDeleted={() => reload(page)}
         />
       )}
 
@@ -159,6 +163,7 @@ export default function HomePage() {
             /* No pagination on the shared panel */
           }}
           showShare={false}
+          showDelete={false}
         />
       )}
 

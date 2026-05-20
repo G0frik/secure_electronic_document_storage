@@ -132,6 +132,12 @@ def _validate_active(link: ShareLink) -> None:
         raise ShareLinkInvalidError("expired")
     if link.max_uses is not None and link.use_count >= link.max_uses:
         raise ShareLinkInvalidError("exhausted")
+    # Phase 9 — the file might have been trashed since the link was minted.
+    # `link.file` re-loads via the relationship; if it's gone (hard-deleted)
+    # the cascade would have removed the link too, so a NULL here means the
+    # file row is still around but the user trashed it.
+    if link.file is None or link.file.deleted_at is not None:
+        raise ShareLinkInvalidError("file_removed")
 
 
 # --- Mutations ---

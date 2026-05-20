@@ -4,6 +4,7 @@ import {
   ClassificationResult,
   downloadFile,
   fetchClassification,
+  softDeleteFile,
   StoredFile,
 } from "@/api/files";
 import { formatBytes, formatDateTime } from "@/utils/format";
@@ -18,6 +19,10 @@ interface Props {
   onPageChange: (newPage: number) => void;
   /** Owner can share their own files. Hide button when this is false (Shared-with-me view). */
   showShare?: boolean;
+  /** Owner can trash their own files. Hide when this is false (Shared-with-me view). */
+  showDelete?: boolean;
+  /** Called after a file is soft-deleted so the parent page can refresh. */
+  onDeleted?: () => void;
 }
 
 const POLL_INTERVAL_MS = 2000;
@@ -30,6 +35,8 @@ export default function FileTable({
   total,
   onPageChange,
   showShare = true,
+  showDelete = true,
+  onDeleted,
 }: Props) {
   const [classifications, setClassifications] = useState<Record<string, ClassificationResult>>({});
   const [shareTarget, setShareTarget] = useState<StoredFile | null>(null);
@@ -137,6 +144,29 @@ export default function FileTable({
                     style={{ marginLeft: "0.25rem" }}
                   >
                     Share…
+                  </button>
+                )}
+                {showDelete && (
+                  <button
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Move "${f.original_filename}" to trash? You can restore it within 30 days.`,
+                        )
+                      ) {
+                        return;
+                      }
+                      try {
+                        await softDeleteFile(f.id);
+                        onDeleted?.();
+                      } catch (err) {
+                        console.error(err);
+                        alert("Delete failed — see console.");
+                      }
+                    }}
+                    style={{ marginLeft: "0.25rem" }}
+                  >
+                    Delete
                   </button>
                 )}
               </td>
