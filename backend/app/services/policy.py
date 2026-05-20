@@ -77,6 +77,10 @@ REASON_POLICY_DENY_NOT_IN_ALLOWED = "category_not_in_allowed"
 REASON_NO_POLICY = "no_policy_matched"
 REASON_NO_CLASSIFICATION = "classification_pending"
 REASON_CLASSIFICATION_FAILED = "classification_failed"
+# Phase 7 — share-derived access. Recipient sees the file via a direct or
+# folder-ancestor share. Cloud-drive semantics: this elevates over the
+# tier ceiling, but category denies still bite.
+REASON_SHARE_GRANT = "share_grant"
 
 
 # --- Public API ---
@@ -127,12 +131,34 @@ def _evaluate(user: User, file: File) -> Decision:
         return Decision(allowed=False, reason=REASON_NO_CLASSIFICATION)
     triggered = classification.categories_triggered or []
 
-    # 4. Pick the most specific policy: department-scoped > global.
+    # 4. Phase 7 — share grant. Cloud-drive semantics: an explicit share
+    #    from the owner elevates the recipient over their default tier
+    #    ceiling. Category denies in the recipient's policy still bite —
+    #    a granter cannot dodge an admin-set category block (e.g., HR PII
+    #    cannot be shared into a department that explicitly denies PII).
+    share = _share_grant(user, file)
+    if share is not None:
+        denied_category = _share_blocked_by_category(user, triggered)
+        if denied_category is None:
+            return Decision(
+                allowed=True,
+                reason=REASON_SHARE_GRANT,
+                tier=file_tier,
+            )
+        # Share exists but the recipient's policy blocks the category.
+        return Decision(
+            allowed=False,
+            reason=REASON_POLICY_DENY_CATEGORY,
+            tier=file_tier,
+            matched_policy_id=denied_category,
+        )
+
+    # 5. Pick the most specific policy: department-scoped > global.
     policy = _resolve_policy(user)
     if policy is None:
         return Decision(allowed=False, reason=REASON_NO_POLICY, tier=file_tier)
 
-    # 5. Tier check.
+    # 6. Tier check.
     if TIER_RANK[Tier(file_tier.value)] > TIER_RANK[Tier(policy.allowed_max_tier.value)]:
         return Decision(
             allowed=False,
@@ -141,7 +167,7 @@ def _evaluate(user: User, file: File) -> Decision:
             tier=file_tier,
         )
 
-    # 6. Category checks.
+    # 7. Category checks.
     if policy.denied_categories:
         denied = set(policy.denied_categories)
         if denied.intersection(triggered):
@@ -167,6 +193,31 @@ def _evaluate(user: User, file: File) -> Decision:
         matched_policy_id=policy.id,
         tier=file_tier,
     )
+
+
+def _share_grant(user: User, file: File):  # type: ignore[no-untyped-def]
+    """Phase 7 lazy import — `shares` imports `users` which imports `policy`
+    indirectly. Keeping it out of the module-level imports avoids cycles.
+    """
+    from app.services import shares
+
+    return shares.user_has_share_access(user, file)
+
+
+def _share_blocked_by_category(user: User, triggered: list[str]) -> uuid.UUID | None:
+    """Return the policy ID that explicitly denies one of *triggered* categories
+    for this user, or None if no such block exists. Share grants do NOT
+    bypass `denied_categories` — admins can quarantine categories no matter
+    who shares what.
+    """
+    if not triggered:
+        return None
+    policy = _resolve_policy(user)
+    if policy is None or not policy.denied_categories:
+        return None
+    if set(policy.denied_categories).intersection(triggered):
+        return policy.id
+    return None
 
 
 def _latest_classification(file_id: uuid.UUID) -> Classification | None:

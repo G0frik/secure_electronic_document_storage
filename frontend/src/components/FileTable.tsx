@@ -8,6 +8,7 @@ import {
 } from "@/api/files";
 import { formatBytes, formatDateTime } from "@/utils/format";
 import TierBadge from "@/components/TierBadge";
+import ShareDialog from "@/components/ShareDialog";
 
 interface Props {
   files: StoredFile[];
@@ -15,13 +16,23 @@ interface Props {
   perPage: number;
   total: number;
   onPageChange: (newPage: number) => void;
+  /** Owner can share their own files. Hide button when this is false (Shared-with-me view). */
+  showShare?: boolean;
 }
 
 const POLL_INTERVAL_MS = 2000;
 const TERMINAL_STATUSES = new Set(["completed", "failed", "missing"]);
 
-export default function FileTable({ files, page, perPage, total, onPageChange }: Props) {
+export default function FileTable({
+  files,
+  page,
+  perPage,
+  total,
+  onPageChange,
+  showShare = true,
+}: Props) {
   const [classifications, setClassifications] = useState<Record<string, ClassificationResult>>({});
+  const [shareTarget, setShareTarget] = useState<StoredFile | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -120,6 +131,14 @@ export default function FileTable({ files, page, perPage, total, onPageChange }:
                 >
                   Download
                 </button>
+                {showShare && (
+                  <button
+                    onClick={() => setShareTarget(f)}
+                    style={{ marginLeft: "0.25rem" }}
+                  >
+                    Share…
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -138,6 +157,18 @@ export default function FileTable({ files, page, perPage, total, onPageChange }:
             Next →
           </button>
         </p>
+      )}
+
+      {shareTarget && (
+        <ShareDialog
+          targetType="file"
+          targetId={shareTarget.id}
+          targetLabel={shareTarget.original_filename}
+          onClose={() => setShareTarget(null)}
+          onShared={() => {
+            /* Could surface a toast here. */
+          }}
+        />
       )}
     </>
   );

@@ -1,4 +1,16 @@
-"""Shared pytest fixtures."""
+"""Shared pytest fixtures.
+
+Phase 7+ — tests run against a **separate** database from the dev stack.
+The autouse `_isolate_state` fixture TRUNCATEs everything, so running pytest
+against the dev DB would wipe `flask seed-dev` users on every test session.
+
+The test DB URL comes from `settings.effective_test_database_url`, which:
+  1. Honours `TEST_DATABASE_URL` env var when set, or
+  2. Derives `<DATABASE_URL>_test` (swaps the db name to `<name>_test`).
+
+Bootstrap: `make test` runs `make ensure-test-db` first to CREATE DATABASE
++ alembic upgrade on the test DB if it doesn't exist yet.
+"""
 
 from __future__ import annotations
 
@@ -10,18 +22,34 @@ from flask.testing import FlaskClient
 from sqlalchemy import text
 
 from app.app_factory import create_app
+from app.config import settings
 from app.extensions import db as _db
 from app.extensions import limiter as _limiter
 from app.models.user import Department, Role, User
 from app.services import passwords, storage
+
+# Compute the test DB URL ONCE at module load — before any test fixture mutates
+# settings.database_url. Doing it lazily inside the fixture would re-derive
+# `<url>_test_test_test…` because each iteration starts from the already-
+# rewritten value.
+_DEV_DATABASE_URL = settings.database_url
+_TEST_DATABASE_URL = settings.effective_test_database_url
+
+if _TEST_DATABASE_URL == _DEV_DATABASE_URL:
+    raise RuntimeError(
+        "Refusing to run tests against the dev/prod database. "
+        "Set TEST_DATABASE_URL to a separate database "
+        "(default: <DATABASE_URL>_test). Run `make ensure-test-db` to create it."
+    )
+
+# Pin the engine to the test DB for the entire pytest session.
+settings.database_url = _TEST_DATABASE_URL
 
 
 @pytest.fixture
 def app() -> Generator[Flask, None, None]:
     application = create_app()
     application.config.update(TESTING=True, RATELIMIT_ENABLED=False)
-    # Belt-and-braces: also flip the limiter flag (in case the config check is
-    # short-circuited at a different layer).
     _limiter.enabled = False
     yield application
     _limiter.enabled = True
@@ -45,9 +73,9 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
     with app.app_context():
         _db.session.execute(
             text(
-                "TRUNCATE TABLE user_totp, policy_evaluations, access_policies, "
-                "classifications, audit_log, files, users, departments "
-                "RESTART IDENTITY CASCADE"
+                "TRUNCATE TABLE shares, folders, user_totp, policy_evaluations, "
+                "access_policies, classifications, audit_log, files, users, "
+                "departments RESTART IDENTITY CASCADE"
             )
         )
         _db.session.commit()

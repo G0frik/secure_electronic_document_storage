@@ -25,6 +25,10 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://docstore:docstore@db:5432/docstore",
         alias="DATABASE_URL",
     )
+    # When set, the test suite uses this URL instead of `database_url` so the
+    # autouse TRUNCATE fixture never touches the dev/prod database. Conftest
+    # falls back to deriving `<database_url>_test` if this is left empty.
+    test_database_url: str = Field(default="", alias="TEST_DATABASE_URL")
 
     # Redis / Celery
     redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
@@ -69,6 +73,19 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.flask_env.lower() in {"development", "dev"}
+
+    @property
+    def effective_test_database_url(self) -> str:
+        """The URL pytest connects to. Either the explicit `TEST_DATABASE_URL`
+        env var, or `<database_url>_test` (swap the trailing db name).
+        Tests must NEVER share a database with the dev/prod app.
+        """
+        if self.test_database_url:
+            return self.test_database_url
+        # Replace just the final path segment (the db name).
+        scheme, _, rest = self.database_url.partition("://")
+        userhost, _, dbname = rest.rpartition("/")
+        return f"{scheme}://{userhost}/{dbname}_test"
 
     @property
     def registration_open_to_public(self) -> bool:

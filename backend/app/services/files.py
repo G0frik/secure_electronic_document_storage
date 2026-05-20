@@ -40,12 +40,20 @@ class FileListing:
 _DOWNLOAD_CHUNK_BYTES = 64 * 1024
 
 
-def create_from_upload(*, owner: User, uploaded: FileStorage) -> File:
+def create_from_upload(
+    *,
+    owner: User,
+    uploaded: FileStorage,
+    folder_id: uuid.UUID | None = None,
+) -> File:
     """Persist an uploaded file: encrypt → MinIO + DB row + audit.
 
     Memory note: we read the entire upload into memory to compute SHA-256
     AND to run AES-256-GCM (which needs the full plaintext at once for the
     auth tag). Bounded by `MAX_CONTENT_LENGTH` (50 MB in dev).
+
+    Optional `folder_id` puts the file in a folder; the caller is
+    responsible for verifying the folder belongs to *owner* before calling.
     """
     if uploaded is None or not uploaded.filename:
         raise EmptyUploadError("No file provided.")
@@ -70,6 +78,7 @@ def create_from_upload(*, owner: User, uploaded: FileStorage) -> File:
 
     file_record = File(
         owner_id=owner.id,
+        folder_id=folder_id,
         original_filename=uploaded.filename,
         storage_key=storage_key,
         mime_type=mime_type,
@@ -130,8 +139,27 @@ def get_by_id(file_id: uuid.UUID) -> File | None:
     return db.session.scalar(select(File).where(File.id == file_id))
 
 
-def list_for_owner(owner: User, *, page: int, per_page: int) -> FileListing:
+def list_for_owner(
+    owner: User,
+    *,
+    page: int,
+    per_page: int,
+    folder_id: uuid.UUID | None = None,
+    folder_scope: str = "all",
+) -> FileListing:
+    """List files the *owner* owns.
+
+    `folder_scope`:
+      - "all": every file the owner has, regardless of folder. Default.
+      - "folder": files whose `folder_id == folder_id` (None = root level).
+    """
     base = select(File).where(File.owner_id == owner.id)
+    if folder_scope == "folder":
+        if folder_id is None:
+            base = base.where(File.folder_id.is_(None))
+        else:
+            base = base.where(File.folder_id == folder_id)
+
     total = (
         db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
     )
@@ -145,9 +173,43 @@ def list_for_owner(owner: User, *, page: int, per_page: int) -> FileListing:
     audit.record(
         "file.listed",
         actor=owner,
-        metadata={"page": page, "per_page": per_page, "count": len(items), "total": total},
+        metadata={
+            "page": page,
+            "per_page": per_page,
+            "count": len(items),
+            "total": total,
+            "folder_scope": folder_scope,
+            "folder_id": str(folder_id) if folder_id else None,
+        },
     )
     return FileListing(items=items, total=total, page=page, per_page=per_page)
+
+
+def list_shared_with(user: User) -> list[File]:
+    """Files the user reaches via active shares (direct or folder). Filtered
+    through Phase 5 policy so denied entries (e.g., category blocks) don't
+    leak into the response.
+    """
+    from app.services import policy, shares
+
+    file_ids = shares.accessible_file_ids_via_shares(user)
+    if not file_ids:
+        return []
+    records = list(db.session.scalars(select(File).where(File.id.in_(file_ids))))
+    # Honour policy: shared files denied by a category rule are filtered out.
+    visible = [
+        f
+        for f in records
+        if policy.can_user_access(user, f, record=False).allowed
+    ]
+    visible.sort(key=lambda f: f.uploaded_at or _epoch(), reverse=True)
+    return visible
+
+
+def _epoch():  # type: ignore[no-untyped-def]
+    from datetime import datetime, timezone
+
+    return datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def stream_download(record: File, *, actor: User) -> Iterator[bytes]:

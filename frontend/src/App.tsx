@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom";
+import FoldersPage from "@/pages/FoldersPage";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import SecuritySettingsPage from "@/pages/SecuritySettingsPage";
@@ -13,6 +14,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/folders"
+        element={
+          <ProtectedRoute>
+            <FoldersPage />
           </ProtectedRoute>
         }
       />

@@ -1,6 +1,8 @@
 import { AxiosError } from "axios";
 import { apiClient } from "@/api/client";
 
+export type FolderScope = "all" | "folder";
+
 export interface AccessDeniedPayload {
   error: "access_denied";
   reason: string;
@@ -22,6 +24,7 @@ export class AccessDeniedError extends Error {
 export interface StoredFile {
   id: string;
   owner_id: string;
+  folder_id: string | null;
   original_filename: string;
   mime_type: string;
   size_bytes: number;
@@ -62,24 +65,43 @@ export async function fetchClassification(fileId: string): Promise<Classificatio
   return data;
 }
 
-export async function listFiles(page = 1, perPage = 50): Promise<FileListResponse> {
+export interface ListFilesParams {
+  page?: number;
+  perPage?: number;
+  folderScope?: FolderScope;
+  folderId?: string | null;
+}
+
+export async function listFiles(params: ListFilesParams = {}): Promise<FileListResponse> {
+  const { page = 1, perPage = 50, folderScope, folderId } = params;
+  const queryParams: Record<string, string | number> = { page, per_page: perPage };
+  if (folderScope) queryParams.folder_scope = folderScope;
+  if (folderId) queryParams.folder_id = folderId;
   const { data } = await apiClient.get<FileListResponse>("/api/files", {
-    params: { page, per_page: perPage },
+    params: queryParams,
   });
+  return data;
+}
+
+export async function listSharedFiles(): Promise<{ items: StoredFile[]; total: number }> {
+  const { data } = await apiClient.get<{ items: StoredFile[]; total: number }>(
+    "/api/files/shared",
+  );
   return data;
 }
 
 export async function uploadFile(
   file: File,
-  onProgress?: (percent: number) => void,
+  options: { onProgress?: (percent: number) => void; folderId?: string | null } = {},
 ): Promise<StoredFile> {
   const form = new FormData();
   form.append("file", file);
+  if (options.folderId) form.append("folder_id", options.folderId);
   const { data } = await apiClient.post<StoredFile>("/api/files", form, {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (evt) => {
-      if (onProgress && evt.total) {
-        onProgress(Math.round((evt.loaded / evt.total) * 100));
+      if (options.onProgress && evt.total) {
+        options.onProgress(Math.round((evt.loaded / evt.total) * 100));
       }
     },
   });

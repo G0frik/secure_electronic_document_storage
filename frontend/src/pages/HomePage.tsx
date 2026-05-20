@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { fetchHealth } from "@/api/health";
-import { listFiles, StoredFile } from "@/api/files";
+import { listFiles, listSharedFiles, StoredFile } from "@/api/files";
+import { Folder, listFolders } from "@/api/folders";
 import { useAuth } from "@/state/auth";
 import FileTable from "@/components/FileTable";
 import UploadForm from "@/components/UploadForm";
@@ -20,12 +21,16 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [healthOk, setHealthOk] = useState<boolean | null>(null);
 
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [uploadFolderId, setUploadFolderId] = useState<string | null>(null);
+  const [sharedFiles, setSharedFiles] = useState<StoredFile[]>([]);
+
   const reload = useCallback(
     async (targetPage = page) => {
       setLoading(true);
       setError(null);
       try {
-        const data = await listFiles(targetPage, PER_PAGE);
+        const data = await listFiles({ page: targetPage, perPage: PER_PAGE });
         setFiles(data.items);
         setTotal(data.total);
         setPage(data.page);
@@ -39,8 +44,28 @@ export default function HomePage() {
     [page],
   );
 
+  const reloadFolders = useCallback(async () => {
+    try {
+      const items = await listFolders();
+      setFolders(items);
+    } catch (err) {
+      console.warn("Failed to load folders", err);
+    }
+  }, []);
+
+  const reloadShared = useCallback(async () => {
+    try {
+      const { items } = await listSharedFiles();
+      setSharedFiles(items);
+    } catch (err) {
+      console.warn("Failed to load shared files", err);
+    }
+  }, []);
+
   useEffect(() => {
     reload(1);
+    reloadFolders();
+    reloadShared();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -86,7 +111,10 @@ export default function HomePage() {
                 2FA
               </span>
             )}
-            <Link to="/settings/security" style={{ marginLeft: "0.5rem" }}>
+            <Link to="/folders" style={{ marginLeft: "0.5rem" }}>
+              Folders
+            </Link>{" "}
+            <Link to="/settings/security" style={{ marginLeft: "0.25rem" }}>
               Security
             </Link>{" "}
             <button onClick={onLogout} style={{ marginLeft: "0.25rem" }}>
@@ -96,8 +124,14 @@ export default function HomePage() {
         )}
       </header>
 
-      <UploadForm onUploaded={() => reload(1)} />
+      <UploadForm
+        onUploaded={() => reload(1)}
+        folders={folders}
+        currentFolderId={uploadFolderId}
+        onFolderChange={setUploadFolderId}
+      />
 
+      <h2 style={{ marginBottom: "0.5rem" }}>My files</h2>
       {loading && <p className="status-pending">Loading files…</p>}
       {error && <p className="status-fail">{error}</p>}
       {!loading && !error && (
@@ -107,6 +141,24 @@ export default function HomePage() {
           perPage={PER_PAGE}
           total={total}
           onPageChange={(p) => reload(p)}
+        />
+      )}
+
+      <h2 style={{ marginTop: "2rem", marginBottom: "0.5rem" }}>
+        Shared with me ({sharedFiles.length})
+      </h2>
+      {sharedFiles.length === 0 ? (
+        <p className="status-pending">Nothing shared with you yet.</p>
+      ) : (
+        <FileTable
+          files={sharedFiles}
+          page={1}
+          perPage={sharedFiles.length}
+          total={sharedFiles.length}
+          onPageChange={() => {
+            /* No pagination on the shared panel */
+          }}
+          showShare={false}
         />
       )}
 

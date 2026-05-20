@@ -7,7 +7,9 @@ from flask import Flask
 from app.api.admin_policies import bp as admin_policies_bp
 from app.api.auth import bp as auth_bp
 from app.api.files import bp as files_bp
+from app.api.folders import bp as folders_bp
 from app.api.health import bp as health_bp
+from app.api.shares import bp as shares_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -15,4 +17,6 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
+    app.register_blueprint(folders_bp)
+    app.register_blueprint(shares_bp)
     app.register_blueprint(admin_policies_bp)

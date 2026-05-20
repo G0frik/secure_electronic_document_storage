@@ -1,12 +1,21 @@
 import { FormEvent, useRef, useState } from "react";
 import { AxiosError } from "axios";
 import { uploadFile } from "@/api/files";
+import { Folder } from "@/api/folders";
 
 interface Props {
   onUploaded: () => void;
+  folders: Folder[];
+  currentFolderId: string | null;
+  onFolderChange: (folderId: string | null) => void;
 }
 
-export default function UploadForm({ onUploaded }: Props) {
+export default function UploadForm({
+  onUploaded,
+  folders,
+  currentFolderId,
+  onFolderChange,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +32,10 @@ export default function UploadForm({ onUploaded }: Props) {
     setBusy(true);
     setProgress(0);
     try {
-      await uploadFile(file, setProgress);
+      await uploadFile(file, {
+        onProgress: setProgress,
+        folderId: currentFolderId,
+      });
       if (inputRef.current) inputRef.current.value = "";
       onUploaded();
     } catch (err) {
@@ -42,6 +54,21 @@ export default function UploadForm({ onUploaded }: Props) {
   return (
     <form onSubmit={onSubmit} style={{ marginBottom: "1.5rem" }}>
       <input ref={inputRef} type="file" disabled={busy} />
+      <label style={{ marginLeft: "0.5rem" }}>
+        into{" "}
+        <select
+          value={currentFolderId ?? ""}
+          onChange={(e) => onFolderChange(e.target.value || null)}
+          disabled={busy}
+        >
+          <option value="">— root —</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <button type="submit" disabled={busy} style={{ marginLeft: "0.5rem" }}>
         {busy ? "Uploading…" : "Upload"}
       </button>

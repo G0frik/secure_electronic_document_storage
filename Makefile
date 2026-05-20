@@ -1,4 +1,4 @@
-.PHONY: up down logs build migrate revision shell-backend shell-db test lint format clean
+.PHONY: up down logs build migrate revision shell-backend shell-db test ensure-test-db lint format clean
 
 up:
 	docker compose up -d
@@ -25,8 +25,17 @@ shell-backend:
 shell-db:
 	docker compose exec db psql -U docstore -d docstore
 
-test:
+test: ensure-test-db
 	docker compose exec backend pytest
+
+# Idempotent: creates docstore_test if missing, then applies migrations
+# against it. Keeps the dev DB untouched.
+ensure-test-db:
+	@docker compose exec -T db psql -U docstore -d postgres -tAc \
+	  "SELECT 1 FROM pg_database WHERE datname='docstore_test'" | grep -q 1 \
+	  || docker compose exec -T db psql -U docstore -d postgres -c \
+	  "CREATE DATABASE docstore_test OWNER docstore"
+	docker compose exec -T -e DATABASE_URL=postgresql+psycopg://docstore:docstore@db:5432/docstore_test backend alembic upgrade head
 
 lint:
 	cd backend && ruff check . && mypy app/
