@@ -6,6 +6,7 @@ import { listFiles, listSharedFiles, StoredFile } from "@/api/files";
 import { Folder, listFolders } from "@/api/folders";
 import { useAuth } from "@/state/auth";
 import FileTable from "@/components/FileTable";
+import NotificationBell from "@/components/NotificationBell";
 import UploadForm from "@/components/UploadForm";
 
 const PER_PAGE = 50;
@@ -125,6 +126,9 @@ export default function HomePage() {
             <Link to="/settings/security" style={{ marginLeft: "0.25rem" }}>
               Security
             </Link>{" "}
+            <span style={{ marginLeft: "0.25rem" }}>
+              <NotificationBell />
+            </span>{" "}
             <button onClick={onLogout} style={{ marginLeft: "0.25rem" }}>
               Logout
             </button>

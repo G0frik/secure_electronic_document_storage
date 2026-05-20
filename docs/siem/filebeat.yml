@@ -1,0 +1,46 @@
+# Filebeat config for tailing the docstore event stream into Elastic.
+#
+# Drop this on the host (or in a Filebeat container that bind-mounts
+# ./logs at /var/log/docstore) and point `output.elasticsearch.hosts`
+# at your cluster. The events are already ECS-shaped, so Elastic indexes
+# them with no extra processing.
+#
+# Spin up a quick local Elastic + Kibana with:
+#   docker run -p 9200:9200 -e "discovery.type=single-node" \
+#     -e "xpack.security.enabled=false" docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+#   docker run -p 5601:5601 -e ELASTICSEARCH_HOSTS=http://host.docker.internal:9200 \
+#     docker.elastic.co/kibana/kibana:8.13.0
+
+filebeat.inputs:
+  - type: filestream
+    id: docstore-events
+    enabled: true
+    paths:
+      - /var/log/docstore/events.jsonl
+    parsers:
+      - ndjson:
+          target: ""            # parse keys at root, not nested under "ndjson"
+          overwrite_keys: true  # ECS @timestamp wins over Filebeat's
+          add_error_key: true
+    # The fields are already at ECS paths; don't let Filebeat namespace them.
+    fields_under_root: true
+
+processors:
+  # Drop Filebeat's own metadata fields (host.*) if you only want the
+  # service.name="docstore" view. Comment out to keep agent telemetry.
+  - drop_fields:
+      fields: ["agent", "ecs.version", "input"]
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "docstore-events-%{+yyyy.MM.dd}"
+  # Disable Filebeat's default index template so we don't fight ECS naming.
+  setup.template.enabled: false
+  setup.ilm.enabled: false
+
+setup.kibana:
+  host: "http://kibana:5601"
+
+logging.json: true
+logging.level: info

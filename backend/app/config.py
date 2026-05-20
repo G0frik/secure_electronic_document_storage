@@ -73,6 +73,24 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    # --- Phase 11: SIEM-friendly event stream ---
+    # Where the ECS-shaped NDJSON event log lives. Filebeat / Wazuh agent
+    # tails this file; one event per line. Empty string disables file output
+    # (events still go to the DB + stdout).
+    event_log_path: str = Field(
+        default="/var/log/docstore/events.jsonl", alias="EVENT_LOG_PATH"
+    )
+    event_log_max_bytes: int = Field(
+        default=50 * 1024 * 1024, alias="EVENT_LOG_MAX_BYTES"  # 50 MB
+    )
+    event_log_backup_count: int = Field(
+        default=5, alias="EVENT_LOG_BACKUP_COUNT"
+    )
+    # Whether to send emails for critical-severity events (uses MAIL_SERVER).
+    notifications_email_enabled: bool = Field(
+        default=True, alias="NOTIFICATIONS_EMAIL_ENABLED"
+    )
+
     @property
     def is_development(self) -> bool:
         return self.flask_env.lower() in {"development", "dev"}

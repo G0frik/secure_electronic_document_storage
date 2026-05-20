@@ -84,10 +84,15 @@ services:
       MAIL_SERVER: mailhog
       MAIL_PORT: "1025"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Phase 11 — SIEM-friendly NDJSON event sink. Mounted at ./logs/ on
+      # the host so Filebeat / Wazuh agent can tail it externally.
+      EVENT_LOG_PATH: ${EVENT_LOG_PATH:-/var/log/docstore/events.jsonl}
+      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-true}
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./logs:/var/log/docstore
     depends_on:
       db:
         condition: service_healthy
@@ -114,9 +119,14 @@ services:
       HIBP_USER_AGENT: ${HIBP_USER_AGENT:-secure-docstore-dev}
       CLASSIFIER_MULTILINGUAL: ${CLASSIFIER_MULTILINGUAL:-false}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MAIL_SERVER: mailhog
+      MAIL_PORT: "1025"
+      EVENT_LOG_PATH: ${EVENT_LOG_PATH:-/var/log/docstore/events.jsonl}
+      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-true}
     volumes:
       - ./backend:/app
       - hf-cache:/cache/huggingface
+      - ./logs:/var/log/docstore
     depends_on:
       db:
         condition: service_healthy

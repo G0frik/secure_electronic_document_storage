@@ -63,4 +63,26 @@ def record(
         target_id=str(target_id) if target_id else None,
         severity=severity.value,
     )
+
+    # Phase 11 — SIEM-friendly NDJSON sink + in-app notifications.
+    # Deferred imports keep `audit.py` free of the dispatch + ECS deps
+    # (which would otherwise drag the file-rotation logger into every test).
+    #
+    # We fire regardless of the `commit` flag: many service-layer callers
+    # use `commit=False` to batch the audit row with their own DB writes,
+    # so a `commit`-gated hook would silently drop notifications for
+    # half the call sites. `dispatch_for` runs its own commit, which
+    # also flushes the parent's pending session — atomically committing
+    # the audit row + the parent's domain rows + the notifications.
+    try:
+        from app.services import events, notifications
+
+        events.emit(entry)
+        notifications.dispatch_for(entry)
+    except Exception as exc:  # noqa: BLE001 — never let stream sinks block audit
+        log.warning(
+            "audit.stream_sink_failed",
+            action_type=action_type,
+            error=str(exc),
+        )
     return entry

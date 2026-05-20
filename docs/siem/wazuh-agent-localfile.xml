@@ -1,0 +1,24 @@
+<!--
+  Drop this snippet into your Wazuh agent's `/var/ossec/etc/ossec.conf`
+  (inside the <ossec_config> root). The agent will read the rotating
+  NDJSON file, send each line to the Wazuh manager, and the manager
+  will index it under wazuh-alerts with the ECS-shaped fields intact.
+
+  If you run the Wazuh agent on the same host as docker-compose, point
+  the location at the bind-mounted log directory:
+
+      <location>/path/to/project/logs/events.jsonl</location>
+
+  For the agent-in-a-sidecar pattern, mount ./logs into the agent
+  container at /var/log/docstore and use the path below.
+
+  log_format=json means the agent forwards each line as-is to the manager
+  rather than parsing it through OSSEC decoders. The manager indexes
+  ECS fields like event.action, event.severity, user.email natively.
+-->
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/log/docstore/events.jsonl</location>
+  <label key="service">docstore</label>
+  <label key="environment">dev</label>
+</localfile>

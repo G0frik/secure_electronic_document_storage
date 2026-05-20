@@ -54,6 +54,11 @@ if _TEST_MINIO_BUCKET == _DEV_MINIO_BUCKET:
 settings.database_url = _TEST_DATABASE_URL
 settings.minio_bucket = _TEST_MINIO_BUCKET
 
+# Phase 11 — keep the NDJSON event sink off the host FS during tests, and
+# don't try to send emails through Mailhog from inside pytest.
+settings.event_log_path = ""
+settings.notifications_email_enabled = False
+
 
 @pytest.fixture
 def app() -> Generator[Flask, None, None]:
@@ -82,10 +87,11 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
     with app.app_context():
         _db.session.execute(
             text(
-                "TRUNCATE TABLE tier_override_requests, file_tags, tags, "
-                "share_links, shares, folders, user_totp, policy_evaluations, "
-                "access_policies, classifications, audit_log, files, users, "
-                "departments RESTART IDENTITY CASCADE"
+                "TRUNCATE TABLE notifications, tier_override_requests, "
+                "file_tags, tags, share_links, shares, folders, user_totp, "
+                "policy_evaluations, access_policies, classifications, "
+                "audit_log, files, users, departments "
+                "RESTART IDENTITY CASCADE"
             )
         )
         _db.session.commit()
@@ -185,13 +191,16 @@ def seeded_guest(db_session) -> User:
 
 @pytest.fixture(autouse=True)
 def _stub_celery_enqueue():
-    """Replace the classify_file.delay() call with a no-op so upload tests
-    don't actually push to Redis. Tests that want to invoke the real task
-    do so directly via `services.classification.run_classification(...)`.
+    """Replace Celery .delay() calls with no-ops so tests don't actually push
+    to Redis. Tests that want to invoke the real task do so directly via the
+    underlying service.
     """
     import unittest.mock
 
-    with unittest.mock.patch("app.tasks.classification.classify_file.delay"):
+    with unittest.mock.patch("app.tasks.classification.classify_file.delay"), \
+         unittest.mock.patch(
+             "app.tasks.notifications.send_email_for_notification.delay"
+         ):
         yield
 
 
