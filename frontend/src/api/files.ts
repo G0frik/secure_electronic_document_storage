@@ -1,4 +1,23 @@
+import { AxiosError } from "axios";
 import { apiClient } from "@/api/client";
+
+export interface AccessDeniedPayload {
+  error: "access_denied";
+  reason: string;
+  tier: Tier | null;
+  message: string;
+}
+
+export class AccessDeniedError extends Error {
+  reason: string;
+  tier: Tier | null;
+  constructor(payload: AccessDeniedPayload) {
+    super(payload.message);
+    this.name = "AccessDeniedError";
+    this.reason = payload.reason;
+    this.tier = payload.tier;
+  }
+}
 
 export interface StoredFile {
   id: string;
@@ -73,16 +92,31 @@ export function downloadFileUrl(fileId: string): string {
 }
 
 export async function downloadFile(file: StoredFile): Promise<void> {
-  const response = await apiClient.get<Blob>(`/api/files/${file.id}/download`, {
-    responseType: "blob",
-  });
-  const blob = response.data;
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = file.original_filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  try {
+    const response = await apiClient.get<Blob>(`/api/files/${file.id}/download`, {
+      responseType: "blob",
+    });
+    const blob = response.data;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.original_filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    // 403 bodies come back as a Blob (because we asked for responseType:"blob");
+    // parse it back to JSON so callers see the policy reason.
+    if (err instanceof AxiosError && err.response?.status === 403) {
+      const text = await (err.response.data as Blob).text();
+      try {
+        const payload = JSON.parse(text) as AccessDeniedPayload;
+        throw new AccessDeniedError(payload);
+      } catch (parseErr) {
+        if (parseErr instanceof AccessDeniedError) throw parseErr;
+      }
+    }
+    throw err;
+  }
 }

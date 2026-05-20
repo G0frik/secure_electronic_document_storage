@@ -40,14 +40,19 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
     fixture wipes them clean before each test, so don't run `pytest`
     against a DB/bucket that holds data you want to keep.
     """
+    from app.services.policy import ensure_default_policies
+
     with app.app_context():
         _db.session.execute(
             text(
-                "TRUNCATE TABLE classifications, audit_log, files, users, departments "
-                "RESTART IDENTITY CASCADE"
+                "TRUNCATE TABLE policy_evaluations, access_policies, classifications, "
+                "audit_log, files, users, departments RESTART IDENTITY CASCADE"
             )
         )
         _db.session.commit()
+        # Re-seed the 3 default global policies that the migration installs
+        # (admin → restricted, user → confidential, guest → public).
+        ensure_default_policies()
         # MinIO cleanup — best-effort
         try:
             storage.ensure_bucket()
@@ -105,6 +110,40 @@ def seeded_other_user(db_session) -> User:
     return user
 
 
+@pytest.fixture
+def seeded_user(db_session) -> User:
+    """A regular (non-admin) user with a department. Used for Phase 5 RBAC tests
+    where the caller must NOT have the admin bypass.
+    """
+    dept = db_session.query(Department).filter_by(name="marketing").first()
+    if dept is None:
+        dept = Department(name="marketing")
+        db_session.add(dept)
+        db_session.flush()
+    user = User(
+        email="alice@docstore.app",
+        password_hash=passwords.hash_password("AlicePassword123!"),  # noqa: S106
+        role=Role.USER,
+        department_id=dept.id,
+    )
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def seeded_guest(db_session) -> User:
+    """A guest user — restricted to PUBLIC tier by default policy."""
+    user = User(
+        email="guest@docstore.app",
+        password_hash=passwords.hash_password("GuestPassword123!"),  # noqa: S106
+        role=Role.GUEST,
+    )
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
 @pytest.fixture(autouse=True)
 def _stub_celery_enqueue():
     """Replace the classify_file.delay() call with a no-op so upload tests
@@ -129,3 +168,17 @@ def logged_in_admin(client, db_session, seeded_admin, csrf_token) -> User:
     )
     assert response.status_code == 200, response.data
     return seeded_admin
+
+
+@pytest.fixture
+def logged_in_user(client, db_session, seeded_user, csrf_token) -> User:
+    """Logs in a regular non-admin user. Used for Phase 5 RBAC tests where the
+    admin bypass would defeat the policy check.
+    """
+    response = client.post(
+        "/api/auth/login",
+        json={"email": seeded_user.email, "password": "AlicePassword123!"},
+        headers={"X-CSRF-Token": csrf_token, "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200, response.data
+    return seeded_user

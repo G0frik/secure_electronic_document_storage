@@ -144,9 +144,10 @@ def test_get_metadata_not_found(client, db_session, logged_in_admin) -> None:
     assert response.status_code == 404
 
 
-def test_get_metadata_for_other_users_file_returns_404(
+def test_get_metadata_admin_sees_other_users_file(
     client, db_session, logged_in_admin, seeded_other_user
 ) -> None:
+    """Phase 5: admin role bypasses policy and can read any file."""
     other_file = File(
         owner_id=seeded_other_user.id,
         original_filename="secret.txt",
@@ -162,7 +163,34 @@ def test_get_metadata_for_other_users_file_returns_404(
     db_session.add(other_file)
     db_session.commit()
     response = client.get(f"/api/files/{other_file.id}")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.json["owner_id"] == str(seeded_other_user.id)
+
+
+def test_get_metadata_regular_user_denied_for_other_users_file(
+    client, db_session, logged_in_user, seeded_admin
+) -> None:
+    """Phase 5: non-admin user accessing another user's file (no classification)
+    gets 403 `classification_pending` — pending classifications deny non-owners.
+    """
+    other_file = File(
+        owner_id=seeded_admin.id,
+        original_filename="secret.txt",
+        storage_key=uuid.uuid4(),
+        mime_type="text/plain",
+        size_bytes=10,
+        sha256="0" * 64,
+        wrapped_dek=b"\x00" * 60,
+        nonce=b"\x00" * 12,
+        auth_tag=b"\x00" * 16,
+        kek_version=1,
+    )
+    db_session.add(other_file)
+    db_session.commit()
+    response = client.get(f"/api/files/{other_file.id}")
+    assert response.status_code == 403
+    assert response.json["error"] == "access_denied"
+    assert response.json["reason"] == "classification_pending"
 
 
 def test_download_returns_original_bytes_and_audits(
@@ -210,11 +238,12 @@ def test_minio_stores_ciphertext_not_plaintext(
     assert len(on_disk) == len(plaintext)
 
 
-def test_download_other_users_file_returns_404(
-    client, db_session, logged_in_admin, seeded_other_user
+def test_download_regular_user_denied_for_other_users_file(
+    client, db_session, logged_in_user, seeded_admin
 ) -> None:
+    """Phase 5: non-admin downloading another user's unclassified file → 403."""
     other_file = File(
-        owner_id=seeded_other_user.id,
+        owner_id=seeded_admin.id,
         original_filename="theirs.bin",
         storage_key=uuid.uuid4(),
         mime_type="application/octet-stream",
@@ -228,7 +257,8 @@ def test_download_other_users_file_returns_404(
     db_session.add(other_file)
     db_session.commit()
     response = client.get(f"/api/files/{other_file.id}/download")
-    assert response.status_code == 404
+    assert response.status_code == 403
+    assert response.json["reason"] == "classification_pending"
 
 
 def test_download_nonexistent_returns_404(client, db_session, logged_in_admin) -> None:

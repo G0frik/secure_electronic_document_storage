@@ -11,8 +11,8 @@ from werkzeug.utils import secure_filename
 
 from app.models.file import File
 from app.schemas.files import FileListParams
-from app.services import classification, csrf, files
-from app.services.files import EmptyUploadError, FileNotFoundError
+from app.services import classification, csrf, files, policy
+from app.services.files import EmptyUploadError
 from app.utils.auth_decorators import current_user_or_none, login_required
 
 bp = Blueprint("files", __name__, url_prefix="/api/files")
@@ -28,6 +28,46 @@ def _file_payload(record: File) -> dict:
         "sha256": record.sha256,
         "uploaded_at": record.uploaded_at.isoformat() if record.uploaded_at else None,
     }
+
+
+def _deny_response(decision: policy.Decision):  # type: ignore[no-untyped-def]
+    payload = {
+        "error": "access_denied",
+        "reason": decision.reason,
+        "tier": decision.tier.value if decision.tier else None,
+        "message": _reason_message(decision.reason),
+    }
+    return jsonify(payload), 403
+
+
+def _reason_message(reason: str) -> str:
+    return {
+        policy.REASON_POLICY_DENY_TIER: (
+            "Your role is not permitted to access this document's classification tier."
+        ),
+        policy.REASON_POLICY_DENY_CATEGORY: (
+            "Your role is not permitted to access this document's category."
+        ),
+        policy.REASON_POLICY_DENY_NOT_IN_ALLOWED: (
+            "Your role's policy does not include this document's category."
+        ),
+        policy.REASON_NO_POLICY: (
+            "No access policy applies to your role; default-deny."
+        ),
+        policy.REASON_NO_CLASSIFICATION: (
+            "This document has not finished classification yet."
+        ),
+        policy.REASON_CLASSIFICATION_FAILED: (
+            "This document's classification failed; access is denied until reclassified."
+        ),
+    }.get(reason, "Access denied.")
+
+
+def _resolve_or_404(file_id: uuid.UUID) -> File:
+    record = files.get_by_id(file_id)
+    if record is None:
+        abort(404, description="File not found.")
+    return record
 
 
 @bp.post("")
@@ -69,10 +109,10 @@ def list_files():  # type: ignore[no-untyped-def]
 @login_required
 def get_file(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
     user = current_user_or_none()
-    try:
-        record = files.get_for_owner(file_id, user)
-    except FileNotFoundError:
-        abort(404, description="File not found.")
+    record = _resolve_or_404(file_id)
+    decision = policy.can_user_access(user, record)
+    if not decision.allowed:
+        return _deny_response(decision)
     return jsonify(_file_payload(record))
 
 
@@ -80,10 +120,10 @@ def get_file(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
 @login_required
 def download(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
     user = current_user_or_none()
-    try:
-        record = files.get_for_owner(file_id, user)
-    except FileNotFoundError:
-        abort(404, description="File not found.")
+    record = _resolve_or_404(file_id)
+    decision = policy.can_user_access(user, record)
+    if not decision.allowed:
+        return _deny_response(decision)
 
     chunks = files.stream_download(record, actor=user)
 
@@ -102,12 +142,22 @@ def download(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
 @bp.get("/<uuid:file_id>/classification")
 @login_required
 def get_classification(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
-    """Latest classification result for the file. Used by the SPA for polling."""
+    """Latest classification result for the file. Used by the SPA for polling.
+
+    Owner sees their pending/running statuses (needed for the polling UI).
+    Non-owners require the same RBAC check as `download` — if the policy
+    would deny the file, the classification is not leaked either.
+    """
     user = current_user_or_none()
-    try:
-        record = files.get_for_owner(file_id, user)
-    except FileNotFoundError:
-        abort(404, description="File not found.")
+    record = _resolve_or_404(file_id)
+
+    # The owner can always see classification status on their own files
+    # (otherwise pending uploads would 403 themselves). Non-owners go through
+    # the policy as normal.
+    if record.owner_id != user.id:
+        decision = policy.can_user_access(user, record)
+        if not decision.allowed:
+            return _deny_response(decision)
 
     classification_row = classification.get_latest(record.id)
     if classification_row is None:

@@ -111,13 +111,23 @@ def create_from_upload(*, owner: User, uploaded: FileStorage) -> File:
 
 
 def get_for_owner(file_id: uuid.UUID, owner: User) -> File:
-    """Return the file IF the owner owns it; otherwise raise FileNotFoundError."""
+    """Return the file IF the owner owns it; otherwise raise FileNotFoundError.
+
+    Used by code paths that should NEVER serve non-owned files (e.g. upload-time
+    self-reference). Endpoints that need to honour Phase 5 RBAC should use
+    `get_by_id` + `services.policy.can_user_access` instead.
+    """
     record = db.session.scalar(
         select(File).where(File.id == file_id, File.owner_id == owner.id)
     )
     if record is None:
         raise FileNotFoundError(str(file_id))
     return record
+
+
+def get_by_id(file_id: uuid.UUID) -> File | None:
+    """Plain lookup — no ownership filter. Caller MUST run the policy check."""
+    return db.session.scalar(select(File).where(File.id == file_id))
 
 
 def list_for_owner(owner: User, *, page: int, per_page: int) -> FileListing:

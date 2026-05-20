@@ -148,13 +148,14 @@ def test_classification_endpoint_returns_completed_result(
     assert poll.json["categories_triggered"]
 
 
-def test_classification_endpoint_404_for_other_users_file(
-    client, db_session, logged_in_admin, seeded_other_user
+def test_classification_endpoint_403_for_regular_user_on_other_users_file(
+    client, db_session, logged_in_user, seeded_admin
 ) -> None:
+    """Phase 5: a non-owner non-admin can't peek at another user's classification."""
     from app.models.file import File
 
     other_file = File(
-        owner_id=seeded_other_user.id,
+        owner_id=seeded_admin.id,
         original_filename="theirs.txt",
         storage_key=uuid.uuid4(),
         mime_type="text/plain",
@@ -168,7 +169,8 @@ def test_classification_endpoint_404_for_other_users_file(
     db_session.add(other_file)
     db_session.commit()
     response = client.get(f"/api/files/{other_file.id}/classification")
-    assert response.status_code == 404
+    assert response.status_code == 403
+    assert response.json["reason"] == "classification_pending"
 
 
 def test_create_pending_is_idempotent(db_session, logged_in_admin) -> None:

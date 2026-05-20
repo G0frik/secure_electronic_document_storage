@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AccessDeniedError,
   ClassificationResult,
   downloadFile,
   fetchClassification,
@@ -100,7 +101,25 @@ export default function FileTable({ files, page, perPage, total, onPageChange }:
                 {formatDateTime(f.uploaded_at)}
               </td>
               <td style={{ padding: "0.5rem" }}>
-                <button onClick={() => downloadFile(f)}>Download</button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await downloadFile(f);
+                    } catch (err) {
+                      if (err instanceof AccessDeniedError) {
+                        alert(
+                          `Access denied${err.tier ? ` (tier: ${err.tier})` : ""}:\n` +
+                            `${err.message}\n\nreason: ${err.reason}`,
+                        );
+                      } else {
+                        alert("Download failed — see console.");
+                        console.error(err);
+                      }
+                    }
+                  }}
+                >
+                  Download
+                </button>
               </td>
             </tr>
           ))}
