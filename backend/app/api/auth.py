@@ -30,6 +30,10 @@ def _user_payload(user) -> dict:  # type: ignore[no-untyped-def]
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
         "two_factor_enabled": totp.is_enabled(user),
+        # Phase 12 — surface quota so the SPA can render the usage bar without
+        # a follow-up GET.
+        "quota_bytes": user.quota_bytes,
+        "used_bytes": user.used_bytes,
     }
 
 

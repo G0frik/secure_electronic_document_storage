@@ -14,6 +14,7 @@ from app.schemas.files import FileListParams
 from app.services import classification, csrf, files, folders, policy, trash
 from app.services.files import EmptyUploadError, FileNotFoundError
 from app.services.folders import FolderNotFoundError
+from app.services.quota import QuotaExceededError
 from app.utils.auth_decorators import current_user_or_none, login_required
 
 bp = Blueprint("files", __name__, url_prefix="/api/files")
@@ -98,6 +99,20 @@ def upload():  # type: ignore[no-untyped-def]
         record = files.create_from_upload(owner=user, uploaded=uploaded, folder_id=folder_uuid)
     except EmptyUploadError as exc:
         return jsonify({"error": "empty_upload", "message": str(exc)}), 400
+    except QuotaExceededError as exc:
+        return (
+            jsonify(
+                {
+                    "error": "quota_exceeded",
+                    "message": str(exc),
+                    "used_bytes": exc.used,
+                    "quota_bytes": exc.quota,
+                    "requested_bytes": exc.requested,
+                    "available_bytes": exc.available,
+                }
+            ),
+            413,
+        )
     return jsonify(_file_payload(record)), 201
 
 

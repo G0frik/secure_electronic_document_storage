@@ -39,9 +39,24 @@ export default function UploadForm({
       if (inputRef.current) inputRef.current.value = "";
       onUploaded();
     } catch (err) {
-      const ax = err as AxiosError<{ message?: string }>;
+      const ax = err as AxiosError<{
+        error?: string;
+        message?: string;
+        used_bytes?: number;
+        quota_bytes?: number;
+        available_bytes?: number;
+      }>;
       if (ax.response?.status === 413) {
-        setError("File is too large (50 MB max).");
+        const body = ax.response?.data;
+        if (body?.error === "quota_exceeded") {
+          const avail = body.available_bytes ?? 0;
+          setError(
+            `Quota exceeded — only ${Math.max(0, Math.round(avail / 1024))} KB left. ` +
+              "Delete some files (and empty Trash) to free space.",
+          );
+        } else {
+          setError("File is too large (50 MB max).");
+        }
       } else {
         setError(ax.response?.data?.message ?? "Upload failed.");
       }

@@ -16,7 +16,7 @@ from app.logging_config import get_logger
 from app.models.audit import AuditSeverity
 from app.models.file import File
 from app.models.user import User
-from app.services import audit, classification, crypto, storage
+from app.services import audit, classification, crypto, quota, storage
 
 log = get_logger(__name__)
 
@@ -63,6 +63,10 @@ def create_from_upload(
     if size == 0:
         raise EmptyUploadError("Uploaded file is empty.")
 
+    # Phase 12 — fail fast on quota *before* spending the AES-GCM cycles
+    # or hitting MinIO. Raises QuotaExceededError → 413 at the API layer.
+    quota.check_quota_for_upload(owner, size)
+
     sha256_hex = hashlib.sha256(plaintext).hexdigest()
     mime_type = uploaded.mimetype or "application/octet-stream"
 
@@ -91,6 +95,10 @@ def create_from_upload(
     )
     db.session.add(file_record)
     db.session.flush()
+
+    # Bump the owner's quota counter inside the same transaction so the file
+    # row + the counter commit atomically.
+    quota.increment_used(owner, size)
 
     audit.record(
         "file.uploaded",

@@ -28,7 +28,7 @@ from app.models.audit import AuditSeverity
 from app.models.file import File
 from app.models.share import Share, ShareTargetType
 from app.models.user import User
-from app.services import audit, storage
+from app.services import audit, quota, storage
 
 log = get_logger(__name__)
 
@@ -130,6 +130,7 @@ def hard_delete(file: File, *, actor: User | None = None, reason: str = "user") 
     storage_key = str(file.storage_key)
     filename = file.original_filename
     size = file.size_bytes
+    owner_id = file.owner_id
 
     # 1. Detach polymorphic shares.
     db.session.execute(
@@ -139,7 +140,11 @@ def hard_delete(file: File, *, actor: User | None = None, reason: str = "user") 
         )
     )
 
-    # 2. Drop the row (classifications + share_links cascade via FK).
+    # 2. Drop the row (classifications + share_links cascade via FK) and
+    #    free quota space on the owner. Trash counted toward quota; hard-
+    #    delete is the only operation that gives bytes back.
+    owner = db.session.get(User, owner_id)
+    quota.decrement_used(owner, size)
     db.session.delete(file)
     db.session.commit()
 

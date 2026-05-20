@@ -14,6 +14,9 @@ export interface CurrentUser {
   created_at: string;
   last_login_at: string | null;
   two_factor_enabled: boolean;
+  // Phase 12
+  quota_bytes: number;
+  used_bytes: number;
 }
 
 export type LoginResult =

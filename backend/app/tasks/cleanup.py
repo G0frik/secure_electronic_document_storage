@@ -27,3 +27,18 @@ def reap_trash(retention_days: int = 30) -> int:
         count = trash.reap_expired_trash(retention_days=retention_days)
         log.info("trash.reap.complete", retention_days=retention_days, count=count)
         return count
+
+
+@celery.task(name="quota.recompute", queue="cleanup")
+def recompute_quota_usage() -> int:
+    """Phase 12 drift protection: recompute every user's `used_bytes` from
+    `SUM(files.size_bytes)`. Run nightly in production; the inline updates
+    on upload + hard-delete are the hot path.
+    """
+    app = create_app()
+    with app.app_context():
+        from app.services import quota
+
+        affected = quota.recompute_all()
+        log.info("quota.recompute.complete", affected=affected)
+        return affected

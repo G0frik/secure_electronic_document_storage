@@ -72,6 +72,7 @@ DEV_USERS: list[_DevUser] = [
 def register_cli(app: Flask) -> None:
     app.cli.add_command(seed_dev)
     app.cli.add_command(reap_trash)
+    app.cli.add_command(recompute_quota)
 
 
 @click.command("reap-trash")
@@ -90,6 +91,19 @@ def reap_trash(retention_days: int) -> None:
 
     count = trash.reap_expired_trash(retention_days=retention_days)
     click.echo(f"Reaped {count} file(s) past the {retention_days}-day retention.")
+
+
+@click.command("recompute-quota")
+@with_appcontext
+def recompute_quota() -> None:
+    """Phase 12 — recompute `used_bytes` for every user from
+    `SUM(files.size_bytes)`. Cheap drift safety; equivalent to the
+    `quota.recompute` Celery task.
+    """
+    from app.services import quota
+
+    affected = quota.recompute_all()
+    click.echo(f"Recomputed quota usage for {affected} user(s).")
 
 
 @click.command("seed-dev")

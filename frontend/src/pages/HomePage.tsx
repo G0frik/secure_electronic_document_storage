@@ -7,12 +7,13 @@ import { Folder, listFolders } from "@/api/folders";
 import { useAuth } from "@/state/auth";
 import FileTable from "@/components/FileTable";
 import NotificationBell from "@/components/NotificationBell";
+import QuotaBar from "@/components/QuotaBar";
 import UploadForm from "@/components/UploadForm";
 
 const PER_PAGE = 50;
 
 export default function HomePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refresh } = useAuth();
   const navigate = useNavigate();
 
   const [files, setFiles] = useState<StoredFile[]>([]);
@@ -136,8 +137,13 @@ export default function HomePage() {
         )}
       </header>
 
+      {user && <QuotaBar usedBytes={user.used_bytes} quotaBytes={user.quota_bytes} />}
+
       <UploadForm
-        onUploaded={() => reload(1)}
+        onUploaded={() => {
+          reload(1);
+          refresh(); // pull fresh quota numbers
+        }}
         folders={folders}
         currentFolderId={uploadFolderId}
         onFolderChange={setUploadFolderId}
@@ -153,7 +159,12 @@ export default function HomePage() {
           perPage={PER_PAGE}
           total={total}
           onPageChange={(p) => reload(p)}
-          onDeleted={() => reload(page)}
+          onDeleted={() => {
+            reload(page);
+            // soft-delete doesn't free quota, but a future hard-delete from
+            // /trash will — refresh anyway so the badge stays honest.
+            refresh();
+          }}
         />
       )}
 
