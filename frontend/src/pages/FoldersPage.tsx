@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { createFolder, deleteFolder, Folder, listFolders } from "@/api/folders";
 import { listGranted, revokeShare, Share } from "@/api/shares";
+import { listGrantedLinks, revokeShareLink, ShareLink } from "@/api/shareLinks";
 import { useAuth } from "@/state/auth";
 import ShareDialog from "@/components/ShareDialog";
 
@@ -12,6 +13,7 @@ export default function FoldersPage() {
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [grantedShares, setGrantedShares] = useState<Share[]>([]);
+  const [grantedLinks, setGrantedLinks] = useState<ShareLink[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -22,9 +24,14 @@ export default function FoldersPage() {
 
   async function refresh() {
     try {
-      const [fs, gs] = await Promise.all([listFolders(), listGranted()]);
+      const [fs, gs, gl] = await Promise.all([
+        listFolders(),
+        listGranted(),
+        listGrantedLinks(),
+      ]);
       setFolders(fs);
       setGrantedShares(gs);
+      setGrantedLinks(gl);
     } catch (err) {
       console.warn(err);
     }
@@ -70,6 +77,28 @@ export default function FoldersPage() {
       console.error(err);
       alert("Revoke failed — see console.");
     }
+  }
+
+  async function onRevokeLink(link: ShareLink) {
+    if (!window.confirm(`Revoke external link for "${link.filename}"?`)) return;
+    try {
+      await revokeShareLink(link.id);
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      alert("Revoke failed — see console.");
+    }
+  }
+
+  function linkStatus(link: ShareLink): { label: string; className: string } {
+    if (link.revoked_at) return { label: "revoked", className: "status-fail" };
+    if (link.expires_at && new Date(link.expires_at) <= new Date()) {
+      return { label: "expired", className: "status-fail" };
+    }
+    if (link.max_uses !== null && link.use_count >= link.max_uses) {
+      return { label: "exhausted", className: "status-fail" };
+    }
+    return { label: "active", className: "status-ok" };
   }
 
   return (
@@ -190,6 +219,54 @@ export default function FoldersPage() {
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section style={{ marginTop: "2rem" }}>
+        <h2>External share links</h2>
+        {grantedLinks.length === 0 ? (
+          <p className="status-pending">No external links yet.</p>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
+                <th style={{ padding: "0.5rem" }}>File</th>
+                <th style={{ padding: "0.5rem" }}>Status</th>
+                <th style={{ padding: "0.5rem" }}>Uses</th>
+                <th style={{ padding: "0.5rem" }}>Expires</th>
+                <th style={{ padding: "0.5rem" }}>Created</th>
+                <th style={{ padding: "0.5rem" }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {grantedLinks.map((l) => {
+                const status = linkStatus(l);
+                return (
+                  <tr key={l.id} style={{ borderBottom: "1px solid #eaeef2" }}>
+                    <td style={{ padding: "0.5rem" }}>{l.filename ?? "(removed)"}</td>
+                    <td style={{ padding: "0.5rem" }}>
+                      <span className={status.className}>{status.label}</span>
+                    </td>
+                    <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                      {l.use_count}
+                      {l.max_uses !== null ? ` / ${l.max_uses}` : ""}
+                    </td>
+                    <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                      {l.expires_at ? new Date(l.expires_at).toLocaleString() : "—"}
+                    </td>
+                    <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                      {new Date(l.created_at).toLocaleString()}
+                    </td>
+                    <td style={{ padding: "0.5rem" }}>
+                      {!l.revoked_at && (
+                        <button onClick={() => onRevokeLink(l)}>Revoke</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

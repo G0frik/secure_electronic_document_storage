@@ -212,24 +212,34 @@ def _epoch():  # type: ignore[no-untyped-def]
     return datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def stream_download(record: File, *, actor: User) -> Iterator[bytes]:
+def stream_download(
+    record: File,
+    *,
+    actor: User | None,
+    emit_audit: bool = True,
+) -> Iterator[bytes]:
     """Decrypt + stream the file. Audits 'file.downloaded' BEFORE streaming.
 
     Implementation: fetch ciphertext from MinIO, decrypt the whole blob
     (AES-GCM needs the full ciphertext to verify the tag), then yield
     plaintext in fixed-size chunks. No unauthenticated bytes ever leave
     this function — the tag is verified before we yield anything.
+
+    `emit_audit=False` skips the `file.downloaded` event so public share-link
+    downloads can write their more specific `share_link.downloaded` event
+    instead (caller's responsibility).
     """
-    audit.record(
-        "file.downloaded",
-        actor=actor,
-        target_type="file",
-        target_id=record.id,
-        metadata={
-            "filename": record.original_filename,
-            "size_bytes": record.size_bytes,
-        },
-    )
+    if emit_audit:
+        audit.record(
+            "file.downloaded",
+            actor=actor,
+            target_type="file",
+            target_id=record.id,
+            metadata={
+                "filename": record.original_filename,
+                "size_bytes": record.size_bytes,
+            },
+        )
 
     response = storage.get(str(record.storage_key))
     try:

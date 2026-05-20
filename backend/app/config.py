@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
     minio_bucket: str = Field(default="documents", alias="MINIO_BUCKET")
     minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
+    # Like TEST_DATABASE_URL, but for the object store. Tests wipe their bucket
+    # every run; sharing it with dev would clobber uploaded files.
+    test_minio_bucket: str = Field(default="", alias="TEST_MINIO_BUCKET")
 
     # Mail
     mail_server: str = Field(default="mailhog", alias="MAIL_SERVER")
@@ -86,6 +89,16 @@ class Settings(BaseSettings):
         scheme, _, rest = self.database_url.partition("://")
         userhost, _, dbname = rest.rpartition("/")
         return f"{scheme}://{userhost}/{dbname}_test"
+
+    @property
+    def effective_test_minio_bucket(self) -> str:
+        """The MinIO bucket pytest writes to. Either explicit `TEST_MINIO_BUCKET`
+        or `<minio_bucket>-test`. Tests TRUNCATE this bucket every run, so it
+        must NEVER equal the dev bucket.
+        """
+        if self.test_minio_bucket:
+            return self.test_minio_bucket
+        return f"{self.minio_bucket}-test"
 
     @property
     def registration_open_to_public(self) -> bool:

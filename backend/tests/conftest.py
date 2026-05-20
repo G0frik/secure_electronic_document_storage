@@ -34,6 +34,8 @@ from app.services import passwords, storage
 # rewritten value.
 _DEV_DATABASE_URL = settings.database_url
 _TEST_DATABASE_URL = settings.effective_test_database_url
+_DEV_MINIO_BUCKET = settings.minio_bucket
+_TEST_MINIO_BUCKET = settings.effective_test_minio_bucket
 
 if _TEST_DATABASE_URL == _DEV_DATABASE_URL:
     raise RuntimeError(
@@ -41,9 +43,16 @@ if _TEST_DATABASE_URL == _DEV_DATABASE_URL:
         "Set TEST_DATABASE_URL to a separate database "
         "(default: <DATABASE_URL>_test). Run `make ensure-test-db` to create it."
     )
+if _TEST_MINIO_BUCKET == _DEV_MINIO_BUCKET:
+    raise RuntimeError(
+        "Refusing to run tests against the dev/prod MinIO bucket. "
+        "Set TEST_MINIO_BUCKET to a separate bucket "
+        "(default: <MINIO_BUCKET>-test)."
+    )
 
-# Pin the engine to the test DB for the entire pytest session.
+# Pin the engine + object store to test-only locations for the entire session.
 settings.database_url = _TEST_DATABASE_URL
+settings.minio_bucket = _TEST_MINIO_BUCKET
 
 
 @pytest.fixture
@@ -73,9 +82,9 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
     with app.app_context():
         _db.session.execute(
             text(
-                "TRUNCATE TABLE shares, folders, user_totp, policy_evaluations, "
-                "access_policies, classifications, audit_log, files, users, "
-                "departments RESTART IDENTITY CASCADE"
+                "TRUNCATE TABLE share_links, shares, folders, user_totp, "
+                "policy_evaluations, access_policies, classifications, "
+                "audit_log, files, users, departments RESTART IDENTITY CASCADE"
             )
         )
         _db.session.commit()
