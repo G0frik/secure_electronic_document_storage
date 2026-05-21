@@ -46,7 +46,7 @@ wiki_notes/.obsidian/workspace-mobile.json
 
 # Classifier model cache
 .cache/
-models/
+/models/
 
 # Alembic — keep versions/, ignore local dev artifacts
 backend/migrations/__pycache__/
