@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Cancel superseded runs on the same ref to avoid wasted CI time.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------------
+  # Backend: lint + pytest against Postgres + Redis service containers.
+  # MinIO is run manually via `docker run` because GHA service containers
+  # can't set the entrypoint command MinIO needs (`server /data`).
+  # -------------------------------------------------------------------
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: docstore
+          POSTGRES_PASSWORD: docstore
+          POSTGRES_DB: docstore
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U docstore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://docstore:docstore@localhost:5432/docstore
+      TEST_DATABASE_URL: postgresql+psycopg://docstore:docstore@localhost:5432/docstore_test
+      REDIS_URL: redis://localhost:6379/0
+      MINIO_ENDPOINT: localhost:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: documents
+      TEST_MINIO_BUCKET: documents-test
+      MINIO_SECURE: "false"
+      SECRET_KEY: ci-secret-not-for-prod
+      HIBP_USER_AGENT: secure-docstore-ci
+      # Mirror the test conftest: no NDJSON file sink, no emails out.
+      EVENT_LOG_PATH: ""
+      NOTIFICATIONS_EMAIL_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest server /data --console-address ":9001"
+          # Wait until MinIO is live (max ~30 s).
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/minio/health/live; then
+              echo " MinIO ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Install OS deps
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev postgresql-client
+
+      - name: Install Python deps (CPU torch wheel index)
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+            -e ".[dev]"
+
+      - name: Download spaCy en_core_web_lg
+        run: python -m spacy download en_core_web_lg
+
+      - name: Create test DB
+        run: |
+          PGPASSWORD=docstore psql -h localhost -U docstore -d postgres \
+            -c "CREATE DATABASE docstore_test OWNER docstore"
+
+      - name: Alembic upgrade — dev DB
+        working-directory: backend
+        run: alembic upgrade head
+
+      - name: Alembic upgrade — test DB
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: alembic upgrade head
+
+      - name: Create MinIO buckets
+        run: |
+          curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc \
+            -o /tmp/mc && chmod +x /tmp/mc
+          /tmp/mc alias set local http://localhost:9000 minioadmin minioadmin
+          /tmp/mc mb --ignore-existing local/documents
+          /tmp/mc mb --ignore-existing local/documents-test
+
+      - name: Lint — ruff
+        working-directory: backend
+        run: ruff check .
+
+      - name: Type-check — mypy
+        working-directory: backend
+        # mypy errors are noisy across legacy modules; report but don't gate yet.
+        run: mypy app/ || true
+
+      - name: Run pytest with coverage
+        working-directory: backend
+        run: |
+          pytest --cov=app --cov-report=term-missing --cov-report=xml -ra
+
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+
+  # -------------------------------------------------------------------
+  # Frontend: lint + typecheck + build (no e2e tests yet)
+  # -------------------------------------------------------------------
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build

@@ -125,3 +125,24 @@ disallow_untyped_defs = false
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers"
+
+# --- Coverage (Phase 16) ---
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = [
+    "app/wsgi.py",
+    "app/tasks/celery_app.py",
+    "app/classifier_core/*",  # ML pipeline lives in its own test module
+    "migrations/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

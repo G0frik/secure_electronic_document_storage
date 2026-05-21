@@ -1,4 +1,4 @@
-.PHONY: up down logs build migrate revision shell-backend shell-db test ensure-test-db lint format clean
+.PHONY: up down logs build migrate revision shell-backend shell-db test coverage seed-dev seed-demo ensure-test-db lint format clean
 
 up:
 	docker compose up -d
@@ -27,6 +27,20 @@ shell-db:
 
 test: ensure-test-db
 	docker compose exec backend pytest
+
+# Phase 16 — same as test, with branch coverage + terminal report.
+# CI uploads coverage.xml as an artifact; locally just inspect stdout.
+coverage: ensure-test-db
+	docker compose exec backend pytest --cov=app --cov-report=term-missing --cov-report=xml
+
+# Phase 1 — idempotent dev user/department seed.
+seed-dev:
+	docker compose exec backend flask seed-dev
+
+# Phase 16 — richer demo seed (users + files + folders + shares + link + override).
+# Requires `make seed-dev` to have run at least once.
+seed-demo:
+	docker compose exec backend flask seed-demo
 
 # Idempotent: creates docstore_test if missing, then applies migrations
 # against it. Keeps the dev DB untouched.

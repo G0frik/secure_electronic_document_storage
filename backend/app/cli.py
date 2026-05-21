@@ -71,9 +71,29 @@ DEV_USERS: list[_DevUser] = [
 
 def register_cli(app: Flask) -> None:
     app.cli.add_command(seed_dev)
+    app.cli.add_command(seed_demo)
     app.cli.add_command(reap_trash)
     app.cli.add_command(reap_file_versions)
     app.cli.add_command(recompute_quota)
+
+
+@click.command("seed-demo")
+@click.option(
+    "--quiet/--verbose",
+    default=False,
+    help="Suppress the summary output.",
+)
+@with_appcontext
+def seed_demo(quiet: bool) -> None:
+    """Phase 16 — richer seed for live demos and screenshots. Calls
+    `seed-dev` users implicitly (errors if they're missing) and then
+    seeds files, folders, internal shares, an external link, and a
+    pending tier-override request. Idempotent: re-running is a no-op
+    if the demo state is already present.
+    """
+    from app.services import demo_seed
+
+    demo_seed.seed_demo_cli(quiet=quiet)
 
 
 @click.command("reap-trash")

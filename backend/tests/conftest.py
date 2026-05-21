@@ -230,3 +230,17 @@ def logged_in_user(client, db_session, seeded_user, csrf_token) -> User:
     )
     assert response.status_code == 200, response.data
     return seeded_user
+
+
+@pytest.fixture
+def logged_in_guest(client, db_session, seeded_guest, csrf_token) -> User:
+    """Phase 16 — logs in a guest user (default policy: PUBLIC tier only).
+    Completes the (admin, user, guest) trio used by the RBAC matrix tests.
+    """
+    response = client.post(
+        "/api/auth/login",
+        json={"email": seeded_guest.email, "password": "GuestPassword123!"},
+        headers={"X-CSRF-Token": csrf_token, "Content-Type": "application/json"},
+    )
+    assert response.status_code == 200, response.data
+    return seeded_guest
