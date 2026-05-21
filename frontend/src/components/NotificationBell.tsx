@@ -6,17 +6,29 @@ import {
   markRead,
   unreadCount,
 } from "@/api/notifications";
+import { Bell, CheckCircle2 } from "@/components/icons";
 
 const POLL_MS = 15_000;
 
-function severityStyle(sev: AppNotification["severity"]): React.CSSProperties {
-  if (sev === "critical")
-    return { background: "#fff0f0", borderLeft: "3px solid #d1242f" };
-  if (sev === "warning")
-    return { background: "#fff8c5", borderLeft: "3px solid #bf8700" };
-  return { background: "white", borderLeft: "3px solid #d0d7de" };
+function rowClassFor(read: boolean): string {
+  // The .notification-row.unread state gives the soft accent tint; severity
+  // border lives on a left-border style inline at the call site.
+  return read ? "notification-row" : "notification-row unread";
 }
 
+function severityBorder(sev: AppNotification["severity"]): string {
+  if (sev === "critical") return "var(--color-danger)";
+  if (sev === "warning") return "var(--color-warning)";
+  return "var(--color-line-strong)";
+}
+
+/**
+ * Topbar notification bell.
+ *
+ * Polls `/api/notifications/unread-count` every 15s for the badge.
+ * Opens a popover panel showing the 30 most recent notifications with
+ * a per-row mark-as-read and a bulk mark-all-read.
+ */
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(0);
@@ -27,7 +39,7 @@ export default function NotificationBell() {
     try {
       setCount(await unreadCount());
     } catch (err) {
-      // Anonymous + half-authenticated routes get 401 here; just ignore.
+      // Anonymous / pending-TOTP sessions return 401 here; ignore.
       console.debug("unread count fetch skipped", err);
     }
   }, []);
@@ -48,12 +60,10 @@ export default function NotificationBell() {
     return () => window.clearInterval(id);
   }, [refreshCount]);
 
-  // When dropdown opens, fetch the full list.
   useEffect(() => {
     if (open) loadList();
   }, [open, loadList]);
 
-  // Click-outside to close.
   useEffect(() => {
     if (!open) return;
     function onClick(e: MouseEvent) {
@@ -87,44 +97,29 @@ export default function NotificationBell() {
   }
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", display: "inline-block" }}>
+    <div
+      ref={wrapperRef}
+      className="notification-bell"
+      style={{ position: "relative" }}
+    >
       <button
         type="button"
+        className="btn btn-ghost btn-icon"
         onClick={() => setOpen((v) => !v)}
+        aria-label="Notifications"
         title="Notifications"
-        style={{ padding: "0.2em 0.5em" }}
       >
-        Bell {count > 0 && (
-          <span
-            style={{
-              marginLeft: "0.25rem",
-              padding: "0.05em 0.4em",
-              background: "#d1242f",
-              color: "white",
-              borderRadius: "8px",
-              fontSize: "0.75em",
-              fontWeight: "bold",
-            }}
-          >
-            {count}
-          </span>
-        )}
+        <Bell size={18} />
+        {count > 0 && <span className="notification-badge">{count}</span>}
       </button>
 
       {open && (
         <div
+          className="popover notification-list"
           style={{
             position: "absolute",
-            top: "100%",
+            top: "calc(100% + 6px)",
             right: 0,
-            marginTop: "0.5rem",
-            width: "24rem",
-            maxHeight: "32rem",
-            overflowY: "auto",
-            background: "white",
-            border: "1px solid #d0d7de",
-            borderRadius: "6px",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             zIndex: 999,
             textAlign: "left",
           }}
@@ -134,18 +129,30 @@ export default function NotificationBell() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              padding: "0.5rem 0.75rem",
-              borderBottom: "1px solid #eaeef2",
+              padding: "var(--space-3) var(--space-4)",
+              borderBottom: "1px solid var(--color-line)",
             }}
           >
-            <strong>Notifications</strong>
-            <button type="button" onClick={onMarkAll} disabled={count === 0}>
+            <strong style={{ fontSize: "0.875rem" }}>Notifications</strong>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onMarkAll}
+              disabled={count === 0}
+            >
               Mark all read
             </button>
           </div>
 
           {items.length === 0 && (
-            <p style={{ padding: "1rem", color: "#6e7781", margin: 0 }}>
+            <p
+              style={{
+                padding: "var(--space-4)",
+                color: "var(--color-muted)",
+                margin: 0,
+                fontSize: "0.875rem",
+              }}
+            >
               No notifications yet.
             </p>
           )}
@@ -153,33 +160,38 @@ export default function NotificationBell() {
           {items.map((n) => (
             <div
               key={n.id}
-              style={{
-                padding: "0.6rem 0.75rem",
-                borderBottom: "1px solid #eaeef2",
-                opacity: n.read_at ? 0.6 : 1,
-                ...severityStyle(n.severity),
-              }}
+              className={rowClassFor(!!n.read_at)}
+              style={{ borderLeft: `3px solid ${severityBorder(n.severity)}` }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-                <strong>{n.title}</strong>
+              <div className="row row-between" style={{ gap: "var(--space-2)" }}>
+                <span className="text-strong">{n.title}</span>
                 {!n.read_at && (
                   <button
                     type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
                     onClick={() => onMarkRead(n.id)}
-                    style={{ fontSize: "0.75em" }}
+                    aria-label="Mark read"
                     title="Mark read"
                   >
-                    ✓
+                    <CheckCircle2 size={14} />
                   </button>
                 )}
               </div>
               {n.body && (
-                <p style={{ margin: "0.25rem 0 0", fontSize: "0.85em", color: "#6e7781" }}>
+                <p
+                  style={{
+                    margin: "var(--space-1) 0 0",
+                    fontSize: "0.8125rem",
+                    color: "var(--color-muted)",
+                  }}
+                >
                   {n.body}
                 </p>
               )}
-              <p style={{ margin: "0.25rem 0 0", fontSize: "0.75em", color: "#a0a8b0" }}>
-                {n.action_type} · {new Date(n.created_at).toLocaleString()}
+              <p className="notification-meta">
+                <span className="text-mono">{n.action_type}</span>
+                <span>·</span>
+                <span>{new Date(n.created_at).toLocaleString()}</span>
               </p>
             </div>
           ))}

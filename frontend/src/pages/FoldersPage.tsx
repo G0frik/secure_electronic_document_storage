@@ -1,16 +1,20 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { createFolder, deleteFolder, Folder, listFolders } from "@/api/folders";
 import { listGranted, revokeShare, Share } from "@/api/shares";
 import { listGrantedLinks, revokeShareLink, ShareLink } from "@/api/shareLinks";
-import { useAuth } from "@/state/auth";
+import Breadcrumb from "@/components/Breadcrumb";
 import ShareDialog from "@/components/ShareDialog";
+import { Folder as FolderIcon, Plus, Share2, Trash2 } from "@/components/icons";
+import { useToast } from "@/state/toast";
 
+/**
+ * Folders + sharing overview.
+ *
+ * Three cards inside one page: folder CRUD, internal shares granted,
+ * external share links. Each card uses the shared `.table` styling.
+ */
 export default function FoldersPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
   const [folders, setFolders] = useState<Folder[]>([]);
   const [grantedShares, setGrantedShares] = useState<Share[]>([]);
   const [grantedLinks, setGrantedLinks] = useState<ShareLink[]>([]);
@@ -90,178 +94,246 @@ export default function FoldersPage() {
     }
   }
 
-  function linkStatus(link: ShareLink): { label: string; className: string } {
-    if (link.revoked_at) return { label: "revoked", className: "status-fail" };
+  function linkStatus(link: ShareLink): { label: string; tone: "ok" | "warn" | "fail" } {
+    if (link.revoked_at) return { label: "Revoked", tone: "fail" };
     if (link.expires_at && new Date(link.expires_at) <= new Date()) {
-      return { label: "expired", className: "status-fail" };
+      return { label: "Expired", tone: "fail" };
     }
     if (link.max_uses !== null && link.use_count >= link.max_uses) {
-      return { label: "exhausted", className: "status-fail" };
+      return { label: "Exhausted", tone: "warn" };
     }
-    return { label: "active", className: "status-ok" };
+    return { label: "Active", tone: "ok" };
   }
 
   return (
-    <main>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          borderBottom: "1px solid #eaeef2",
-          paddingBottom: "0.75rem",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Folders</h1>
-        <button onClick={() => navigate("/")}>← Back to files</button>
-      </header>
+    <div className="page">
+      <Breadcrumb items={[{ label: "Home", to: "/" }, { label: "Folders & shares" }]} />
 
-      <p style={{ color: "#6e7781" }}>
-        Signed in as <strong>{user?.email}</strong>
-      </p>
+      <div className="page-header">
+        <div className="page-title">
+          <h1>Folders &amp; shares</h1>
+          <span className="page-subtitle">
+            Create folders, manage internal shares, and revoke external links.
+          </span>
+        </div>
+      </div>
 
-      <section style={{ marginTop: "1rem" }}>
-        <h2>New folder</h2>
-        <form onSubmit={onCreate} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Name"
-            required
-            style={{ padding: "0.5rem" }}
-          />
-          <select
-            value={newParent ?? ""}
-            onChange={(e) => setNewParent(e.target.value || null)}
-            style={{ padding: "0.5rem" }}
-          >
-            <option value="">— root —</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" disabled={busy || !newName.trim()}>
-            Create
-          </button>
-        </form>
-        {error && <p className="status-fail">{error}</p>}
-      </section>
+      {/* --- New folder --- */}
+      <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+        <div className="card-header row row-2">
+          <Plus size={14} />
+          New folder
+        </div>
+        <div className="card-body">
+          <form onSubmit={onCreate} className="row row-3" style={{ flexWrap: "wrap" }}>
+            <input
+              type="text"
+              className="input"
+              style={{ width: "auto", flex: "1 1 240px" }}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Folder name"
+              required
+            />
+            <select
+              className="select"
+              style={{ width: "auto", flex: "0 0 200px" }}
+              value={newParent ?? ""}
+              onChange={(e) => setNewParent(e.target.value || null)}
+            >
+              <option value="">— root —</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={busy || !newName.trim()}
+            >
+              Create
+            </button>
+          </form>
+          {error && <p className="field-error" style={{ marginTop: "var(--space-3)" }}>{error}</p>}
+        </div>
+      </div>
 
-      <section style={{ marginTop: "2rem" }}>
-        <h2>Your folders</h2>
-        {folders.length === 0 ? (
-          <p className="status-pending">No folders yet.</p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* --- Folders --- */}
+      <div className="page-header">
+        <div className="page-title">
+          <h2>Your folders</h2>
+        </div>
+      </div>
+      {folders.length === 0 ? (
+        <div className="empty">
+          <div className="empty-title">No folders yet</div>
+          <div className="text-small text-muted">Create one above to get started.</div>
+        </div>
+      ) : (
+        <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+          <table className="table">
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
-                <th style={{ padding: "0.5rem" }}>Name</th>
-                <th style={{ padding: "0.5rem" }}>Parent</th>
-                <th style={{ padding: "0.5rem" }}>Created</th>
-                <th style={{ padding: "0.5rem" }}></th>
+              <tr>
+                <th>Name</th>
+                <th>Parent</th>
+                <th>Created</th>
+                <th className="cell-actions"></th>
               </tr>
             </thead>
             <tbody>
               {folders.map((f) => (
-                <tr key={f.id} style={{ borderBottom: "1px solid #eaeef2" }}>
-                  <td style={{ padding: "0.5rem" }}>{f.name}</td>
-                  <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                <tr key={f.id}>
+                  <td>
+                    <span className="row row-3">
+                      <FolderIcon size={16} className="text-muted" />
+                      <span>{f.name}</span>
+                    </span>
+                  </td>
+                  <td className="cell-muted">
                     {f.parent_id
                       ? folders.find((p) => p.id === f.parent_id)?.name ?? f.parent_id
                       : "—"}
                   </td>
-                  <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                  <td className="cell-muted text-small">
                     {new Date(f.created_at).toLocaleString()}
                   </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <button onClick={() => setShareTarget(f)}>Share…</button>{" "}
-                    <button onClick={() => onDelete(f)}>Delete</button>
+                  <td className="cell-actions">
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => setShareTarget(f)}
+                      title="Share folder"
+                      aria-label="Share folder"
+                    >
+                      <Share2 size={14} />
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => onDelete(f)}
+                      title="Delete folder (must be empty)"
+                      aria-label="Delete folder"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </section>
+        </div>
+      )}
 
-      <section style={{ marginTop: "2rem" }}>
-        <h2>Shares you granted</h2>
-        {grantedShares.length === 0 ? (
-          <p className="status-pending">You haven't shared anything yet.</p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* --- Shares granted --- */}
+      <div className="page-header">
+        <div className="page-title">
+          <h2>Shares you granted</h2>
+        </div>
+      </div>
+      {grantedShares.length === 0 ? (
+        <div className="empty">
+          <div className="empty-title">You haven't shared anything yet</div>
+          <div className="text-small text-muted">
+            Share a file from My files, or a folder from the table above.
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+          <table className="table">
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
-                <th style={{ padding: "0.5rem" }}>Target</th>
-                <th style={{ padding: "0.5rem" }}>Kind</th>
-                <th style={{ padding: "0.5rem" }}>Recipient</th>
-                <th style={{ padding: "0.5rem" }}>Permission</th>
-                <th style={{ padding: "0.5rem" }}>Granted</th>
-                <th style={{ padding: "0.5rem" }}></th>
+              <tr>
+                <th>Target</th>
+                <th>Kind</th>
+                <th>Recipient</th>
+                <th>Permission</th>
+                <th>Granted</th>
+                <th className="cell-actions"></th>
               </tr>
             </thead>
             <tbody>
               {grantedShares.map((s) => (
-                <tr key={s.id} style={{ borderBottom: "1px solid #eaeef2" }}>
-                  <td style={{ padding: "0.5rem" }}>{s.label}</td>
-                  <td style={{ padding: "0.5rem", color: "#6e7781" }}>{s.kind}</td>
-                  <td style={{ padding: "0.5rem" }}>{s.recipient_email ?? s.recipient_id}</td>
-                  <td style={{ padding: "0.5rem" }}>{s.permission}</td>
-                  <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                <tr key={s.id}>
+                  <td className="filename">{s.label}</td>
+                  <td className="cell-muted text-small">{s.kind}</td>
+                  <td>{s.recipient_email ?? s.recipient_id}</td>
+                  <td className="cell-muted text-small">{s.permission}</td>
+                  <td className="cell-muted text-small">
                     {new Date(s.created_at).toLocaleString()}
                   </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <button onClick={() => onRevokeShare(s)}>Revoke</button>
+                  <td className="cell-actions">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => onRevokeShare(s)}
+                    >
+                      Revoke
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </section>
+        </div>
+      )}
 
-      <section style={{ marginTop: "2rem" }}>
-        <h2>External share links</h2>
-        {grantedLinks.length === 0 ? (
-          <p className="status-pending">No external links yet.</p>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* --- External links --- */}
+      <div className="page-header">
+        <div className="page-title">
+          <h2>External share links</h2>
+        </div>
+      </div>
+      {grantedLinks.length === 0 ? (
+        <div className="empty">
+          <div className="empty-title">No external links yet</div>
+          <div className="text-small text-muted">
+            Mint one from the Share dialog on any file you own.
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <table className="table">
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
-                <th style={{ padding: "0.5rem" }}>File</th>
-                <th style={{ padding: "0.5rem" }}>Status</th>
-                <th style={{ padding: "0.5rem" }}>Uses</th>
-                <th style={{ padding: "0.5rem" }}>Expires</th>
-                <th style={{ padding: "0.5rem" }}>Created</th>
-                <th style={{ padding: "0.5rem" }}></th>
+              <tr>
+                <th>File</th>
+                <th>Status</th>
+                <th>Uses</th>
+                <th>Expires</th>
+                <th>Created</th>
+                <th className="cell-actions"></th>
               </tr>
             </thead>
             <tbody>
               {grantedLinks.map((l) => {
                 const status = linkStatus(l);
+                const toneClass =
+                  status.tone === "ok"
+                    ? "badge badge-public"
+                    : status.tone === "warn"
+                      ? "badge badge-confidential"
+                      : "badge badge-restricted";
                 return (
-                  <tr key={l.id} style={{ borderBottom: "1px solid #eaeef2" }}>
-                    <td style={{ padding: "0.5rem" }}>{l.filename ?? "(removed)"}</td>
-                    <td style={{ padding: "0.5rem" }}>
-                      <span className={status.className}>{status.label}</span>
+                  <tr key={l.id}>
+                    <td className="filename">{l.filename ?? "(removed)"}</td>
+                    <td>
+                      <span className={toneClass}>{status.label}</span>
                     </td>
-                    <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                    <td className="cell-muted text-mono text-small">
                       {l.use_count}
                       {l.max_uses !== null ? ` / ${l.max_uses}` : ""}
                     </td>
-                    <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                    <td className="cell-muted text-small">
                       {l.expires_at ? new Date(l.expires_at).toLocaleString() : "—"}
                     </td>
-                    <td style={{ padding: "0.5rem", color: "#6e7781" }}>
+                    <td className="cell-muted text-small">
                       {new Date(l.created_at).toLocaleString()}
                     </td>
-                    <td style={{ padding: "0.5rem" }}>
+                    <td className="cell-actions">
                       {!l.revoked_at && (
-                        <button onClick={() => onRevokeLink(l)}>Revoke</button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => onRevokeLink(l)}
+                        >
+                          Revoke
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -269,8 +341,8 @@ export default function FoldersPage() {
               })}
             </tbody>
           </table>
-        )}
-      </section>
+        </div>
+      )}
 
       {shareTarget && (
         <ShareDialog
@@ -281,6 +353,6 @@ export default function FoldersPage() {
           onShared={refresh}
         />
       )}
-    </main>
+    </div>
   );
 }

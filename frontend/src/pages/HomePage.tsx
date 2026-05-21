@@ -1,27 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
-import { fetchHealth } from "@/api/health";
 import { listFiles, listSharedFiles, StoredFile } from "@/api/files";
 import { Folder, listFolders } from "@/api/folders";
 import { useAuth } from "@/state/auth";
+import Breadcrumb from "@/components/Breadcrumb";
+import DropzoneUpload from "@/components/DropzoneUpload";
 import FileTable from "@/components/FileTable";
-import NotificationBell from "@/components/NotificationBell";
-import QuotaBar from "@/components/QuotaBar";
-import UploadForm from "@/components/UploadForm";
 
 const PER_PAGE = 50;
 
-export default function HomePage() {
-  const { user, logout, refresh } = useAuth();
-  const navigate = useNavigate();
+type TabKey = "mine" | "shared";
 
+/**
+ * Home — the main file browser.
+ *
+ * Renders inside AppShell, so this page just provides the page-level content
+ * (breadcrumb, dropzone, tabs, file table). The topbar and sidebar come
+ * from the shell; no per-page header, no per-page logout, no inline quota.
+ */
+export default function HomePage() {
+  const { refresh } = useAuth();
+
+  const [tab, setTab] = useState<TabKey>("mine");
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [healthOk, setHealthOk] = useState<boolean | null>(null);
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [uploadFolderId, setUploadFolderId] = useState<string | null>(null);
@@ -68,131 +73,92 @@ export default function HomePage() {
     reload(1);
     reloadFolders();
     reloadShared();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    fetchHealth()
-      .then(() => setHealthOk(true))
-      .catch(() => setHealthOk(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function onLogout() {
-    await logout();
-    navigate("/login", { replace: true });
-  }
-
   return (
-    <main>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          borderBottom: "1px solid #eaeef2",
-          paddingBottom: "0.75rem",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Secure Document Storage</h1>
-        {user && (
-          <small style={{ color: "#6e7781" }}>
-            {user.email} ({user.role}
-            {user.department ? ` · ${user.department}` : ""}){" "}
-            {user.two_factor_enabled && (
-              <span
-                title="Two-factor authentication enabled"
-                style={{
-                  marginLeft: "0.25rem",
-                  fontSize: "0.75em",
-                  padding: "0.1em 0.4em",
-                  border: "1px solid #1f883d",
-                  borderRadius: "3px",
-                  color: "#1f883d",
-                }}
-              >
-                2FA
-              </span>
-            )}
-            <Link to="/folders" style={{ marginLeft: "0.5rem" }}>
-              Folders
-            </Link>{" "}
-            <Link to="/trash" style={{ marginLeft: "0.25rem" }}>
-              Trash
-            </Link>{" "}
-            {user.role === "admin" && (
-              <Link to="/admin" style={{ marginLeft: "0.25rem" }}>
-                Admin
-              </Link>
-            )}{" "}
-            <Link to="/settings/security" style={{ marginLeft: "0.25rem" }}>
-              Security
-            </Link>{" "}
-            <span style={{ marginLeft: "0.25rem" }}>
-              <NotificationBell />
-            </span>{" "}
-            <button onClick={onLogout} style={{ marginLeft: "0.25rem" }}>
-              Logout
-            </button>
-          </small>
-        )}
-      </header>
+    <div className="page">
+      <Breadcrumb items={[{ label: "Home" }]} />
 
-      {user && <QuotaBar usedBytes={user.used_bytes} quotaBytes={user.quota_bytes} />}
+      <div className="page-header">
+        <div className="page-title">
+          <h1>My files</h1>
+          <span className="page-subtitle">
+            Drop a file to upload — it's encrypted and classified automatically.
+          </span>
+        </div>
+      </div>
 
-      <UploadForm
+      <DropzoneUpload
         onUploaded={() => {
           reload(1);
-          refresh(); // pull fresh quota numbers
+          refresh();
+          reloadShared();
         }}
         folders={folders}
         currentFolderId={uploadFolderId}
         onFolderChange={setUploadFolderId}
       />
 
-      <h2 style={{ marginBottom: "0.5rem" }}>My files</h2>
-      {loading && <p className="status-pending">Loading files…</p>}
-      {error && <p className="status-fail">{error}</p>}
-      {!loading && !error && (
-        <FileTable
-          files={files}
-          page={page}
-          perPage={PER_PAGE}
-          total={total}
-          onPageChange={(p) => reload(p)}
-          onDeleted={() => {
-            reload(page);
-            // soft-delete doesn't free quota, but a future hard-delete from
-            // /trash will — refresh anyway so the badge stays honest.
-            refresh();
-          }}
-        />
+      <div className="tabs">
+        <button
+          className={tab === "mine" ? "tab active" : "tab"}
+          onClick={() => setTab("mine")}
+        >
+          My files ({total})
+        </button>
+        <button
+          className={tab === "shared" ? "tab active" : "tab"}
+          onClick={() => setTab("shared")}
+        >
+          Shared with me ({sharedFiles.length})
+        </button>
+      </div>
+
+      {tab === "mine" && (
+        <>
+          {loading && <p className="text-muted">Loading files…</p>}
+          {error && <p className="field-error">{error}</p>}
+          {!loading && !error && (
+            <FileTable
+              files={files}
+              page={page}
+              perPage={PER_PAGE}
+              total={total}
+              onPageChange={(p) => reload(p)}
+              onDeleted={() => {
+                reload(page);
+                refresh();
+              }}
+            />
+          )}
+        </>
       )}
 
-      <h2 style={{ marginTop: "2rem", marginBottom: "0.5rem" }}>
-        Shared with me ({sharedFiles.length})
-      </h2>
-      {sharedFiles.length === 0 ? (
-        <p className="status-pending">Nothing shared with you yet.</p>
-      ) : (
-        <FileTable
-          files={sharedFiles}
-          page={1}
-          perPage={sharedFiles.length}
-          total={sharedFiles.length}
-          onPageChange={() => {
-            /* No pagination on the shared panel */
-          }}
-          showShare={false}
-          showDelete={false}
-        />
+      {tab === "shared" && (
+        <>
+          {sharedFiles.length === 0 ? (
+            <div className="empty">
+              <div className="empty-title">Nothing shared with you yet</div>
+              <div className="text-small text-muted">
+                When someone shares a file or folder with you, it'll show up here.
+              </div>
+            </div>
+          ) : (
+            <FileTable
+              files={sharedFiles}
+              page={1}
+              perPage={sharedFiles.length}
+              total={sharedFiles.length}
+              onPageChange={() => {
+                /* No pagination on the shared panel */
+              }}
+              showShare={false}
+              showDelete={false}
+            />
+          )}
+        </>
       )}
-
-      <footer style={{ marginTop: "2rem", color: "#6e7781", fontSize: "0.85em" }}>
-        Backend health:{" "}
-        {healthOk === null && <span className="status-pending">checking…</span>}
-        {healthOk === true && <span className="status-ok">ok</span>}
-        {healthOk === false && <span className="status-fail">unreachable</span>}
-      </footer>
-    </main>
+    </div>
   );
 }

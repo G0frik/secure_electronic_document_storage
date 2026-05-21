@@ -1,67 +1,42 @@
+import { useAuth } from "@/state/auth";
 import { formatBytes } from "@/utils/format";
 
-interface Props {
-  usedBytes: number;
-  quotaBytes: number;
-}
+/**
+ * Storage quota indicator pinned to the bottom of the sidebar.
+ *
+ * Reads `used_bytes` + `quota_bytes` directly off the auth context so the
+ * caller doesn't have to wire props through the shell. The colour
+ * thresholds (80% amber, 95% red) match the spec from Phase 12.
+ */
+export default function QuotaBar() {
+  const { user } = useAuth();
+  if (!user) return null;
 
-function colourFor(percent: number): string {
-  if (percent >= 95) return "#d1242f"; // red
-  if (percent >= 80) return "#bf8700"; // amber
-  return "#1f883d"; // green
-}
+  const { quota_bytes, used_bytes } = user;
 
-export default function QuotaBar({ usedBytes, quotaBytes }: Props) {
-  if (quotaBytes <= 0) {
+  if (quota_bytes <= 0) {
     return (
-      <p style={{ color: "#6e7781", fontSize: "0.85em" }}>
-        Storage: quota disabled.
-      </p>
+      <div className="quota">
+        <div className="quota-hint">Storage quota disabled.</div>
+      </div>
     );
   }
-  const percent = Math.min(100, Math.round((usedBytes / quotaBytes) * 100));
-  const fill = colourFor(percent);
+
+  const percent = Math.min(100, Math.round((used_bytes / quota_bytes) * 100));
+  const fillClass =
+    percent >= 95 ? "quota-fill full" : percent >= 80 ? "quota-fill warn" : "quota-fill ok";
+
   return (
-    <div
-      style={{
-        marginBottom: "1rem",
-        padding: "0.5rem 0.75rem",
-        border: "1px solid #d0d7de",
-        borderRadius: "6px",
-        background: "#f6f8fa",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: "0.85em",
-          color: "#6e7781",
-        }}
-      >
-        <span>
-          Storage: <strong>{formatBytes(usedBytes)}</strong> of{" "}
-          {formatBytes(quotaBytes)} used
-        </span>
-        <span>{percent}%</span>
+    <div className="quota" aria-label="Storage usage">
+      <div className="quota-label">
+        <span>Storage</span>
+        <span className="quota-amount">{percent}%</span>
       </div>
-      <div
-        style={{
-          marginTop: "0.4rem",
-          height: "6px",
-          background: "#eaeef2",
-          borderRadius: "3px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${percent}%`,
-            height: "100%",
-            background: fill,
-            transition: "width 0.3s",
-          }}
-        />
+      <div className="quota-track">
+        <div className={fillClass} style={{ width: `${percent}%` }} />
+      </div>
+      <div className="quota-hint">
+        {formatBytes(used_bytes)} of {formatBytes(quota_bytes)}
       </div>
     </div>
   );

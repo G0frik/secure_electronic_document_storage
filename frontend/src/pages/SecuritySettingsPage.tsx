@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -11,10 +10,18 @@ import {
   verifyTotpSetup,
 } from "@/api/auth";
 import { useAuth } from "@/state/auth";
+import Breadcrumb from "@/components/Breadcrumb";
+import { CheckCircle2, ShieldCheck, XCircle } from "@/components/icons";
 
+/**
+ * Security settings — one card per concern.
+ *
+ * Today: TOTP enrolment + disable. Password change and active-sessions
+ * UI are listed as "future work" placeholders in the body so users can
+ * see what's coming. Renders inside AppShell.
+ */
 export default function SecuritySettingsPage() {
   const { user, refresh } = useAuth();
-  const navigate = useNavigate();
 
   const [status, setStatus] = useState<TotpStatus | null>(null);
   const [setupBundle, setSetupBundle] = useState<TotpSetupBundle | null>(null);
@@ -25,7 +32,9 @@ export default function SecuritySettingsPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetchTotpStatus().then(setStatus).catch(() => setStatus(null));
+    fetchTotpStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null));
   }, []);
 
   async function refreshStatus() {
@@ -86,145 +95,200 @@ export default function SecuritySettingsPage() {
   }
 
   return (
-    <main>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          borderBottom: "1px solid #eaeef2",
-          paddingBottom: "0.75rem",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Security settings</h1>
-        <button onClick={() => navigate("/")}>← Back to files</button>
-      </header>
+    <div className="page">
+      <Breadcrumb items={[{ label: "Home", to: "/" }, { label: "Security" }]} />
 
-      <p style={{ color: "#6e7781" }}>
-        Signed in as <strong>{user?.email}</strong>
-      </p>
+      <div className="page-header">
+        <div className="page-title">
+          <h1>Security</h1>
+          <span className="page-subtitle">
+            Signed in as <span className="text-mono">{user?.email}</span>
+          </span>
+        </div>
+      </div>
 
-      {error && <p className="status-fail">{error}</p>}
-      {info && <p className="status-ok">{info}</p>}
+      {error && <p className="field-error">{error}</p>}
+      {info && (
+        <p className="row row-2" style={{ color: "var(--color-success)" }}>
+          <CheckCircle2 size={14} /> {info}
+        </p>
+      )}
 
-      <section style={{ marginTop: "1.5rem" }}>
-        <h2>Two-factor authentication (TOTP)</h2>
+      {/* --- TOTP card --- */}
+      <div className="card" style={{ marginBottom: "var(--space-5)" }}>
+        <div className="card-header row row-2">
+          <ShieldCheck size={16} />
+          Two-factor authentication
+        </div>
+        <div className="card-body">
+          {status === null && <p className="text-muted">Loading status…</p>}
 
-        {status === null ? (
-          <p className="status-pending">Loading status…</p>
-        ) : status.enabled ? (
-          <>
-            <p>
-              Status: <span className="status-ok">enabled</span>
+          {status?.enabled && (
+            <>
+              <p
+                className="row row-2"
+                style={{ color: "var(--color-success)" }}
+              >
+                <CheckCircle2 size={14} />
+                <span>2FA is enabled on this account.</span>
+              </p>
               {status.last_used_at && (
-                <> · last used {new Date(status.last_used_at).toLocaleString()}</>
+                <p className="text-small text-muted">
+                  Last used {new Date(status.last_used_at).toLocaleString()}
+                </p>
               )}
-            </p>
-            <p>Remaining recovery codes: {status.remaining_recovery_codes} / 10</p>
-
-            <form onSubmit={onDisable} style={{ marginTop: "1rem" }}>
-              <p>Disable 2FA — enter a current TOTP code or one of your recovery codes:</p>
-              <p>
-                <input
-                  type="text"
-                  value={disableCode}
-                  onChange={(e) => setDisableCode(e.target.value)}
-                  required
-                  style={{ width: "16rem", padding: "0.5rem" }}
-                  placeholder="123456 or XXXX-XXXX-XXXX"
-                />{" "}
-                <button type="submit" disabled={busy || !disableCode}>
-                  Disable 2FA
-                </button>
+              <p className="text-small text-muted">
+                Remaining recovery codes: {status.remaining_recovery_codes} / 10
               </p>
-            </form>
-          </>
-        ) : (
-          <>
-            <p>
-              Status: <span className="status-fail">disabled</span>
-              {status.pending_enrollment && <> · enrolment started but not verified</>}
-            </p>
 
-            {!setupBundle && (
-              <p>
-                <button onClick={onBeginSetup} disabled={busy}>
-                  {status.pending_enrollment ? "Re-generate QR" : "Enable 2FA"}
-                </button>
-              </p>
-            )}
+              <hr className="divider" />
 
-            {setupBundle && (
-              <div style={{ marginTop: "1rem" }}>
-                <p>1. Scan this QR with your authenticator app (or paste the secret manually):</p>
-                <div
-                  style={{
-                    background: "white",
-                    padding: "1rem",
-                    width: "fit-content",
-                    border: "1px solid #d0d7de",
-                  }}
-                >
-                  <QRCodeSVG value={setupBundle.otpauth_uri} size={192} />
+              <form onSubmit={onDisable} className="stack stack-3">
+                <div className="field">
+                  <label className="field-label">
+                    Disable 2FA — enter a current TOTP code or a recovery code
+                  </label>
+                  <input
+                    type="text"
+                    className="input text-mono"
+                    value={disableCode}
+                    onChange={(e) => setDisableCode(e.target.value)}
+                    required
+                    style={{ maxWidth: 280, letterSpacing: "0.15em" }}
+                    placeholder="123456 or XXXX-XXXX-XXXX"
+                  />
                 </div>
-                <p style={{ marginTop: "0.5rem" }}>
-                  <small>
-                    Manual entry secret: <code>{setupBundle.secret}</code>
-                  </small>
-                </p>
-
-                <p style={{ marginTop: "1rem" }}>
-                  2. Save these <strong>recovery codes</strong> somewhere safe — each works once and
-                  is your only fallback if you lose your phone. They will not be shown again.
-                </p>
-                <pre
-                  style={{
-                    background: "#f6f8fa",
-                    padding: "0.75rem",
-                    border: "1px solid #d0d7de",
-                    fontFamily: "Consolas, monospace",
-                    fontSize: "0.95em",
-                  }}
-                >
-                  {setupBundle.recovery_codes.join("\n")}
-                </pre>
-                <p>
+                <div>
                   <button
-                    type="button"
-                    onClick={() =>
-                      navigator.clipboard
-                        ?.writeText(setupBundle.recovery_codes.join("\n"))
-                        .then(() => setInfo("Recovery codes copied to clipboard."))
-                    }
+                    type="submit"
+                    className="btn btn-danger"
+                    disabled={busy || !disableCode}
                   >
-                    Copy recovery codes
+                    Disable 2FA
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {status && !status.enabled && (
+            <>
+              <p
+                className="row row-2"
+                style={{ color: "var(--color-muted)" }}
+              >
+                <XCircle size={14} />
+                <span>
+                  2FA is not enabled.
+                  {status.pending_enrollment &&
+                    " An enrolment was started but never verified."}
+                </span>
+              </p>
+
+              {!setupBundle && (
+                <p style={{ marginTop: "var(--space-3)" }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={onBeginSetup}
+                    disabled={busy}
+                  >
+                    {status.pending_enrollment
+                      ? "Re-generate QR code"
+                      : "Enable 2FA"}
                   </button>
                 </p>
+              )}
 
-                <form onSubmit={onVerify} style={{ marginTop: "1rem" }}>
-                  <p>3. Enter the 6-digit code from your authenticator to finish enrolment:</p>
-                  <p>
-                    <input
-                      type="text"
-                      value={verifyCode}
-                      onChange={(e) => setVerifyCode(e.target.value)}
-                      required
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      style={{ width: "12rem", padding: "0.5rem", letterSpacing: "0.2em" }}
-                      placeholder="123456"
-                    />{" "}
-                    <button type="submit" disabled={busy || !verifyCode}>
-                      Verify and enable
+              {setupBundle && (
+                <div className="stack stack-4" style={{ marginTop: "var(--space-3)" }}>
+                  <div>
+                    <strong>1. Scan this QR code</strong> with your authenticator
+                    app, or paste the secret manually.
+                    <div
+                      style={{
+                        marginTop: "var(--space-3)",
+                        padding: "var(--space-4)",
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-line)",
+                        borderRadius: "var(--radius-md)",
+                        width: "fit-content",
+                      }}
+                    >
+                      <QRCodeSVG value={setupBundle.otpauth_uri} size={184} />
+                    </div>
+                    <p
+                      className="text-small text-muted"
+                      style={{ marginTop: "var(--space-2)" }}
+                    >
+                      Manual entry secret:{" "}
+                      <code>{setupBundle.secret}</code>
+                    </p>
+                  </div>
+
+                  <div>
+                    <strong>2. Save your recovery codes</strong> somewhere safe.
+                    Each works once. They will not be shown again.
+                    <pre
+                      style={{
+                        marginTop: "var(--space-2)",
+                        padding: "var(--space-3)",
+                        background: "var(--color-surface-2)",
+                        border: "1px solid var(--color-line)",
+                        borderRadius: "var(--radius-sm)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      {setupBundle.recovery_codes.join("\n")}
+                    </pre>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() =>
+                        navigator.clipboard
+                          ?.writeText(setupBundle.recovery_codes.join("\n"))
+                          .then(() =>
+                            setInfo("Recovery codes copied to clipboard."),
+                          )
+                      }
+                    >
+                      Copy recovery codes
                     </button>
-                  </p>
-                </form>
-              </div>
-            )}
-          </>
-        )}
-      </section>
-    </main>
+                  </div>
+
+                  <form onSubmit={onVerify} className="stack stack-3">
+                    <div className="field">
+                      <label className="field-label">
+                        3. Enter the 6-digit code from your authenticator
+                      </label>
+                      <input
+                        type="text"
+                        className="input text-mono"
+                        value={verifyCode}
+                        onChange={(e) => setVerifyCode(e.target.value)}
+                        required
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="123456"
+                        style={{ maxWidth: 200, letterSpacing: "0.2em" }}
+                      />
+                    </div>
+                    <div>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={busy || !verifyCode}
+                      >
+                        Verify and enable
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

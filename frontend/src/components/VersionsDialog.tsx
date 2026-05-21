@@ -8,6 +8,8 @@ import {
   uploadFileVersion,
 } from "@/api/files";
 import { formatBytes, formatDateTime } from "@/utils/format";
+import Drawer from "@/components/Drawer";
+import { Download, Trash2, Upload } from "@/components/icons";
 
 interface Props {
   fileId: string;
@@ -17,6 +19,14 @@ interface Props {
   onChanged?: () => void;
 }
 
+/**
+ * Versions drawer.
+ *
+ * Lists current + historical versions of a file. Upload-new-version is a
+ * styled file-input. Each historical version row has Download + Delete
+ * icon buttons; current row only has Download (and shows the "current"
+ * pill). The reaper purges history older than 30 days regardless.
+ */
 export default function VersionsDialog({
   fileId,
   fileLabel,
@@ -45,7 +55,7 @@ export default function VersionsDialog({
 
   async function onUpload(evt: ChangeEvent<HTMLInputElement>) {
     const file = evt.target.files?.[0];
-    evt.target.value = ""; // allow re-picking the same file
+    evt.target.value = "";
     if (!file) return;
     setError(null);
     setProgress(0);
@@ -59,7 +69,9 @@ export default function VersionsDialog({
     } catch (err) {
       const ax = err as AxiosError<{ message?: string; error?: string }>;
       if (ax.response?.data?.error === "quota_exceeded") {
-        setError("Quota exceeded — free up space before uploading a new version.");
+        setError(
+          "Quota exceeded — free up space before uploading a new version.",
+        );
       } else {
         setError(ax.response?.data?.message ?? "Upload failed.");
       }
@@ -99,159 +111,99 @@ export default function VersionsDialog({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
+    <Drawer
+      open
+      onClose={onClose}
+      title="Versions"
+      subtitle={<span className="filename">{fileLabel}</span>}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          Close
+        </button>
+      }
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "white",
-          padding: "1.5rem",
-          width: "min(48rem, 90vw)",
-          maxHeight: "85vh",
-          display: "flex",
-          flexDirection: "column",
-          border: "1px solid #d0d7de",
-          borderRadius: "6px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            marginBottom: "0.75rem",
-          }}
+      <div className="row row-3" style={{ flexWrap: "wrap" }}>
+        <label
+          className="btn btn-primary"
+          style={{ cursor: busy ? "wait" : "pointer", opacity: busy ? 0.7 : 1 }}
         >
-          <h3 style={{ margin: 0 }}>
-            Versions · <code>{fileLabel}</code>
-          </h3>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-        </div>
+          <Upload size={14} />
+          {busy ? `Uploading… ${progress}%` : "Upload new version"}
+          <input
+            type="file"
+            onChange={onUpload}
+            disabled={busy}
+            style={{ display: "none" }}
+          />
+        </label>
+        <span className="text-small text-muted">
+          The reaper purges history older than 30 days.
+        </span>
+      </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <label
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.4rem 0.75rem",
-              background: "#f6f8fa",
-              border: "1px solid #d0d7de",
-              borderRadius: "6px",
-              cursor: busy ? "wait" : "pointer",
-              opacity: busy ? 0.6 : 1,
-            }}
-          >
-            <input
-              type="file"
-              onChange={onUpload}
-              disabled={busy}
-              style={{ display: "none" }}
-            />
-            Upload new version…
-          </label>
-          {busy && progress > 0 && (
-            <span style={{ marginLeft: "0.75rem", color: "#6e7781" }}>
-              Uploading… {progress}%
-            </span>
-          )}
-        </div>
+      {error && <p className="field-error">{error}</p>}
 
-        {error && <p className="status-fail">{error}</p>}
-
-        <div
-          style={{
-            flex: 1,
-            overflow: "auto",
-            border: "1px solid #eaeef2",
-            borderRadius: "4px",
-          }}
-        >
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ background: "#f6f8fa" }}>
-              <tr style={{ textAlign: "left" }}>
-                <th style={{ padding: "0.5rem" }}>#</th>
-                <th style={{ padding: "0.5rem" }}>Filename</th>
-                <th style={{ padding: "0.5rem", textAlign: "right" }}>Size</th>
-                <th style={{ padding: "0.5rem" }}>Uploaded</th>
-                <th style={{ padding: "0.5rem" }}></th>
+      <div className="card" style={{ padding: 0 }}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Filename</th>
+              <th className="cell-right">Size</th>
+              <th>Uploaded</th>
+              <th className="cell-actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {versions.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-muted">
+                  No versions yet.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {versions.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={{ padding: "0.75rem", color: "#6e7781" }}>
-                    No versions yet.
-                  </td>
-                </tr>
-              )}
-              {versions.map((v) => (
-                <tr
-                  key={v.version_number}
-                  style={{
-                    borderTop: "1px solid #eaeef2",
-                    background: v.is_current ? "#f0f7ff" : undefined,
-                  }}
-                >
-                  <td style={{ padding: "0.5rem" }}>
+            )}
+            {versions.map((v) => (
+              <tr key={v.version_number}>
+                <td>
+                  <span className="row row-2 text-mono text-small">
                     v{v.version_number}
                     {v.is_current && (
-                      <span
-                        style={{
-                          marginLeft: "0.4rem",
-                          padding: "0 0.4rem",
-                          fontSize: "0.75em",
-                          background: "#0969da",
-                          color: "white",
-                          borderRadius: "10px",
-                        }}
-                      >
-                        current
-                      </span>
+                      <span className="badge badge-internal">current</span>
                     )}
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <code>{v.original_filename}</code>
-                  </td>
-                  <td style={{ padding: "0.5rem", textAlign: "right" }}>
-                    {formatBytes(v.size_bytes)}
-                  </td>
-                  <td style={{ padding: "0.5rem", color: "#6e7781" }}>
-                    {v.uploaded_at ? formatDateTime(v.uploaded_at) : "—"}
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <button onClick={() => onDownload(v)}>Download</button>
-                    {!v.is_current && (
-                      <button
-                        onClick={() => onDelete(v)}
-                        style={{ marginLeft: "0.25rem" }}
-                        title="Permanently delete this version"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </span>
+                </td>
+                <td className="filename">{v.original_filename}</td>
+                <td className="cell-right text-mono text-small">
+                  {formatBytes(v.size_bytes)}
+                </td>
+                <td className="cell-muted text-small">
+                  {v.uploaded_at ? formatDateTime(v.uploaded_at) : "—"}
+                </td>
+                <td className="cell-actions">
+                  <button
+                    className="btn btn-ghost btn-icon btn-sm"
+                    onClick={() => onDownload(v)}
+                    title="Download"
+                    aria-label="Download"
+                  >
+                    <Download size={14} />
+                  </button>
+                  {!v.is_current && (
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => onDelete(v)}
+                      title="Delete this version"
+                      aria-label="Delete this version"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
+    </Drawer>
   );
 }

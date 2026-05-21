@@ -17,6 +17,23 @@ import VersionsDialog from "@/components/VersionsDialog";
 import { Tier } from "@/api/tierOverrides";
 import { reclassifyFile } from "@/api/admin";
 import { useAuth } from "@/state/auth";
+import { useToast } from "@/state/toast";
+import {
+  ArrowUpDown,
+  Download,
+  Eye,
+  FileCode,
+  FileGeneric,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  History,
+  MoreHorizontal,
+  RefreshCw,
+  Share2,
+  Tag,
+  Trash2,
+} from "@/components/icons";
 
 interface Props {
   files: StoredFile[];
@@ -35,6 +52,47 @@ interface Props {
 const POLL_INTERVAL_MS = 2000;
 const TERMINAL_STATUSES = new Set(["completed", "failed", "missing"]);
 
+/**
+ * Pick a Lucide icon based on the file's mime type / extension. Falls back
+ * to a generic file icon. Used purely for visual differentiation in the
+ * Name column — semantic meaning still comes from the filename.
+ */
+function iconForFile(file: StoredFile) {
+  const mime = (file.mime_type || "").toLowerCase();
+  const name = (file.original_filename || "").toLowerCase();
+  if (mime.startsWith("image/")) return FileImage;
+  if (
+    mime.includes("spreadsheet") ||
+    name.endsWith(".csv") ||
+    name.endsWith(".tsv") ||
+    name.endsWith(".xlsx")
+  ) {
+    return FileSpreadsheet;
+  }
+  if (
+    mime.startsWith("text/") ||
+    mime === "application/pdf" ||
+    name.endsWith(".pdf") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".md") ||
+    name.endsWith(".txt")
+  ) {
+    return FileText;
+  }
+  if (
+    name.endsWith(".json") ||
+    name.endsWith(".yaml") ||
+    name.endsWith(".yml") ||
+    name.endsWith(".sh") ||
+    name.endsWith(".py") ||
+    name.endsWith(".ts") ||
+    name.endsWith(".js")
+  ) {
+    return FileCode;
+  }
+  return FileGeneric;
+}
+
 export default function FileTable({
   files,
   page,
@@ -46,6 +104,7 @@ export default function FileTable({
   onDeleted,
 }: Props) {
   const { user } = useAuth();
+  const toast = useToast();
   const isAdmin = user?.role === "admin";
   const [classifications, setClassifications] = useState<Record<string, ClassificationResult>>({});
   const [shareTarget, setShareTarget] = useState<StoredFile | null>(null);
@@ -53,8 +112,12 @@ export default function FileTable({
   const [overrideTarget, setOverrideTarget] = useState<StoredFile | null>(null);
   const [previewTarget, setPreviewTarget] = useState<StoredFile | null>(null);
   const [versionsTarget, setVersionsTarget] = useState<StoredFile | null>(null);
+  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
+  const menuWrapperRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
 
+  // Phase 4 classification polling — preserved verbatim from the original
+  // FileTable. Only the visual treatment around it changed.
   useEffect(() => {
     let cancelled = false;
 
@@ -98,178 +161,276 @@ export default function FileTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files]);
 
+  // Close the row action popover on outside click.
+  useEffect(() => {
+    if (!openMenuFor) return;
+    function onClick(e: MouseEvent) {
+      if (
+        menuWrapperRef.current &&
+        !menuWrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpenMenuFor(null);
+      }
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [openMenuFor]);
+
+  async function onDownload(file: StoredFile) {
+    try {
+      await downloadFile(file);
+    } catch (err) {
+      if (err instanceof AccessDeniedError) {
+        toast.error(
+          `Access denied${err.tier ? ` (tier ${err.tier})` : ""}`,
+          `${err.message} (reason: ${err.reason})`,
+        );
+      } else {
+        toast.error("Download failed", "See browser console for details.");
+        console.error(err);
+      }
+    }
+  }
+
+  async function onSoftDelete(file: StoredFile) {
+    if (
+      !window.confirm(
+        `Move "${file.original_filename}" to trash? You can restore it within 30 days.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await softDeleteFile(file.id);
+      toast.success(`Moved "${file.original_filename}" to trash`);
+      onDeleted?.();
+    } catch (err) {
+      console.error(err);
+      toast.error("Delete failed", "See browser console for details.");
+    }
+  }
+
+  async function onReclassify(file: StoredFile) {
+    if (!window.confirm(`Re-run the classifier on "${file.original_filename}"?`)) return;
+    try {
+      await reclassifyFile(file.id);
+      toast.info("Reclassification queued", "Tier will update once it completes.");
+      setClassifications((prev) => {
+        const next = { ...prev };
+        delete next[file.id];
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Reclassify failed", "See browser console for details.");
+    }
+  }
+
   if (files.length === 0) {
-    return <p className="status-pending">No files yet — upload one above.</p>;
+    return (
+      <div className="empty">
+        <div className="empty-title">No files here yet</div>
+        <div className="text-small text-muted">
+          Drop a file on the upload zone above to get started.
+        </div>
+      </div>
+    );
   }
 
   const lastPage = Math.max(1, Math.ceil(total / perPage));
 
   return (
     <>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
-            <th style={{ padding: "0.5rem" }}>Name</th>
-            <th style={{ padding: "0.5rem" }}>Tier</th>
-            <th style={{ padding: "0.5rem" }}>Type</th>
-            <th style={{ padding: "0.5rem", textAlign: "right" }}>Size</th>
-            <th style={{ padding: "0.5rem" }}>Uploaded</th>
-            <th style={{ padding: "0.5rem" }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {files.map((f) => (
-            <tr key={f.id} style={{ borderBottom: "1px solid #eaeef2" }}>
-              <td style={{ padding: "0.5rem" }}>{f.original_filename}</td>
-              <td style={{ padding: "0.5rem" }}>
-                <TierBadge classification={classifications[f.id]} />
-              </td>
-              <td style={{ padding: "0.5rem", color: "#6e7781" }}>
-                <code>{f.mime_type}</code>
-              </td>
-              <td style={{ padding: "0.5rem", textAlign: "right" }}>{formatBytes(f.size_bytes)}</td>
-              <td style={{ padding: "0.5rem", color: "#6e7781" }}>
-                {formatDateTime(f.uploaded_at)}
-              </td>
-              <td style={{ padding: "0.5rem" }}>
-                <button
-                  onClick={async () => {
-                    try {
-                      await downloadFile(f);
-                    } catch (err) {
-                      if (err instanceof AccessDeniedError) {
-                        alert(
-                          `Access denied${err.tier ? ` (tier: ${err.tier})` : ""}:\n` +
-                            `${err.message}\n\nreason: ${err.reason}`,
-                        );
-                      } else {
-                        alert("Download failed — see console.");
-                        console.error(err);
-                      }
-                    }
-                  }}
-                >
-                  Download
-                </button>
-                <button
-                  onClick={() => setPreviewTarget(f)}
-                  style={{ marginLeft: "0.25rem" }}
-                  title="Preview the file's text content"
-                >
-                  Preview…
-                </button>
-                {showShare && (
-                  <button
-                    onClick={() => setShareTarget(f)}
-                    style={{ marginLeft: "0.25rem" }}
-                  >
-                    Share…
-                  </button>
-                )}
-                {showDelete && (
-                  <button
-                    onClick={() => setTagsTarget(f)}
-                    style={{ marginLeft: "0.25rem" }}
-                  >
-                    Tags…
-                  </button>
-                )}
-                {showDelete && (
-                  <button
-                    onClick={() => setVersionsTarget(f)}
-                    style={{ marginLeft: "0.25rem" }}
-                    title="Upload a new version or download a previous one"
-                  >
-                    Versions
-                    {f.current_version && f.current_version > 1 ? (
-                      <span style={{ marginLeft: "0.25rem", color: "#6e7781" }}>
-                        (v{f.current_version})
-                      </span>
-                    ) : (
-                      "…"
-                    )}
-                  </button>
-                )}
-                {showDelete && classifications[f.id]?.final_tier && (
-                  <button
-                    onClick={() => setOverrideTarget(f)}
-                    style={{ marginLeft: "0.25rem" }}
-                    title="Request a tier change from an admin"
-                  >
-                    Override…
-                  </button>
-                )}
-                {isAdmin && (
-                  <button
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          `Re-run the classifier on "${f.original_filename}"?`,
-                        )
-                      ) {
-                        return;
-                      }
-                      try {
-                        await reclassifyFile(f.id);
-                        // Wipe cached classification for this file so the
-                        // table starts polling again.
-                        setClassifications((prev) => {
-                          const next = { ...prev };
-                          delete next[f.id];
-                          return next;
-                        });
-                      } catch (err) {
-                        console.error(err);
-                        alert("Reclassify failed — see console.");
-                      }
-                    }}
-                    style={{ marginLeft: "0.25rem" }}
-                    title="Admin: re-run the classifier"
-                  >
-                    Reclassify
-                  </button>
-                )}
-                {showDelete && (
-                  <button
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          `Move "${f.original_filename}" to trash? You can restore it within 30 days.`,
-                        )
-                      ) {
-                        return;
-                      }
-                      try {
-                        await softDeleteFile(f.id);
-                        onDeleted?.();
-                      } catch (err) {
-                        console.error(err);
-                        alert("Delete failed — see console.");
-                      }
-                    }}
-                    style={{ marginLeft: "0.25rem" }}
-                  >
-                    Delete
-                  </button>
-                )}
-              </td>
+      <div className="card">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>
+                <span className="row row-2">
+                  Name <ArrowUpDown size={12} />
+                </span>
+              </th>
+              <th>Tier</th>
+              <th>Type</th>
+              <th className="cell-right">Size</th>
+              <th>Uploaded</th>
+              <th className="cell-actions"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {files.map((f) => {
+              const Icon = iconForFile(f);
+              const cls = classifications[f.id];
+              return (
+                <tr key={f.id}>
+                  <td>
+                    <span className="row row-3">
+                      <Icon size={16} className="text-muted" aria-hidden="true" />
+                      <span className="filename">{f.original_filename}</span>
+                      {f.current_version && f.current_version > 1 && (
+                        <span className="text-mono text-small text-muted">
+                          v{f.current_version}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td>
+                    <TierBadge classification={cls} />
+                  </td>
+                  <td className="cell-muted text-mono text-small">
+                    {f.mime_type}
+                  </td>
+                  <td className="cell-right text-mono text-small">
+                    {formatBytes(f.size_bytes)}
+                  </td>
+                  <td className="cell-muted text-small">
+                    {formatDateTime(f.uploaded_at)}
+                  </td>
+                  <td className="cell-actions">
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => onDownload(f)}
+                      title="Download"
+                      aria-label="Download"
+                    >
+                      <Download size={14} />
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      onClick={() => setPreviewTarget(f)}
+                      title="Preview"
+                      aria-label="Preview"
+                    >
+                      <Eye size={14} />
+                    </button>
+
+                    <div
+                      ref={openMenuFor === f.id ? menuWrapperRef : undefined}
+                      style={{ position: "relative", display: "inline-block" }}
+                    >
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() =>
+                          setOpenMenuFor(openMenuFor === f.id ? null : f.id)
+                        }
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuFor === f.id}
+                        title="More actions"
+                      >
+                        <MoreHorizontal size={14} />
+                      </button>
+                      {openMenuFor === f.id && (
+                        <div
+                          className="popover"
+                          role="menu"
+                          style={{
+                            position: "absolute",
+                            top: "calc(100% + 4px)",
+                            right: 0,
+                            minWidth: 200,
+                            padding: "var(--space-1) 0",
+                            zIndex: 50,
+                          }}
+                        >
+                          {showShare && (
+                            <RowMenuItem
+                              icon={<Share2 size={14} />}
+                              label="Share…"
+                              onClick={() => {
+                                setOpenMenuFor(null);
+                                setShareTarget(f);
+                              }}
+                            />
+                          )}
+                          {showDelete && (
+                            <RowMenuItem
+                              icon={<Tag size={14} />}
+                              label="Tags…"
+                              onClick={() => {
+                                setOpenMenuFor(null);
+                                setTagsTarget(f);
+                              }}
+                            />
+                          )}
+                          {showDelete && (
+                            <RowMenuItem
+                              icon={<History size={14} />}
+                              label={
+                                f.current_version && f.current_version > 1
+                                  ? `Versions (v${f.current_version})`
+                                  : "Versions…"
+                              }
+                              onClick={() => {
+                                setOpenMenuFor(null);
+                                setVersionsTarget(f);
+                              }}
+                            />
+                          )}
+                          {showDelete && cls?.final_tier && (
+                            <RowMenuItem
+                              icon={<ArrowUpDown size={14} />}
+                              label="Request tier override…"
+                              onClick={() => {
+                                setOpenMenuFor(null);
+                                setOverrideTarget(f);
+                              }}
+                            />
+                          )}
+                          {isAdmin && (
+                            <RowMenuItem
+                              icon={<RefreshCw size={14} />}
+                              label="Re-run classifier"
+                              onClick={() => {
+                                setOpenMenuFor(null);
+                                onReclassify(f);
+                              }}
+                            />
+                          )}
+                          {showDelete && (
+                            <>
+                              <div className="divider" style={{ margin: "var(--space-1) 0" }} />
+                              <RowMenuItem
+                                icon={<Trash2 size={14} />}
+                                label="Move to trash"
+                                onClick={() => {
+                                  setOpenMenuFor(null);
+                                  onSoftDelete(f);
+                                }}
+                                danger
+                              />
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {lastPage > 1 && (
-        <p style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <button disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+        <div className="row row-3" style={{ marginTop: "var(--space-4)" }}>
+          <button
+            className="btn btn-sm"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
             ← Prev
           </button>
-          <span style={{ color: "#6e7781" }}>
+          <span className="text-small text-muted">
             Page {page} of {lastPage} ({total} total)
           </span>
-          <button disabled={page >= lastPage} onClick={() => onPageChange(page + 1)}>
+          <button
+            className="btn btn-sm"
+            disabled={page >= lastPage}
+            onClick={() => onPageChange(page + 1)}
+          >
             Next →
           </button>
-        </p>
+        </div>
       )}
 
       {shareTarget && (
@@ -279,7 +440,7 @@ export default function FileTable({
           targetLabel={shareTarget.original_filename}
           onClose={() => setShareTarget(null)}
           onShared={() => {
-            /* Could surface a toast here. */
+            /* Toast wiring lands in Batch D. */
           }}
         />
       )}
@@ -318,10 +479,50 @@ export default function FileTable({
           }
           onClose={() => setOverrideTarget(null)}
           onSubmitted={() => {
-            /* Could surface a toast here. */
+            /* Toast wiring lands in Batch D. */
           }}
         />
       )}
     </>
+  );
+}
+
+function RowMenuItem({
+  icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-3)",
+        width: "100%",
+        padding: "var(--space-2) var(--space-4)",
+        background: "transparent",
+        border: "none",
+        textAlign: "left",
+        font: "inherit",
+        color: danger ? "var(--color-danger)" : "var(--color-ink)",
+        cursor: "pointer",
+      }}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.background = "var(--color-bg)")
+      }
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }

@@ -13,7 +13,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@radix-ui/react-dialog": "^1.1.15",
     "axios": "1.7.7",
+    "lucide-react": "^1.16.0",
     "qrcode.react": "^4.0.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",

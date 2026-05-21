@@ -12,19 +12,30 @@ import LoginPage from "@/pages/LoginPage";
 import PublicSharePage from "@/pages/PublicSharePage";
 import SecuritySettingsPage from "@/pages/SecuritySettingsPage";
 import TrashPage from "@/pages/TrashPage";
+import AppShell from "@/components/AppShell";
 import AdminRoute from "@/routes/AdminRoute";
 import ProtectedRoute from "@/routes/ProtectedRoute";
 
+/**
+ * Route table.
+ *
+ * Public routes (`/login`, `/share/:token`) render directly — they have
+ * their own centered-card layouts. Every other route wraps the page in
+ * `<AppShell>` (topbar + sidebar + main).
+ */
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
+
       <Route
         path="/"
         element={
           <ProtectedRoute>
-            <HomePage />
+            <AppShell>
+              <HomePage />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -32,7 +43,9 @@ export default function App() {
         path="/folders"
         element={
           <ProtectedRoute>
-            <FoldersPage />
+            <AppShell>
+              <FoldersPage />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -40,7 +53,9 @@ export default function App() {
         path="/trash"
         element={
           <ProtectedRoute>
-            <TrashPage />
+            <AppShell>
+              <TrashPage />
+            </AppShell>
           </ProtectedRoute>
         }
       />
@@ -48,15 +63,23 @@ export default function App() {
         path="/settings/security"
         element={
           <ProtectedRoute>
-            <SecuritySettingsPage />
+            <AppShell>
+              <SecuritySettingsPage />
+            </AppShell>
           </ProtectedRoute>
         }
       />
+
+      {/* Admin pages still render inside AppShell (consistent topbar/sidebar),
+          but they keep using AdminShell internally for the legacy admin nav
+          until the deferred admin redesign batch lands. */}
       <Route
         path="/admin"
         element={
           <AdminRoute>
-            <AdminHomePage />
+            <AppShell>
+              <AdminHomePage />
+            </AppShell>
           </AdminRoute>
         }
       />
@@ -64,7 +87,9 @@ export default function App() {
         path="/admin/users"
         element={
           <AdminRoute>
-            <AdminUsersPage />
+            <AppShell>
+              <AdminUsersPage />
+            </AppShell>
           </AdminRoute>
         }
       />
@@ -72,7 +97,9 @@ export default function App() {
         path="/admin/departments"
         element={
           <AdminRoute>
-            <AdminDepartmentsPage />
+            <AppShell>
+              <AdminDepartmentsPage />
+            </AppShell>
           </AdminRoute>
         }
       />
@@ -80,7 +107,9 @@ export default function App() {
         path="/admin/groups"
         element={
           <AdminRoute>
-            <AdminGroupsPage />
+            <AppShell>
+              <AdminGroupsPage />
+            </AppShell>
           </AdminRoute>
         }
       />
@@ -88,7 +117,9 @@ export default function App() {
         path="/admin/policies"
         element={
           <AdminRoute>
-            <AdminPoliciesPage />
+            <AppShell>
+              <AdminPoliciesPage />
+            </AppShell>
           </AdminRoute>
         }
       />
@@ -96,7 +127,9 @@ export default function App() {
         path="/admin/overrides"
         element={
           <AdminRoute>
-            <AdminTierOverridesPage />
+            <AppShell>
+              <AdminTierOverridesPage />
+            </AppShell>
           </AdminRoute>
         }
       />
@@ -104,7 +137,9 @@ export default function App() {
         path="/admin/events"
         element={
           <AdminRoute>
-            <AdminEventsPage />
+            <AppShell>
+              <AdminEventsPage />
+            </AppShell>
           </AdminRoute>
         }
       />

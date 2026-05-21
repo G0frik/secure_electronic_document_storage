@@ -1,22 +1,17 @@
 import { ClassificationResult, Tier } from "@/api/files";
 
-const TIER_STYLE: Record<Tier, { bg: string; fg: string; label: string }> = {
-  public: { bg: "#dafbe1", fg: "#1a7f37", label: "PUBLIC" },
-  internal: { bg: "#ddf4ff", fg: "#0969da", label: "INTERNAL" },
-  confidential: { bg: "#fff8c5", fg: "#9a6700", label: "CONFIDENTIAL" },
-  restricted: { bg: "#ffebe9", fg: "#cf222e", label: "RESTRICTED" },
+const TIER_CLASS: Record<Tier, string> = {
+  public: "badge badge-public",
+  internal: "badge badge-internal",
+  confidential: "badge badge-confidential",
+  restricted: "badge badge-restricted",
 };
 
-const PENDING_STYLE = { bg: "#eaeef2", fg: "#6e7781", label: "classifying…" };
-const FAILED_STYLE = { bg: "#ffebe9", fg: "#cf222e", label: "FAILED" };
-
-const BASE: React.CSSProperties = {
-  display: "inline-block",
-  padding: "0.15rem 0.5rem",
-  borderRadius: "999px",
-  fontSize: "0.75em",
-  fontWeight: 600,
-  letterSpacing: "0.02em",
+const TIER_LABEL: Record<Tier, string> = {
+  public: "Public",
+  internal: "Internal",
+  confidential: "Confidential",
+  restricted: "Restricted",
 };
 
 interface Props {
@@ -24,40 +19,46 @@ interface Props {
   loading?: boolean;
 }
 
+/**
+ * Sensitivity tier indicator.
+ *
+ * Colours preserved verbatim from the original — they're the only chromatic
+ * vocabulary in the redesign and carry semantic meaning. The wrapper class
+ * is `.badge` which gives the pill shape + mono uppercase letterspacing.
+ */
 export default function TierBadge({ classification, loading }: Props) {
-  if (loading || !classification || classification.status === "pending" || classification.status === "running") {
-    return (
-      <span style={{ ...BASE, background: PENDING_STYLE.bg, color: PENDING_STYLE.fg }}>
-        {PENDING_STYLE.label}
-      </span>
-    );
+  if (
+    loading ||
+    !classification ||
+    classification.status === "pending" ||
+    classification.status === "running"
+  ) {
+    return <span className="badge badge-pending">classifying…</span>;
   }
 
   if (classification.status === "failed") {
     return (
       <span
-        style={{ ...BASE, background: FAILED_STYLE.bg, color: FAILED_STYLE.fg }}
+        className="badge badge-failed"
         title={classification.error_message ?? "classification failed"}
       >
-        {FAILED_STYLE.label}
+        Failed
       </span>
     );
   }
 
   if (!classification.final_tier) {
-    return (
-      <span style={{ ...BASE, background: PENDING_STYLE.bg, color: PENDING_STYLE.fg }}>—</span>
-    );
+    return <span className="badge badge-pending">—</span>;
   }
 
-  const style = TIER_STYLE[classification.final_tier];
-  const tooltip = (classification.categories_triggered ?? []).join(", ") || undefined;
+  const tooltip =
+    (classification.categories_triggered ?? []).join(", ") || undefined;
   return (
     <span
-      style={{ ...BASE, background: style.bg, color: style.fg }}
+      className={TIER_CLASS[classification.final_tier]}
       title={tooltip}
     >
-      {style.label}
+      {TIER_LABEL[classification.final_tier]}
     </span>
   );
 }

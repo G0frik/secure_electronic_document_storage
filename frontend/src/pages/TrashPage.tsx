@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import {
   hardDeleteFile,
@@ -7,8 +6,10 @@ import {
   restoreFile,
   TrashedFile,
 } from "@/api/files";
-import { useAuth } from "@/state/auth";
 import { formatBytes, formatDateTime } from "@/utils/format";
+import Breadcrumb from "@/components/Breadcrumb";
+import { FileGeneric, RotateCcw, Trash2 } from "@/components/icons";
+import { useToast } from "@/state/toast";
 
 const RETENTION_DAYS = 30;
 
@@ -17,9 +18,15 @@ function daysLeft(deletedAt: string): number {
   return Math.max(0, Math.ceil((purgeAt - Date.now()) / (24 * 60 * 60 * 1000)));
 }
 
+/**
+ * Trash — soft-deleted files awaiting purge or restore.
+ *
+ * Sits inside AppShell. Two icon-button actions per row (Restore +
+ * Delete now). "Days left" is computed client-side from the 30-day
+ * retention window the reaper enforces server-side.
+ */
 export default function TrashPage() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const toast = useToast();
   const [items, setItems] = useState<TrashedFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,10 +52,11 @@ export default function TrashPage() {
   async function onRestore(file: TrashedFile) {
     try {
       await restoreFile(file.id);
+      toast.success(`Restored "${file.original_filename}"`);
       await refresh();
     } catch (err) {
       console.error(err);
-      alert("Restore failed — see console.");
+      toast.error("Restore failed", "See browser console for details.");
     }
   }
 
@@ -62,74 +70,103 @@ export default function TrashPage() {
     }
     try {
       await hardDeleteFile(file.id);
+      toast.success(`Deleted "${file.original_filename}" permanently`);
       await refresh();
     } catch (err) {
       console.error(err);
-      alert("Delete failed — see console.");
+      toast.error("Delete failed", "See browser console for details.");
     }
   }
 
   return (
-    <main>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          borderBottom: "1px solid #eaeef2",
-          paddingBottom: "0.75rem",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Trash</h1>
-        <button onClick={() => navigate("/")}>← Back to files</button>
-      </header>
+    <div className="page">
+      <Breadcrumb items={[{ label: "Home", to: "/" }, { label: "Trash" }]} />
 
-      <p style={{ color: "#6e7781" }}>
-        Signed in as <strong>{user?.email}</strong>. Files older than{" "}
-        {RETENTION_DAYS} days are deleted permanently.
-      </p>
+      <div className="page-header">
+        <div className="page-title">
+          <h1>Trash</h1>
+          <span className="page-subtitle">
+            Files past {RETENTION_DAYS} days are deleted permanently.
+          </span>
+        </div>
+      </div>
 
-      {loading && <p className="status-pending">Loading trash…</p>}
-      {error && <p className="status-fail">{error}</p>}
+      {loading && <p className="text-muted">Loading trash…</p>}
+      {error && <p className="field-error">{error}</p>}
 
       {!loading && !error && items.length === 0 && (
-        <p className="status-pending">Trash is empty.</p>
+        <div className="empty">
+          <div className="empty-title">Trash is empty</div>
+          <div className="text-small text-muted">
+            Deleted files appear here and are kept for {RETENTION_DAYS} days
+            before being purged.
+          </div>
+        </div>
       )}
 
       {!loading && !error && items.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "2px solid #d0d7de" }}>
-              <th style={{ padding: "0.5rem" }}>Name</th>
-              <th style={{ padding: "0.5rem", textAlign: "right" }}>Size</th>
-              <th style={{ padding: "0.5rem" }}>Deleted</th>
-              <th style={{ padding: "0.5rem" }}>Days left</th>
-              <th style={{ padding: "0.5rem" }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((f) => (
-              <tr key={f.id} style={{ borderBottom: "1px solid #eaeef2" }}>
-                <td style={{ padding: "0.5rem" }}>{f.original_filename}</td>
-                <td style={{ padding: "0.5rem", textAlign: "right" }}>
-                  {formatBytes(f.size_bytes)}
-                </td>
-                <td style={{ padding: "0.5rem", color: "#6e7781" }}>
-                  {formatDateTime(f.deleted_at)}
-                </td>
-                <td style={{ padding: "0.5rem", color: "#6e7781" }}>
-                  {daysLeft(f.deleted_at)}
-                </td>
-                <td style={{ padding: "0.5rem" }}>
-                  <button onClick={() => onRestore(f)}>Restore</button>{" "}
-                  <button onClick={() => onHardDelete(f)}>Delete now</button>
-                </td>
+        <div className="card">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th className="cell-right">Size</th>
+                <th>Deleted</th>
+                <th>Days left</th>
+                <th className="cell-actions"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((f) => {
+                const left = daysLeft(f.deleted_at);
+                const tone =
+                  left <= 3
+                    ? "var(--color-danger)"
+                    : left <= 7
+                      ? "var(--color-warning)"
+                      : "var(--color-muted)";
+                return (
+                  <tr key={f.id}>
+                    <td>
+                      <span className="row row-3">
+                        <FileGeneric size={16} className="text-muted" />
+                        <span className="filename">{f.original_filename}</span>
+                      </span>
+                    </td>
+                    <td className="cell-right text-mono text-small">
+                      {formatBytes(f.size_bytes)}
+                    </td>
+                    <td className="cell-muted text-small">
+                      {formatDateTime(f.deleted_at)}
+                    </td>
+                    <td className="text-small" style={{ color: tone }}>
+                      {left} days
+                    </td>
+                    <td className="cell-actions">
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => onRestore(f)}
+                        title="Restore"
+                        aria-label="Restore"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => onHardDelete(f)}
+                        title="Delete now"
+                        aria-label="Delete now"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
-    </main>
+    </div>
   );
 }

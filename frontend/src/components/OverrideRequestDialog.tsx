@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { AxiosError } from "axios";
 import { createOverrideRequest, Tier } from "@/api/tierOverrides";
+import Drawer from "@/components/Drawer";
 
 const TIERS: Tier[] = ["public", "internal", "confidential", "restricted"];
 
@@ -12,6 +13,13 @@ interface Props {
   onSubmitted: () => void;
 }
 
+/**
+ * Tier-override request drawer.
+ *
+ * Owner files a request for an admin to re-tier the file. Justification
+ * is required (server-enforced). The current tier is displayed but the
+ * dropdown disables it so the user can't request the same tier.
+ */
 export default function OverrideRequestDialog({
   fileId,
   fileLabel,
@@ -43,83 +51,66 @@ export default function OverrideRequestDialog({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
+    <Drawer
+      open
+      onClose={onClose}
+      title="Request tier change"
+      subtitle={<span className="filename">{fileLabel}</span>}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "white",
-          padding: "1.5rem",
-          minWidth: "28rem",
-          maxWidth: "36rem",
-          border: "1px solid #d0d7de",
-          borderRadius: "6px",
-        }}
-      >
-        <h3 style={{ marginTop: 0 }}>
-          Request tier change for <code>{fileLabel}</code>
-        </h3>
-        <p style={{ color: "#6e7781" }}>
-          Current tier:{" "}
-          <strong>{currentTier ?? "not classified yet"}</strong>. An admin
-          must approve before the file's tier changes.
-        </p>
-        <form onSubmit={onSubmit}>
-          <p>
-            <label>
-              Requested tier
-              <br />
-              <select
-                value={requestedTier}
-                onChange={(e) => setRequestedTier(e.target.value as Tier)}
-                style={{ width: "100%", padding: "0.5rem" }}
-              >
-                {TIERS.map((t) => (
-                  <option key={t} value={t} disabled={t === currentTier}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </p>
-          <p>
-            <label>
-              Justification (required)
-              <br />
-              <textarea
-                value={justification}
-                onChange={(e) => setJustification(e.target.value)}
-                required
-                rows={4}
-                style={{ width: "100%", padding: "0.5rem" }}
-                placeholder="Why should the tier change?"
-              />
-            </label>
-          </p>
-          {error && <p className="status-fail">{error}</p>}
-          <p style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-            <button type="button" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" disabled={busy || !justification.trim()}>
-              {busy ? "Submitting…" : "Request review"}
-            </button>
-          </p>
-        </form>
-      </div>
-    </div>
+      <p className="text-small text-muted">
+        Current tier: <strong>{currentTier ?? "not classified yet"}</strong>.
+        An admin must approve before the file's tier changes.
+      </p>
+
+      <form onSubmit={onSubmit} className="stack stack-4">
+        <div className="field">
+          <label className="field-label" htmlFor="override-tier">
+            Requested tier
+          </label>
+          <select
+            id="override-tier"
+            className="select"
+            value={requestedTier}
+            onChange={(e) => setRequestedTier(e.target.value as Tier)}
+          >
+            {TIERS.map((t) => (
+              <option key={t} value={t} disabled={t === currentTier}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="override-justification">
+            Justification
+          </label>
+          <textarea
+            id="override-justification"
+            className="textarea"
+            value={justification}
+            onChange={(e) => setJustification(e.target.value)}
+            required
+            rows={5}
+            placeholder="Why should the tier change?"
+          />
+          <span className="field-hint">
+            Be specific — the admin reviewing this needs context.
+          </span>
+        </div>
+        {error && <p className="field-error">{error}</p>}
+        <div className="row row-2" style={{ justifyContent: "flex-end" }}>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy || !justification.trim()}
+          >
+            {busy ? "Submitting…" : "Request review"}
+          </button>
+        </div>
+      </form>
+    </Drawer>
   );
 }

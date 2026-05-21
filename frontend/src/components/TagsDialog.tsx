@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { AxiosError } from "axios";
 import { addTags, listTags, removeTag, Tag } from "@/api/tags";
+import Drawer from "@/components/Drawer";
+import { Close } from "@/components/icons";
 
 interface Props {
   fileId: string;
@@ -8,6 +10,13 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * Tags drawer — manage a file's tags inline.
+ *
+ * Comma-separated input creates multiple tags at once. Tags display as
+ * removable chips. Internal logic is unchanged from the pre-redesign
+ * version; only the outer wrapper became a Drawer.
+ */
 export default function TagsDialog({ fileId, fileLabel, onClose }: Props) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [input, setInput] = useState("");
@@ -35,7 +44,6 @@ export default function TagsDialog({ fileId, fileLabel, onClose }: Props) {
     setError(null);
     setBusy(true);
     try {
-      // Allow comma-separated input: "q3, draft" → two tags
       const names = input
         .split(",")
         .map((s) => s.trim())
@@ -63,97 +71,82 @@ export default function TagsDialog({ fileId, fileLabel, onClose }: Props) {
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
+    <Drawer
+      open
+      onClose={onClose}
+      title="Tags"
+      subtitle={<span className="filename">{fileLabel}</span>}
+      footer={
+        <button type="button" className="btn" onClick={onClose}>
+          Done
+        </button>
+      }
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "white",
-          padding: "1.5rem",
-          minWidth: "26rem",
-          border: "1px solid #d0d7de",
-          borderRadius: "6px",
-        }}
-      >
-        <h3 style={{ marginTop: 0 }}>
-          Tags on <code>{fileLabel}</code>
-        </h3>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1rem" }}>
-          {tags.length === 0 && (
-            <span style={{ color: "#6e7781" }}>No tags yet.</span>
-          )}
-          {tags.map((t) => (
-            <span
-              key={t.id}
+      <div className="row row-2" style={{ flexWrap: "wrap" }}>
+        {tags.length === 0 && (
+          <span className="text-small text-muted">No tags yet.</span>
+        )}
+        {tags.map((t) => (
+          <span
+            key={t.id}
+            className="row row-2"
+            style={{
+              padding: "2px var(--space-2)",
+              background: "var(--color-accent-soft)",
+              color: "var(--color-accent)",
+              borderRadius: "var(--radius-pill)",
+              fontSize: "0.8125rem",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            #{t.name}
+            <button
+              type="button"
+              onClick={() => onRemove(t)}
+              aria-label={`Remove tag ${t.name}`}
               style={{
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                color: "var(--color-accent)",
+                cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "0.25rem",
-                padding: "0.1rem 0.5rem",
-                background: "#eaeef2",
-                border: "1px solid #d0d7de",
-                borderRadius: "12px",
-                fontSize: "0.85em",
               }}
             >
-              #{t.name}
-              <button
-                type="button"
-                onClick={() => onRemove(t)}
-                title="Remove"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  cursor: "pointer",
-                  color: "#6e7781",
-                  fontWeight: "bold",
-                }}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-        <form onSubmit={onAdd}>
-          <p>
-            <label>
-              New tag(s) — comma-separated
-              <br />
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="q3, draft"
-                autoFocus
-                style={{ width: "100%", padding: "0.5rem" }}
-              />
-            </label>
-          </p>
-          {error && <p className="status-fail">{error}</p>}
-          <p style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-            <button type="button" onClick={onClose}>
-              Close
+              <Close size={12} />
             </button>
-            <button type="submit" disabled={busy || !input.trim()}>
-              {busy ? "Adding…" : "Add"}
-            </button>
-          </p>
-        </form>
+          </span>
+        ))}
       </div>
-    </div>
+
+      <form onSubmit={onAdd} className="stack stack-3">
+        <div className="field">
+          <label className="field-label" htmlFor="tag-input">
+            Add tags
+          </label>
+          <input
+            id="tag-input"
+            className="input"
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="q3, draft, hr"
+            autoFocus
+          />
+          <span className="field-hint">Separate multiple tags with commas.</span>
+        </div>
+        {error && <p className="field-error">{error}</p>}
+        <div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy || !input.trim()}
+          >
+            {busy ? "Adding…" : "Add"}
+          </button>
+        </div>
+      </form>
+    </Drawer>
   );
 }
