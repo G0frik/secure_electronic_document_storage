@@ -11,9 +11,10 @@ from werkzeug.utils import secure_filename
 
 from app.models.file import File
 from app.schemas.files import FileListParams
-from app.services import classification, csrf, files, folders, policy, trash
+from app.services import classification, csrf, files, folders, policy, preview, trash
 from app.services.files import EmptyUploadError, FileNotFoundError
 from app.services.folders import FolderNotFoundError
+from app.services.preview import PreviewExtractionError, UnsupportedPreviewError
 from app.services.quota import QuotaExceededError
 from app.utils.auth_decorators import current_user_or_none, login_required
 
@@ -203,6 +204,69 @@ def soft_delete(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
         abort(404, description="File not found.")
     trash.soft_delete(record, actor=user)
     return ("", 204)
+
+
+@bp.get("/<uuid:file_id>/preview")
+@login_required
+def preview_file(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    """Phase 14 — return a textual preview of the file (first ~100 KB).
+
+    Supports text formats + PDF + DOCX. Anything else returns 415.
+    Same policy check as download — non-owner non-admin must pass tier
+    rules. The owner short-circuits as usual.
+    """
+    user = current_user_or_none()
+    record = _resolve_or_404(file_id)
+
+    if record.owner_id != user.id:
+        decision = policy.can_user_access(user, record)
+        if not decision.allowed:
+            return _deny_response(decision)
+
+    try:
+        payload = preview.build_preview(record, actor=user)
+    except UnsupportedPreviewError as exc:
+        return (
+            jsonify(
+                {
+                    "error": "unsupported_preview",
+                    "message": (
+                        "Preview is not available for this file type. "
+                        "Download the file to view it."
+                    ),
+                    "detail": str(exc),
+                }
+            ),
+            415,
+        )
+    except PreviewExtractionError as exc:
+        return (
+            jsonify(
+                {
+                    "error": "preview_failed",
+                    "message": (
+                        "We couldn't extract text from this file (it may be "
+                        "corrupt, password-protected, or scanned)."
+                    ),
+                    "detail": str(exc),
+                }
+            ),
+            422,
+        )
+
+    return jsonify(
+        {
+            "file_id": str(record.id),
+            "filename": record.original_filename,
+            "mime_type": record.mime_type,
+            "size_bytes": record.size_bytes,
+            "extractor": payload.extractor,
+            "truncated": payload.truncated,
+            "preview_bytes": len(payload.text.encode("utf-8", errors="replace")),
+            "original_bytes": payload.original_bytes,
+            "text": payload.text,
+        }
+    )
 
 
 @bp.get("/<uuid:file_id>/classification")

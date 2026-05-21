@@ -12,6 +12,7 @@ import TierBadge from "@/components/TierBadge";
 import ShareDialog from "@/components/ShareDialog";
 import TagsDialog from "@/components/TagsDialog";
 import OverrideRequestDialog from "@/components/OverrideRequestDialog";
+import PreviewDialog from "@/components/PreviewDialog";
 import { Tier } from "@/api/tierOverrides";
 import { reclassifyFile } from "@/api/admin";
 import { useAuth } from "@/state/auth";
@@ -49,6 +50,7 @@ export default function FileTable({
   const [shareTarget, setShareTarget] = useState<StoredFile | null>(null);
   const [tagsTarget, setTagsTarget] = useState<StoredFile | null>(null);
   const [overrideTarget, setOverrideTarget] = useState<StoredFile | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<StoredFile | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -146,6 +148,13 @@ export default function FileTable({
                   }}
                 >
                   Download
+                </button>
+                <button
+                  onClick={() => setPreviewTarget(f)}
+                  style={{ marginLeft: "0.25rem" }}
+                  title="Preview the file's text content"
+                >
+                  Preview…
                 </button>
                 {showShare && (
                   <button
@@ -262,6 +271,14 @@ export default function FileTable({
           fileId={tagsTarget.id}
           fileLabel={tagsTarget.original_filename}
           onClose={() => setTagsTarget(null)}
+        />
+      )}
+
+      {previewTarget && (
+        <PreviewDialog
+          fileId={previewTarget.id}
+          fileLabel={previewTarget.original_filename}
+          onClose={() => setPreviewTarget(null)}
         />
       )}
 

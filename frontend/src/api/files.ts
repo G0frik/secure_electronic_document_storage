@@ -109,6 +109,56 @@ export async function uploadFile(
   return data;
 }
 
+export interface PreviewResponse {
+  file_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  extractor: "text" | "pdf" | "docx";
+  truncated: boolean;
+  preview_bytes: number;
+  original_bytes: number;
+  text: string;
+}
+
+export class UnsupportedPreviewError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedPreviewError";
+  }
+}
+
+export class PreviewExtractionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PreviewExtractionError";
+  }
+}
+
+export async function fetchPreview(fileId: string): Promise<PreviewResponse> {
+  try {
+    const { data } = await apiClient.get<PreviewResponse>(
+      `/api/files/${fileId}/preview`,
+    );
+    return data;
+  } catch (err) {
+    if (err instanceof AxiosError && err.response) {
+      const status = err.response.status;
+      const body = err.response.data as { error?: string; message?: string };
+      if (status === 415) {
+        throw new UnsupportedPreviewError(body?.message ?? "Preview not available.");
+      }
+      if (status === 422) {
+        throw new PreviewExtractionError(body?.message ?? "Preview failed.");
+      }
+      if (status === 403 && body?.error === "access_denied") {
+        throw new AccessDeniedError(body as AccessDeniedPayload);
+      }
+    }
+    throw err;
+  }
+}
+
 export function downloadFileUrl(fileId: string): string {
   const base = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
   return `${base}/api/files/${fileId}/download`;
