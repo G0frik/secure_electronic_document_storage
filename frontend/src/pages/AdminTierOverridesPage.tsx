@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import {
   approveOverride,
@@ -9,6 +8,7 @@ import {
   TierOverrideRequest,
 } from "@/api/tierOverrides";
 import { useAuth } from "@/state/auth";
+import AdminShell from "@/components/AdminShell";
 
 const FILTERS: { value: OverrideStatus | "all"; label: string }[] = [
   { value: "pending", label: "Pending" },
@@ -19,7 +19,6 @@ const FILTERS: { value: OverrideStatus | "all"; label: string }[] = [
 
 export default function AdminTierOverridesPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [filter, setFilter] = useState<OverrideStatus | "all">("pending");
   const [items, setItems] = useState<TierOverrideRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +41,6 @@ export default function AdminTierOverridesPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  // Hook order matters — Navigate must come AFTER hook setup.
-  if (user && user.role !== "admin") {
-    return <Navigate to="/" replace />;
-  }
 
   async function onApprove(req: TierOverrideRequest) {
     const reason = window.prompt(
@@ -79,21 +73,8 @@ export default function AdminTierOverridesPage() {
   }
 
   return (
-    <main>
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          borderBottom: "1px solid #eaeef2",
-          paddingBottom: "0.75rem",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Tier override requests</h1>
-        <button onClick={() => navigate("/")}>← Back to files</button>
-      </header>
-
+    <AdminShell>
+      <h1>Tier override requests</h1>
       <p style={{ color: "#6e7781" }}>
         Signed in as <strong>{user?.email}</strong> (admin).
       </p>
@@ -185,6 +166,6 @@ export default function AdminTierOverridesPage() {
           </tbody>
         </table>
       )}
-    </main>
+    </AdminShell>
   );
 }

@@ -120,8 +120,8 @@ export default function HomePage() {
               Trash
             </Link>{" "}
             {user.role === "admin" && (
-              <Link to="/admin/overrides" style={{ marginLeft: "0.25rem" }}>
-                Overrides
+              <Link to="/admin" style={{ marginLeft: "0.25rem" }}>
+                Admin
               </Link>
             )}{" "}
             <Link to="/settings/security" style={{ marginLeft: "0.25rem" }}>

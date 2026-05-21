@@ -43,6 +43,7 @@ from app.models.classification import (
     ClassificationTier,
 )
 from app.models.file import File
+from app.models.group import UserGroup
 from app.models.policy import AccessPolicy, PolicyDecision, PolicyEvaluation
 from app.models.user import Role, User
 from app.services import audit
@@ -229,20 +230,50 @@ def _latest_classification(file_id: uuid.UUID) -> Classification | None:
 
 
 def _resolve_policy(user: User) -> AccessPolicy | None:
-    """Department-scoped policy beats global. NULL department_id is global."""
+    """Pick the policy that applies to *user* — group > department > global.
+
+    Phase 13 adds the group layer. Within group-targeted policies the
+    most-permissive one wins (highest `allowed_max_tier`) — same semantics
+    as group memberships expanding capability in classic RBAC.
+
+    Falls back to department-scoped, then the role's global default.
+    """
+    # 1. Group-targeted policies the user qualifies for.
+    group_policies = list(
+        db.session.scalars(
+            select(AccessPolicy)
+            .join(UserGroup, UserGroup.group_id == AccessPolicy.group_id)
+            .where(
+                AccessPolicy.role == user.role,
+                AccessPolicy.group_id.is_not(None),
+                UserGroup.user_id == user.id,
+            )
+        )
+    )
+    if group_policies:
+        return max(
+            group_policies,
+            key=lambda p: TIER_RANK[Tier(p.allowed_max_tier.value)],
+        )
+
+    # 2. Department-scoped (Phase 5).
     if user.department_id is not None:
         scoped = db.session.scalar(
             select(AccessPolicy).where(
                 AccessPolicy.role == user.role,
                 AccessPolicy.department_id == user.department_id,
+                AccessPolicy.group_id.is_(None),
             )
         )
         if scoped is not None:
             return scoped
+
+    # 3. Global default for the role.
     return db.session.scalar(
         select(AccessPolicy).where(
             AccessPolicy.role == user.role,
             AccessPolicy.department_id.is_(None),
+            AccessPolicy.group_id.is_(None),
         )
     )
 

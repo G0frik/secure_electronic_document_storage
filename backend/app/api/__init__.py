@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from flask import Flask
 
+from app.api.admin_departments import bp as admin_departments_bp
 from app.api.admin_events import bp as admin_events_bp
+from app.api.admin_files import bp as admin_files_bp
+from app.api.admin_groups import bp as admin_groups_bp
 from app.api.admin_policies import bp as admin_policies_bp
+from app.api.admin_users import bp as admin_users_bp
 from app.api.auth import bp as auth_bp
 from app.api.files import bp as files_bp
 from app.api.folders import bp as folders_bp
@@ -36,3 +40,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(notifications_bp)
     app.register_blueprint(admin_events_bp)
     app.register_blueprint(admin_policies_bp)
+    app.register_blueprint(admin_users_bp)
+    app.register_blueprint(admin_departments_bp)
+    app.register_blueprint(admin_groups_bp)
+    app.register_blueprint(admin_files_bp)

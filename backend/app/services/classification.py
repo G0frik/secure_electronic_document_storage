@@ -51,6 +51,32 @@ def create_pending(file_id: uuid.UUID, *, commit: bool = True) -> Classification
     return record
 
 
+def request_reclassification(file_id: uuid.UUID) -> Classification:
+    """Phase 13 admin reclassify. Inserts a new PENDING row at
+    `version = MAX(existing.version) + 1` so the worker re-classifies the
+    same file without losing the historical decisions. Callers enqueue
+    `classify_file.delay(file_id)` after committing.
+    """
+    from sqlalchemy import func as sa_func
+
+    next_version = (
+        db.session.scalar(
+            select(sa_func.coalesce(sa_func.max(Classification.version), 0)).where(
+                Classification.file_id == file_id
+            )
+        )
+        or 0
+    ) + 1
+    record = Classification(
+        file_id=file_id,
+        version=next_version,
+        status=ClassificationStatus.PENDING,
+    )
+    db.session.add(record)
+    db.session.commit()
+    return record
+
+
 def get_latest(file_id: uuid.UUID) -> Classification | None:
     """Return the latest (highest-version) classification row for *file_id*."""
     return db.session.scalar(

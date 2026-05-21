@@ -111,8 +111,14 @@ def start_session(user: User) -> None:
     session ID, so it provides no real session-fixation defense. Proper
     session-ID rotation is a deferred concern (see threat model).
     """
+    from datetime import datetime, timezone
+
     session.pop(_PENDING_TOTP_KEY, None)
     session["user_id"] = str(user.id)
+    # Phase 13 — issued_at is the timestamp the admin force-logout check
+    # compares against `user.session_invalid_before` on every authenticated
+    # request. Sessions older than that bump get cleared.
+    session["issued_at"] = datetime.now(timezone.utc).isoformat()
     session.permanent = True
     session.modified = True
     # Invalidate any cached current_user from earlier requests in the same

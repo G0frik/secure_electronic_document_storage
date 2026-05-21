@@ -13,6 +13,8 @@ import ShareDialog from "@/components/ShareDialog";
 import TagsDialog from "@/components/TagsDialog";
 import OverrideRequestDialog from "@/components/OverrideRequestDialog";
 import { Tier } from "@/api/tierOverrides";
+import { reclassifyFile } from "@/api/admin";
+import { useAuth } from "@/state/auth";
 
 interface Props {
   files: StoredFile[];
@@ -41,6 +43,8 @@ export default function FileTable({
   showDelete = true,
   onDeleted,
 }: Props) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [classifications, setClassifications] = useState<Record<string, ClassificationResult>>({});
   const [shareTarget, setShareTarget] = useState<StoredFile | null>(null);
   const [tagsTarget, setTagsTarget] = useState<StoredFile | null>(null);
@@ -166,6 +170,36 @@ export default function FileTable({
                     title="Request a tier change from an admin"
                   >
                     Override…
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Re-run the classifier on "${f.original_filename}"?`,
+                        )
+                      ) {
+                        return;
+                      }
+                      try {
+                        await reclassifyFile(f.id);
+                        // Wipe cached classification for this file so the
+                        // table starts polling again.
+                        setClassifications((prev) => {
+                          const next = { ...prev };
+                          delete next[f.id];
+                          return next;
+                        });
+                      } catch (err) {
+                        console.error(err);
+                        alert("Reclassify failed — see console.");
+                      }
+                    }}
+                    style={{ marginLeft: "0.25rem" }}
+                    title="Admin: re-run the classifier"
+                  >
+                    Reclassify
                   </button>
                 )}
                 {showDelete && (

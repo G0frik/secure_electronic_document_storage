@@ -31,6 +31,27 @@ def _load_current_user() -> None:
         session.clear()
         g.current_user = None
         return
+    # Phase 13 — admin force-logout. If the user's `session_invalid_before`
+    # was bumped after this session was issued, drop the session.
+    if user.session_invalid_before is not None:
+        from datetime import datetime
+
+        issued_raw = session.get("issued_at")
+        if not issued_raw:
+            # Session predates the issued_at field — treat as invalidated.
+            session.clear()
+            g.current_user = None
+            return
+        try:
+            issued_at = datetime.fromisoformat(issued_raw)
+        except (TypeError, ValueError):
+            session.clear()
+            g.current_user = None
+            return
+        if issued_at < user.session_invalid_before:
+            session.clear()
+            g.current_user = None
+            return
     g.current_user = user
 
 
