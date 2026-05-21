@@ -36,6 +36,7 @@ PER_TIER_THRESHOLDS: dict[Tier, float] = {
 }
 
 DEFAULT_MODEL = "MoritzLaurer/deberta-v3-base-zeroshot-v2.0"
+LARGE_MODEL = "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"
 MULTILINGUAL_MODEL = "MoritzLaurer/bge-m3-zeroshot-v2.0-c"
 
 
@@ -44,11 +45,22 @@ def short_name(cat: str) -> str:
     return cat.split(" such as")[0].split(",")[0].strip()
 
 
-def select_model(multilingual: bool) -> tuple[str, int]:
+def select_model(model_name_or_multilingual: str | bool) -> tuple[str, int]:
     """Return (model_id, max_words) for the requested mode."""
-    if multilingual:
+    if isinstance(model_name_or_multilingual, bool):
+        if model_name_or_multilingual:
+            return MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL
+        return DEFAULT_MODEL, MAX_WORDS_DEBERTA
+
+    name = model_name_or_multilingual.lower().strip()
+    if name in ("multilingual", MULTILINGUAL_MODEL.lower()):
         return MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL
-    return DEFAULT_MODEL, MAX_WORDS_DEBERTA
+    if name in ("large", LARGE_MODEL.lower()):
+        return LARGE_MODEL, MAX_WORDS_DEBERTA
+    if name in ("base", DEFAULT_MODEL.lower()):
+        return DEFAULT_MODEL, MAX_WORDS_DEBERTA
+
+    return model_name_or_multilingual, MAX_WORDS_DEBERTA
 
 
 def load_classifier(model_id: str):  # type: ignore[no-untyped-def]

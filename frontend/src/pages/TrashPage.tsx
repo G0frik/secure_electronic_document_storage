@@ -130,7 +130,7 @@ export default function TrashPage() {
                     <td>
                       <span className="row row-3">
                         <FileGeneric size={16} className="text-muted" />
-                        <span className="filename">{f.original_filename}</span>
+                        <span className="filename" title={f.original_filename}>{f.original_filename}</span>
                       </span>
                     </td>
                     <td className="cell-right text-mono text-small">

@@ -134,3 +134,31 @@ def test_filter_keeps_latin_person() -> None:
     }
     filtered = _filter_by_floor(summary)
     assert filtered["PERSON"]["count"] == 1
+
+
+def test_select_model_resolution() -> None:
+    from app.classifier_core.zero_shot import (
+        DEFAULT_MODEL,
+        LARGE_MODEL,
+        MAX_WORDS_DEBERTA,
+        MAX_WORDS_MULTILINGUAL,
+        MULTILINGUAL_MODEL,
+        select_model,
+    )
+
+    # Boolean legacy fallbacks
+    assert select_model(False) == (DEFAULT_MODEL, MAX_WORDS_DEBERTA)
+    assert select_model(True) == (MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL)
+
+    # String aliases
+    assert select_model("base") == (DEFAULT_MODEL, MAX_WORDS_DEBERTA)
+    assert select_model("large") == (LARGE_MODEL, MAX_WORDS_DEBERTA)
+    assert select_model("multilingual") == (MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL)
+
+    # Exact model path matching (case-insensitive & stripped)
+    assert select_model("MoritzLaurer/deberta-v3-large-zeroshot-v2.0") == (LARGE_MODEL, MAX_WORDS_DEBERTA)
+    assert select_model(" MoritzLaurer/bge-m3-zeroshot-v2.0-c ") == (MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL)
+
+    # Custom model fallback
+    assert select_model("facebook/bart-large-mnli") == ("facebook/bart-large-mnli", MAX_WORDS_DEBERTA)
+

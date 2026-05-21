@@ -67,7 +67,10 @@ class Settings(BaseSettings):
     # Classifier (Phase 4)
     # Default is the v6 English DeBERTa-v3 base. Set CLASSIFIER_MULTILINGUAL=true
     # to switch to bge-m3 (XLM-RoBERTa) for Cyrillic / CJK / non-English content.
+    # Alternatively, specify CLASSIFIER_MODEL=large to use the large DeBERTa model,
+    # or set a custom Hugging Face model checkpoint.
     classifier_multilingual: bool = Field(default=False, alias="CLASSIFIER_MULTILINGUAL")
+    classifier_model: str = Field(default="base", alias="CLASSIFIER_MODEL")
     classifier_disable_presidio: bool = Field(default=False, alias="CLASSIFIER_DISABLE_PRESIDIO")
 
     # Logging

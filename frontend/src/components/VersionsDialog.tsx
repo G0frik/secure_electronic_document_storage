@@ -172,7 +172,9 @@ export default function VersionsDialog({
                     )}
                   </span>
                 </td>
-                <td className="filename">{v.original_filename}</td>
+                <td title={v.original_filename}>
+                  <span className="filename">{v.original_filename}</span>
+                </td>
                 <td className="cell-right text-mono text-small">
                   {formatBytes(v.size_bytes)}
                 </td>

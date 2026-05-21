@@ -252,7 +252,9 @@ export default function FoldersPage() {
             <tbody>
               {grantedShares.map((s) => (
                 <tr key={s.id}>
-                  <td className="filename">{s.label}</td>
+                  <td title={s.label}>
+                    <span className="filename">{s.label}</span>
+                  </td>
                   <td className="cell-muted text-small">{s.kind}</td>
                   <td>{s.recipient_email ?? s.recipient_id}</td>
                   <td className="cell-muted text-small">{s.permission}</td>
@@ -311,7 +313,9 @@ export default function FoldersPage() {
                       : "badge badge-restricted";
                 return (
                   <tr key={l.id}>
-                    <td className="filename">{l.filename ?? "(removed)"}</td>
+                    <td title={l.filename ?? "(removed)"}>
+                      <span className="filename">{l.filename ?? "(removed)"}</span>
+                    </td>
                     <td>
                       <span className={toneClass}>{status.label}</span>
                     </td>

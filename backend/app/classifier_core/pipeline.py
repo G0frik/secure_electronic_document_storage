@@ -61,7 +61,10 @@ def _ensure_loaded() -> tuple[Any, int, Any | None]:
     global _zero_shot_pipeline, _zero_shot_max_words, _presidio_analyzer
 
     if _zero_shot_pipeline is None:
-        model_id, max_words = zero_shot.select_model(settings.classifier_multilingual)
+        model_selection = settings.classifier_model
+        if settings.classifier_multilingual and model_selection == "base":
+            model_selection = "multilingual"
+        model_id, max_words = zero_shot.select_model(model_selection)
         log.info("classifier.loading_zero_shot", model=model_id, max_words=max_words)
         _zero_shot_pipeline = zero_shot.load_classifier(model_id)
         _zero_shot_max_words = max_words

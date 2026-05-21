@@ -78,6 +78,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("path", help="File or directory to classify")
     parser.add_argument(
+        "--large",
+        action="store_true",
+        help="Use deberta-v3-large (English-only). Mutually exclusive with --multilingual.",
+    )
+    parser.add_argument(
         "--multilingual",
         action="store_true",
         help="Use bge-m3 (XLM-RoBERTa, 8k context) instead of DeBERTa-v3 base.",
@@ -89,9 +94,18 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.large and args.multilingual:
+        parser.error("--large and --multilingual are mutually exclusive; pick one.")
+
     from app.config import settings
 
-    settings.classifier_multilingual = args.multilingual
+    if args.large:
+        settings.classifier_model = "large"
+    elif args.multilingual:
+        settings.classifier_model = "multilingual"
+    else:
+        settings.classifier_model = "base"
+
     settings.classifier_disable_presidio = args.no_presidio
     _pipeline.reset_classifier_cache()
 
@@ -111,7 +125,7 @@ def main() -> int:
         print(f"no supported files in {target}", file=sys.stderr)
         return 1
 
-    model_id, max_words = _zs.select_model(args.multilingual)
+    model_id, max_words = _zs.select_model(settings.classifier_model)
     print(f"Loading zero-shot model: {model_id}  (MAX_WORDS={max_words})")
     if not args.no_presidio:
         print("Loading Presidio analyzer (with custom recognizers)...")

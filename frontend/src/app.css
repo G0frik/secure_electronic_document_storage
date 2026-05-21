@@ -149,6 +149,21 @@ code,
   font-family: var(--font-mono);
   font-size: 0.95em;
   color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 320px;
+}
+
+.cell-mime {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ============================================================
@@ -389,7 +404,7 @@ code,
   text-align: right;
 }
 
-.table .cell-actions .btn + .btn {
+.table .cell-actions > * + * {
   margin-left: var(--space-1);
 }
 
@@ -400,7 +415,7 @@ code,
 }
 
 .table tbody tr {
-  animation: row-in 240ms var(--ease) both;
+  animation: row-in 240ms var(--ease) backwards;
 }
 
 .table tbody tr:nth-child(1) { animation-delay: 0ms; }
