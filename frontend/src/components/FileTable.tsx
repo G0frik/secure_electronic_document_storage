@@ -13,6 +13,7 @@ import ShareDialog from "@/components/ShareDialog";
 import TagsDialog from "@/components/TagsDialog";
 import OverrideRequestDialog from "@/components/OverrideRequestDialog";
 import PreviewDialog from "@/components/PreviewDialog";
+import VersionsDialog from "@/components/VersionsDialog";
 import { Tier } from "@/api/tierOverrides";
 import { reclassifyFile } from "@/api/admin";
 import { useAuth } from "@/state/auth";
@@ -51,6 +52,7 @@ export default function FileTable({
   const [tagsTarget, setTagsTarget] = useState<StoredFile | null>(null);
   const [overrideTarget, setOverrideTarget] = useState<StoredFile | null>(null);
   const [previewTarget, setPreviewTarget] = useState<StoredFile | null>(null);
+  const [versionsTarget, setVersionsTarget] = useState<StoredFile | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -172,6 +174,22 @@ export default function FileTable({
                     Tags…
                   </button>
                 )}
+                {showDelete && (
+                  <button
+                    onClick={() => setVersionsTarget(f)}
+                    style={{ marginLeft: "0.25rem" }}
+                    title="Upload a new version or download a previous one"
+                  >
+                    Versions
+                    {f.current_version && f.current_version > 1 ? (
+                      <span style={{ marginLeft: "0.25rem", color: "#6e7781" }}>
+                        (v{f.current_version})
+                      </span>
+                    ) : (
+                      "…"
+                    )}
+                  </button>
+                )}
                 {showDelete && classifications[f.id]?.final_tier && (
                   <button
                     onClick={() => setOverrideTarget(f)}
@@ -279,6 +297,15 @@ export default function FileTable({
           fileId={previewTarget.id}
           fileLabel={previewTarget.original_filename}
           onClose={() => setPreviewTarget(null)}
+        />
+      )}
+
+      {versionsTarget && (
+        <VersionsDialog
+          fileId={versionsTarget.id}
+          fileLabel={versionsTarget.original_filename}
+          onClose={() => setVersionsTarget(null)}
+          onChanged={() => onDeleted?.()}
         />
       )}
 

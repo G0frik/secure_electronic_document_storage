@@ -31,6 +31,19 @@ export interface StoredFile {
   sha256: string;
   uploaded_at: string;
   deleted_at?: string | null;
+  current_version?: number;
+}
+
+export interface FileVersionEntry {
+  version_number: number;
+  is_current: boolean;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  sha256: string;
+  kek_version: number;
+  uploader_id: string | null;
+  uploaded_at: string | null;
 }
 
 export interface FileListResponse {
@@ -187,6 +200,64 @@ export async function restoreFile(fileId: string): Promise<TrashedFile> {
 
 export async function hardDeleteFile(fileId: string): Promise<void> {
   await apiClient.delete(`/api/trash/${fileId}`);
+}
+
+export async function listFileVersions(
+  fileId: string,
+): Promise<FileVersionEntry[]> {
+  const { data } = await apiClient.get<{ items: FileVersionEntry[] }>(
+    `/api/files/${fileId}/versions`,
+  );
+  return data.items;
+}
+
+export async function uploadFileVersion(
+  fileId: string,
+  file: File,
+  options: { onProgress?: (percent: number) => void } = {},
+): Promise<StoredFile> {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<StoredFile>(
+    `/api/files/${fileId}/versions`,
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (evt) => {
+        if (options.onProgress && evt.total) {
+          options.onProgress(Math.round((evt.loaded / evt.total) * 100));
+        }
+      },
+    },
+  );
+  return data;
+}
+
+export async function downloadFileVersion(
+  fileId: string,
+  versionNumber: number,
+  filename: string,
+): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `/api/files/${fileId}/versions/${versionNumber}/download`,
+    { responseType: "blob" },
+  );
+  const blob = response.data;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function deleteFileVersion(
+  fileId: string,
+  versionNumber: number,
+): Promise<void> {
+  await apiClient.delete(`/api/files/${fileId}/versions/${versionNumber}`);
 }
 
 export async function downloadFile(file: StoredFile): Promise<void> {

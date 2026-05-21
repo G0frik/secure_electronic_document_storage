@@ -90,8 +90,8 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
                 "TRUNCATE TABLE notifications, tier_override_requests, "
                 "file_tags, tags, share_links, shares, folders, user_totp, "
                 "user_groups, groups, policy_evaluations, access_policies, "
-                "classifications, audit_log, files, users, departments "
-                "RESTART IDENTITY CASCADE"
+                "classifications, audit_log, file_versions, files, users, "
+                "departments RESTART IDENTITY CASCADE"
             )
         )
         _db.session.commit()

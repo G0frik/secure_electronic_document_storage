@@ -11,7 +11,20 @@ from werkzeug.utils import secure_filename
 
 from app.models.file import File
 from app.schemas.files import FileListParams
-from app.services import classification, csrf, files, folders, policy, preview, trash
+from app.services import (
+    classification,
+    csrf,
+    file_versions,
+    files,
+    folders,
+    policy,
+    preview,
+    trash,
+)
+from app.services.file_versions import (
+    VersionNotFoundError,
+    VersionUploadError,
+)
 from app.services.files import EmptyUploadError, FileNotFoundError
 from app.services.folders import FolderNotFoundError
 from app.services.preview import PreviewExtractionError, UnsupportedPreviewError
@@ -31,6 +44,21 @@ def _file_payload(record: File) -> dict:
         "size_bytes": record.size_bytes,
         "sha256": record.sha256,
         "uploaded_at": record.uploaded_at.isoformat() if record.uploaded_at else None,
+        "current_version": record.current_version,
+    }
+
+
+def _version_payload(view) -> dict:  # type: ignore[no-untyped-def]
+    return {
+        "version_number": view.version_number,
+        "is_current": view.is_current,
+        "original_filename": view.original_filename,
+        "mime_type": view.mime_type,
+        "size_bytes": view.size_bytes,
+        "sha256": view.sha256,
+        "kek_version": view.kek_version,
+        "uploader_id": str(view.uploader_id) if view.uploader_id else None,
+        "uploaded_at": view.uploaded_at.isoformat() if view.uploaded_at else None,
     }
 
 
@@ -267,6 +295,154 @@ def preview_file(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
             "text": payload.text,
         }
     )
+
+
+@bp.post("/<uuid:file_id>/versions")
+@login_required
+@csrf.csrf_protect
+def upload_new_version(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    """Phase 15 — owner uploads a new version of an existing file.
+
+    Snapshots the current content into `file_versions`, then overwrites
+    the file row with the new content and bumps `current_version`. Triggers
+    re-classification on the new content.
+    """
+    user = current_user_or_none()
+    uploaded = request.files.get("file")
+    if uploaded is None:
+        return jsonify({"error": "invalid_request", "message": "Missing 'file' field."}), 400
+
+    # Owner-only. Admins managing another user's file should use the admin
+    # reclassify path, not this one — versions belong to the owner's quota.
+    try:
+        record = files.get_for_owner(file_id, user)
+    except FileNotFoundError:
+        abort(404, description="File not found.")
+
+    try:
+        updated = file_versions.upload_new_version(
+            file_record=record, uploaded=uploaded, uploader=user
+        )
+    except VersionUploadError as exc:
+        return jsonify({"error": "invalid_request", "message": str(exc)}), 400
+    except QuotaExceededError as exc:
+        return (
+            jsonify(
+                {
+                    "error": "quota_exceeded",
+                    "message": str(exc),
+                    "used_bytes": exc.used,
+                    "quota_bytes": exc.quota,
+                    "requested_bytes": exc.requested,
+                    "available_bytes": exc.available,
+                }
+            ),
+            413,
+        )
+    return jsonify(_file_payload(updated)), 201
+
+
+@bp.get("/<uuid:file_id>/versions")
+@login_required
+def list_versions(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    """List every version of the file (current + history), newest-first.
+
+    Owner-only — sharing semantics don't currently extend to old versions.
+    Admins can call this too via the admin bypass.
+    """
+    user = current_user_or_none()
+    record = _resolve_or_404(file_id)
+    if record.owner_id != user.id and user.role.value != "admin":
+        return jsonify({"error": "access_denied", "reason": "not_owner"}), 403
+
+    views = file_versions.list_versions(record)
+    return jsonify({"items": [_version_payload(v) for v in views]})
+
+
+@bp.get("/<uuid:file_id>/versions/<int:version_number>/download")
+@login_required
+def download_version(  # type: ignore[no-untyped-def]
+    file_id: uuid.UUID, version_number: int
+):
+    """Download a specific version of the file. Reuses the same RBAC path
+    as the regular download endpoint for the *current* version; historical
+    versions are owner/admin-only.
+    """
+    user = current_user_or_none()
+    record = _resolve_or_404(file_id)
+
+    try:
+        is_current, version_row = file_versions.get_version(record, version_number)
+    except VersionNotFoundError:
+        abort(404, description="Version not found.")
+
+    if is_current:
+        # Phase 5 RBAC for the current version (non-owners need policy
+        # access). Historical versions are owner/admin-only — no sharing
+        # semantics today.
+        decision = policy.can_user_access(user, record)
+        if not decision.allowed:
+            return _deny_response(decision)
+        chunks = files.stream_download(record, actor=user)
+        original_filename = record.original_filename
+        mime_type = record.mime_type
+        size = record.size_bytes
+    else:
+        if record.owner_id != user.id and user.role.value != "admin":
+            return jsonify({"error": "access_denied", "reason": "not_owner"}), 403
+        assert version_row is not None  # narrow for mypy
+        chunks = file_versions.stream_version_download(
+            record, version_row, actor=user
+        )
+        original_filename = version_row.original_filename
+        mime_type = version_row.mime_type
+        size = version_row.size_bytes
+
+    ascii_name = secure_filename(original_filename) or "download"
+    quoted = quote(original_filename, safe="")
+    headers = {
+        "Content-Length": str(size),
+        "Content-Disposition": (
+            f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quoted}'
+        ),
+    }
+    return Response(chunks, mimetype=mime_type, headers=headers)
+
+
+@bp.delete("/<uuid:file_id>/versions/<int:version_number>")
+@login_required
+@csrf.csrf_protect
+def delete_version(  # type: ignore[no-untyped-def]
+    file_id: uuid.UUID, version_number: int
+):
+    """Delete a single historical version. Refuses to delete the current
+    version — callers should soft-delete the whole file via DELETE /api/files
+    instead.
+    """
+    user = current_user_or_none()
+    try:
+        record = files.get_for_owner(file_id, user)
+    except FileNotFoundError:
+        abort(404, description="File not found.")
+
+    try:
+        is_current, version_row = file_versions.get_version(record, version_number)
+    except VersionNotFoundError:
+        abort(404, description="Version not found.")
+
+    if is_current:
+        return (
+            jsonify(
+                {
+                    "error": "invalid_request",
+                    "message": "Cannot delete the current version — delete the file instead.",
+                }
+            ),
+            409,
+        )
+    assert version_row is not None
+    file_versions.delete_version(record, version_row, actor=user)
+    return ("", 204)
 
 
 @bp.get("/<uuid:file_id>/classification")

@@ -119,13 +119,17 @@ def hard_delete(file: File, *, actor: User | None = None, reason: str = "user") 
 
     Cleanup ordering:
       1. Detach shares (Phase 7) — polymorphic, no FK.
-      2. Drop the SQLAlchemy row — classifications + share_links cascade.
-      3. Remove the ciphertext blob from MinIO.
+      2. Collect historical version storage_keys + sizes BEFORE the DB cascade.
+      3. Drop the SQLAlchemy row — classifications + share_links + file_versions cascade.
+      4. Decrement quota by (current size + sum of historical version sizes).
+      5. Remove ciphertext blobs from MinIO (current + every historical version).
 
     MinIO deletion happens last so a DB rollback leaves the bytes intact;
     leaking a ciphertext object is safer than orphaning a DB row with no
     way to decrypt it.
     """
+    from app.models.file_version import FileVersion
+
     file_id = file.id
     storage_key = str(file.storage_key)
     filename = file.original_filename
@@ -140,24 +144,34 @@ def hard_delete(file: File, *, actor: User | None = None, reason: str = "user") 
         )
     )
 
-    # 2. Drop the row (classifications + share_links cascade via FK) and
-    #    free quota space on the owner. Trash counted toward quota; hard-
+    # 2. Snapshot the historical versions BEFORE the cascade drops them.
+    historical = list(
+        db.session.scalars(
+            select(FileVersion).where(FileVersion.file_id == file_id)
+        )
+    )
+    historical_keys = [(str(v.storage_key), v.size_bytes) for v in historical]
+    total_historical_bytes = sum(v.size_bytes for v in historical)
+
+    # 3. Drop the row (classifications + share_links + file_versions cascade)
+    #    and free quota space on the owner. Trash counted toward quota; hard-
     #    delete is the only operation that gives bytes back.
     owner = db.session.get(User, owner_id)
-    quota.decrement_used(owner, size)
+    quota.decrement_used(owner, size + total_historical_bytes)
     db.session.delete(file)
     db.session.commit()
 
-    # 3. MinIO best-effort.
-    try:
-        storage.delete(storage_key)
-    except Exception as exc:  # noqa: BLE001 - want to log + continue
-        log.warning(
-            "trash.minio_delete_failed",
-            file_id=str(file_id),
-            storage_key=storage_key,
-            error=str(exc),
-        )
+    # 4. MinIO best-effort — current first, then every historical version.
+    for key in [storage_key, *(k for k, _ in historical_keys)]:
+        try:
+            storage.delete(key)
+        except Exception as exc:  # noqa: BLE001 - want to log + continue
+            log.warning(
+                "trash.minio_delete_failed",
+                file_id=str(file_id),
+                storage_key=key,
+                error=str(exc),
+            )
 
     audit.record(
         "file.hard_deleted",
@@ -169,6 +183,8 @@ def hard_delete(file: File, *, actor: User | None = None, reason: str = "user") 
             "size_bytes": size,
             "storage_key": storage_key,
             "reason": reason,
+            "historical_versions_removed": len(historical_keys),
+            "historical_bytes_freed": total_historical_bytes,
         },
         severity=AuditSeverity.WARNING,
     )

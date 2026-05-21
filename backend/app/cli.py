@@ -72,6 +72,7 @@ DEV_USERS: list[_DevUser] = [
 def register_cli(app: Flask) -> None:
     app.cli.add_command(seed_dev)
     app.cli.add_command(reap_trash)
+    app.cli.add_command(reap_file_versions)
     app.cli.add_command(recompute_quota)
 
 
@@ -91,6 +92,27 @@ def reap_trash(retention_days: int) -> None:
 
     count = trash.reap_expired_trash(retention_days=retention_days)
     click.echo(f"Reaped {count} file(s) past the {retention_days}-day retention.")
+
+
+@click.command("reap-file-versions")
+@click.option(
+    "--retention-days",
+    default=30,
+    show_default=True,
+    help="Hard-delete historical file versions older than now() - retention_days.",
+)
+@with_appcontext
+def reap_file_versions(retention_days: int) -> None:
+    """Phase 15 — hard-delete file versions older than the retention window.
+    Current versions are never touched. Equivalent to the
+    `file_versions.reap` Celery task.
+    """
+    from app.services import file_versions
+
+    count = file_versions.reap_expired_versions(retention_days=retention_days)
+    click.echo(
+        f"Reaped {count} version(s) past the {retention_days}-day retention."
+    )
 
 
 @click.command("recompute-quota")

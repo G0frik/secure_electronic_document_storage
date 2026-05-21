@@ -29,6 +29,22 @@ def reap_trash(retention_days: int = 30) -> int:
         return count
 
 
+@celery.task(name="file_versions.reap", queue="cleanup")
+def reap_file_versions(retention_days: int = 30) -> int:
+    """Phase 15 — hard-delete historical file versions older than the cutoff.
+    Current versions live in the `files` row and are never touched.
+    """
+    app = create_app()
+    with app.app_context():
+        from app.services import file_versions
+
+        count = file_versions.reap_expired_versions(retention_days=retention_days)
+        log.info(
+            "file_versions.reap.complete", retention_days=retention_days, count=count
+        )
+        return count
+
+
 @celery.task(name="quota.recompute", queue="cleanup")
 def recompute_quota_usage() -> int:
     """Phase 12 drift protection: recompute every user's `used_bytes` from
