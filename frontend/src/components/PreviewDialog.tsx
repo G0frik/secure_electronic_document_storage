@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   AccessDeniedError,
+  ClassificationResult,
+  fetchClassification,
   fetchPreview,
   PreviewExtractionError,
   PreviewResponse,
@@ -23,6 +25,99 @@ type LoadState =
   | { kind: "denied"; message: string }
   | { kind: "error"; message: string };
 
+const ENTITY_TIERS: Record<string, string> = {
+  US_SSN: "restricted",
+  CREDIT_CARD: "restricted",
+  IBAN_CODE: "restricted",
+  US_BANK_NUMBER: "restricted",
+  US_PASSPORT: "restricted",
+  US_DRIVER_LICENSE: "restricted",
+  MEDICAL_LICENSE: "restricted",
+  CRYPTO: "restricted",
+  CREDENTIAL: "restricted",
+  RNOKPP: "restricted",
+  UA_PASSPORT: "restricted",
+  UA_PHONE: "confidential",
+  EMAIL_ADDRESS: "confidential",
+  PHONE_NUMBER: "confidential",
+  PERSON: "confidential",
+  LOCATION: "confidential",
+  NRP: "confidential",
+  IP_ADDRESS: "internal",
+  URL: "internal",
+  DATE_TIME: "public",
+};
+
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sampleToPattern(sample: string): string {
+  if (sample.includes("*")) {
+    return sample
+      .split("*")
+      .map((part) => escapeRegExp(part))
+      .join(".");
+  }
+  return escapeRegExp(sample);
+}
+
+function renderHighlightedText(
+  text: string,
+  classification: ClassificationResult | null
+) {
+  if (!text) return "(empty document)";
+  if (!classification || !classification.presidio_entities) {
+    return text;
+  }
+
+  const sampleToEntity: Record<string, string> = {};
+  Object.entries(classification.presidio_entities).forEach(([entityType, details]) => {
+    if (details.samples) {
+      details.samples.forEach((sample) => {
+        if (sample && sample.trim()) {
+          sampleToEntity[sample] = entityType;
+        }
+      });
+    }
+  });
+
+  const sortedSamples = Object.keys(sampleToEntity).sort((a, b) => b.length - a.length);
+  if (sortedSamples.length === 0) {
+    return text;
+  }
+
+  const patterns = sortedSamples.map(sampleToPattern);
+  const regex = new RegExp(`(${patterns.join("|")})`, "g");
+  const parts = text.split(regex);
+
+  return parts.map((part, index) => {
+    const matchedSample = sortedSamples.find((sample) => {
+      const pattern = sampleToPattern(sample);
+      const testRegex = new RegExp(`^${pattern}$`);
+      return testRegex.test(part);
+    });
+
+    if (matchedSample) {
+      const entityType = sampleToEntity[matchedSample];
+      if (entityType) {
+        const tier = ENTITY_TIERS[entityType] || "confidential";
+        return (
+          <span
+            key={index}
+            className={`entity-highlight ${tier}`}
+            data-entity={entityType}
+          >
+            {part}
+          </span>
+        );
+      }
+    }
+
+    return part;
+  });
+}
+
 /**
  * Centered preview modal.
  *
@@ -36,13 +131,22 @@ export default function PreviewDialog({
   onClose,
 }: Props) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const [classification, setClassification] = useState<ClassificationResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setState({ kind: "loading" });
-    fetchPreview(fileId)
-      .then((payload) => {
-        if (!cancelled) setState({ kind: "ready", payload });
+    setClassification(null);
+
+    Promise.all([
+      fetchPreview(fileId),
+      fetchClassification(fileId).catch(() => null),
+    ])
+      .then(([payload, classResult]) => {
+        if (!cancelled) {
+          setState({ kind: "ready", payload });
+          setClassification(classResult);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -124,7 +228,7 @@ export default function PreviewDialog({
                   color: "var(--color-ink)",
                 }}
               >
-                {state.payload.text || "(empty document)"}
+                {renderHighlightedText(state.payload.text, classification)}
               </pre>
             )}
             {state.kind === "unsupported" && (

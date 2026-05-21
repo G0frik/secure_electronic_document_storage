@@ -14,6 +14,7 @@ import TagsDialog from "@/components/TagsDialog";
 import OverrideRequestDialog from "@/components/OverrideRequestDialog";
 import PreviewDialog from "@/components/PreviewDialog";
 import VersionsDialog from "@/components/VersionsDialog";
+import ClassificationDetailsDrawer from "@/components/ClassificationDetailsDrawer";
 import { Tier } from "@/api/tierOverrides";
 import { reclassifyFile } from "@/api/admin";
 import { useAuth } from "@/state/auth";
@@ -112,6 +113,7 @@ export default function FileTable({
   const [overrideTarget, setOverrideTarget] = useState<StoredFile | null>(null);
   const [previewTarget, setPreviewTarget] = useState<StoredFile | null>(null);
   const [versionsTarget, setVersionsTarget] = useState<StoredFile | null>(null);
+  const [classificationDetailsTarget, setClassificationDetailsTarget] = useState<StoredFile | null>(null);
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
   const menuWrapperRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
@@ -275,7 +277,10 @@ export default function FileTable({
                     </span>
                   </td>
                   <td>
-                    <TierBadge classification={cls} />
+                    <TierBadge
+                      classification={cls}
+                      onClick={() => setClassificationDetailsTarget(f)}
+                    />
                   </td>
                   <td className="cell-muted text-mono text-small">
                     {f.mime_type}
@@ -310,9 +315,11 @@ export default function FileTable({
                     >
                       <button
                         className="btn btn-ghost btn-icon btn-sm"
-                        onClick={() =>
-                          setOpenMenuFor(openMenuFor === f.id ? null : f.id)
-                        }
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuFor(openMenuFor === f.id ? null : f.id);
+                        }}
                         aria-haspopup="menu"
                         aria-expanded={openMenuFor === f.id}
                         title="More actions"
@@ -481,6 +488,15 @@ export default function FileTable({
           onSubmitted={() => {
             /* Toast wiring lands in Batch D. */
           }}
+        />
+      )}
+
+      {classificationDetailsTarget && (
+        <ClassificationDetailsDrawer
+          file={classificationDetailsTarget}
+          classification={classifications[classificationDetailsTarget.id] ?? null}
+          open={!!classificationDetailsTarget}
+          onClose={() => setClassificationDetailsTarget(null)}
         />
       )}
     </>

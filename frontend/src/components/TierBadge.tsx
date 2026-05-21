@@ -17,6 +17,7 @@ const TIER_LABEL: Record<Tier, string> = {
 interface Props {
   classification?: ClassificationResult | null;
   loading?: boolean;
+  onClick?: () => void;
 }
 
 /**
@@ -26,7 +27,7 @@ interface Props {
  * vocabulary in the redesign and carry semantic meaning. The wrapper class
  * is `.badge` which gives the pill shape + mono uppercase letterspacing.
  */
-export default function TierBadge({ classification, loading }: Props) {
+export default function TierBadge({ classification, loading, onClick }: Props) {
   if (
     loading ||
     !classification ||
@@ -53,6 +54,23 @@ export default function TierBadge({ classification, loading }: Props) {
 
   const tooltip =
     (classification.categories_triggered ?? []).join(", ") || undefined;
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`${TIER_CLASS[classification.final_tier]} badge-interactive`}
+        title={tooltip}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+      >
+        {TIER_LABEL[classification.final_tier]}
+      </button>
+    );
+  }
+
   return (
     <span
       className={TIER_CLASS[classification.final_tier]}

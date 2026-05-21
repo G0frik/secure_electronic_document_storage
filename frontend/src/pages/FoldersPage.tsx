@@ -6,7 +6,6 @@ import { listGrantedLinks, revokeShareLink, ShareLink } from "@/api/shareLinks";
 import Breadcrumb from "@/components/Breadcrumb";
 import ShareDialog from "@/components/ShareDialog";
 import { Folder as FolderIcon, Plus, Share2, Trash2 } from "@/components/icons";
-import { useToast } from "@/state/toast";
 
 /**
  * Folders + sharing overview.

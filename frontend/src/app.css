@@ -1100,3 +1100,89 @@ code,
 .status-ok      { color: var(--color-success); }
 .status-fail    { color: var(--color-danger); }
 .status-pending { color: var(--color-muted); }
+
+/* Interactive badge styling for clicking to open drawer */
+.badge-interactive {
+  cursor: pointer;
+  border: none;
+  font: inherit;
+  padding: 0 var(--space-2);
+  transition: opacity var(--duration-fast) var(--ease);
+}
+.badge-interactive:hover {
+  opacity: 0.85;
+}
+
+/* Entity highlighting inside the preview dialog */
+.entity-highlight {
+  position: relative;
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  margin: 0 1px;
+}
+.entity-highlight.restricted {
+  background-color: var(--tier-restricted-bg);
+  border: 1px solid var(--tier-restricted-fg);
+  color: var(--color-ink);
+}
+.entity-highlight.confidential {
+  background-color: var(--tier-confidential-bg);
+  border: 1px solid var(--tier-confidential-fg);
+  color: var(--color-ink);
+}
+.entity-highlight.internal {
+  background-color: var(--tier-internal-bg);
+  border: 1px solid var(--tier-internal-fg);
+  color: var(--color-ink);
+}
+.entity-highlight.public {
+  background-color: var(--tier-public-bg);
+  border: 1px solid var(--tier-public-fg);
+  color: var(--color-ink);
+}
+.entity-highlight::after {
+  content: attr(data-entity);
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-left: 6px;
+  padding: 1px 3px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+.entity-highlight.restricted::after {
+  background: var(--tier-restricted-fg);
+  color: var(--color-surface);
+}
+.entity-highlight.confidential::after {
+  background: var(--tier-confidential-fg);
+  color: var(--color-surface);
+}
+.entity-highlight.internal::after {
+  background: var(--tier-internal-fg);
+  color: var(--color-surface);
+}
+.entity-highlight.public::after {
+  background: var(--tier-public-fg);
+  color: var(--color-surface);
+}
+
+/* Zero-shot category card styles in drawer */
+.zero-shot-card {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+.zero-shot-title {
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
