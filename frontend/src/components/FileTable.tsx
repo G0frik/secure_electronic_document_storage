@@ -113,7 +113,9 @@ export default function FileTable({
   const [overrideTarget, setOverrideTarget] = useState<StoredFile | null>(null);
   const [previewTarget, setPreviewTarget] = useState<StoredFile | null>(null);
   const [versionsTarget, setVersionsTarget] = useState<StoredFile | null>(null);
-  const [classificationDetailsTarget, setClassificationDetailsTarget] = useState<StoredFile | null>(null);
+  const [classificationDetailsTarget, setClassificationDetailsTarget] = useState<StoredFile | null>(
+    null,
+  );
   const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
   const menuWrapperRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
@@ -167,10 +169,7 @@ export default function FileTable({
   useEffect(() => {
     if (!openMenuFor) return;
     function onClick(e: MouseEvent) {
-      if (
-        menuWrapperRef.current &&
-        !menuWrapperRef.current.contains(e.target as Node)
-      ) {
+      if (menuWrapperRef.current && !menuWrapperRef.current.contains(e.target as Node)) {
         setOpenMenuFor(null);
       }
     }
@@ -265,11 +264,16 @@ export default function FileTable({
               const cls = classifications[f.id];
               const isMenuOpen = openMenuFor === f.id;
               return (
-                <tr key={f.id} style={isMenuOpen ? { position: "relative", zIndex: 10 } : undefined}>
+                <tr
+                  key={f.id}
+                  style={isMenuOpen ? { position: "relative", zIndex: 10 } : undefined}
+                >
                   <td>
                     <span className="row row-3">
                       <Icon size={16} className="text-muted" aria-hidden="true" />
-                      <span className="filename" title={f.original_filename}>{f.original_filename}</span>
+                      <span className="filename" title={f.original_filename}>
+                        {f.original_filename}
+                      </span>
                       {f.current_version && f.current_version > 1 && (
                         <span className="text-mono text-small text-muted">
                           v{f.current_version}
@@ -286,12 +290,8 @@ export default function FileTable({
                   <td className="cell-muted text-mono text-small" title={f.mime_type}>
                     <span className="cell-mime">{f.mime_type}</span>
                   </td>
-                  <td className="cell-right text-mono text-small">
-                    {formatBytes(f.size_bytes)}
-                  </td>
-                  <td className="cell-muted text-small">
-                    {formatDateTime(f.uploaded_at)}
-                  </td>
+                  <td className="cell-right text-mono text-small">{formatBytes(f.size_bytes)}</td>
+                  <td className="cell-muted text-small">{formatDateTime(f.uploaded_at)}</td>
                   <td className="cell-actions">
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
@@ -486,9 +486,7 @@ export default function FileTable({
         <OverrideRequestDialog
           fileId={overrideTarget.id}
           fileLabel={overrideTarget.original_filename}
-          currentTier={
-            (classifications[overrideTarget.id]?.final_tier as Tier | null) ?? null
-          }
+          currentTier={(classifications[overrideTarget.id]?.final_tier as Tier | null) ?? null}
           onClose={() => setOverrideTarget(null)}
           onSubmitted={() => {
             /* Toast wiring lands in Batch D. */
@@ -537,9 +535,7 @@ function RowMenuItem({
         color: danger ? "var(--color-danger)" : "var(--color-ink)",
         cursor: "pointer",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "var(--color-bg)")
-      }
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-bg)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       {icon}

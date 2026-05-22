@@ -145,16 +145,13 @@ export default function ShareDialog({
               id="share-permission"
               className="select"
               value={permission}
-              onChange={(e) =>
-                setPermission(e.target.value as "viewer" | "editor")
-              }
+              onChange={(e) => setPermission(e.target.value as "viewer" | "editor")}
             >
               <option value="viewer">Viewer</option>
               <option value="editor">Editor</option>
             </select>
             <span className="field-hint">
-              Viewer can read; editor is reserved for future upload-into-shared
-              behaviour.
+              Viewer can read; editor is reserved for future upload-into-shared behaviour.
             </span>
           </div>
           {error && <p className="field-error">{error}</p>}
@@ -162,11 +159,7 @@ export default function ShareDialog({
             <button type="button" className="btn" onClick={onClose}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={busy || !email}
-            >
+            <button type="submit" className="btn btn-primary" disabled={busy || !email}>
               {busy ? "Sharing…" : "Share"}
             </button>
           </div>
@@ -176,8 +169,8 @@ export default function ShareDialog({
       {mode === "external" && !minted && (
         <form onSubmit={onSubmitExternal} className="stack stack-4">
           <p className="text-small text-muted">
-            Anyone with the link can download until it expires or hits the use
-            limit. The link is shown <strong>once</strong> — copy it now.
+            Anyone with the link can download until it expires or hits the use limit. The link is
+            shown <strong>once</strong> — copy it now.
           </p>
           <div className="field">
             <label className="field-label" htmlFor="share-expires">
@@ -206,10 +199,7 @@ export default function ShareDialog({
               placeholder="unlimited"
             />
           </div>
-          <label
-            className="row row-2 text-small"
-            style={{ cursor: "pointer" }}
-          >
+          <label className="row row-2 text-small" style={{ cursor: "pointer" }}>
             <input
               type="checkbox"
               checked={forceRestricted}
@@ -234,9 +224,7 @@ export default function ShareDialog({
 
       {mode === "external" && minted && minted.token && (
         <div className="stack stack-4">
-          <p className="text-small">
-            Link created. Copy it now — you won't see it again.
-          </p>
+          <p className="text-small">Link created. Copy it now — you won't see it again.</p>
           <input
             type="text"
             className="input text-mono text-small"
@@ -254,9 +242,7 @@ export default function ShareDialog({
             <button
               type="button"
               className="btn"
-              onClick={() =>
-                navigator.clipboard?.writeText(publicUrl(minted.token!))
-              }
+              onClick={() => navigator.clipboard?.writeText(publicUrl(minted.token!))}
             >
               Copy link
             </button>

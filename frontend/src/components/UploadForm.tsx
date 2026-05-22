@@ -88,11 +88,7 @@ export default function UploadForm({
         {busy ? "Uploading…" : "Upload"}
       </button>
       {progress !== null && (
-        <progress
-          value={progress}
-          max={100}
-          style={{ marginLeft: "1rem", width: "200px" }}
-        />
+        <progress value={progress} max={100} style={{ marginLeft: "1rem", width: "200px" }} />
       )}
       {error && (
         <p className="status-fail" style={{ marginTop: "0.5rem" }}>

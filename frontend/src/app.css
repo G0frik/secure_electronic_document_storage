@@ -15,7 +15,7 @@
   /* --- Color tokens --- */
   --color-bg: #fbfaf7;
   --color-surface: #ffffff;
-  --color-surface-2: #fdfcf9;       /* subtly off-surface for nested panels */
+  --color-surface-2: #fdfcf9; /* subtly off-surface for nested panels */
   --color-ink: #1a1a1f;
   --color-ink-soft: #2a2a32;
   --color-muted: #5d5d68;
@@ -24,7 +24,7 @@
   --color-line-strong: #d0cdc2;
   --color-accent: #2a3140;
   --color-accent-hover: #1a1f2b;
-  --color-accent-soft: #eef0f4;     /* subtle accent tint for selected states */
+  --color-accent-soft: #eef0f4; /* subtle accent tint for selected states */
   --color-row-hover: #fbfaf7;
 
   /* Tier palette — preserved verbatim from the existing TierBadge.
@@ -47,8 +47,8 @@
   --color-danger-bg: #ffebe9;
 
   /* --- Typography --- */
-  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-display: var(--font-sans);
 
   /* --- Spacing scale (4px base) --- */
@@ -62,9 +62,9 @@
   --space-8: 64px;
 
   /* --- Radii --- */
-  --radius-sm: 4px;        /* inputs, buttons */
-  --radius-md: 6px;        /* cards, drawers, modals */
-  --radius-pill: 999px;    /* tier badges, status pills */
+  --radius-sm: 4px; /* inputs, buttons */
+  --radius-md: 6px; /* cards, drawers, modals */
+  --radius-pill: 999px; /* tier badges, status pills */
 
   /* --- Shadows (deliberately tiny — no Tailwind shadow-2xl) --- */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -122,11 +122,22 @@ h6 {
   color: var(--color-ink);
 }
 
-h1 { font-size: 1.5rem; line-height: 1.25; }
-h2 { font-size: 1.125rem; line-height: 1.3; }
-h3 { font-size: 1rem; line-height: 1.35; }
+h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+h2 {
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+h3 {
+  font-size: 1rem;
+  line-height: 1.35;
+}
 
-p { margin: 0; }
+p {
+  margin: 0;
+}
 
 a {
   color: var(--color-accent);
@@ -186,8 +197,9 @@ code,
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease),
-              border-color var(--duration-fast) var(--ease);
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
   white-space: nowrap;
 }
 
@@ -275,8 +287,9 @@ code,
   background: var(--color-surface);
   border: 1px solid var(--color-line-strong);
   border-radius: var(--radius-sm);
-  transition: border-color var(--duration-fast) var(--ease),
-              box-shadow var(--duration-fast) var(--ease);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
 }
 
 .textarea {
@@ -410,22 +423,44 @@ code,
 
 /* Row stagger on initial mount. Single keyframe, no JS. */
 @keyframes row-in {
-  from { opacity: 0; transform: translateY(2px); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .table tbody tr {
   animation: row-in 240ms var(--ease) backwards;
 }
 
-.table tbody tr:nth-child(1) { animation-delay: 0ms; }
-.table tbody tr:nth-child(2) { animation-delay: 30ms; }
-.table tbody tr:nth-child(3) { animation-delay: 60ms; }
-.table tbody tr:nth-child(4) { animation-delay: 90ms; }
-.table tbody tr:nth-child(5) { animation-delay: 120ms; }
-.table tbody tr:nth-child(6) { animation-delay: 150ms; }
-.table tbody tr:nth-child(7) { animation-delay: 180ms; }
-.table tbody tr:nth-child(8) { animation-delay: 210ms; }
+.table tbody tr:nth-child(1) {
+  animation-delay: 0ms;
+}
+.table tbody tr:nth-child(2) {
+  animation-delay: 30ms;
+}
+.table tbody tr:nth-child(3) {
+  animation-delay: 60ms;
+}
+.table tbody tr:nth-child(4) {
+  animation-delay: 90ms;
+}
+.table tbody tr:nth-child(5) {
+  animation-delay: 120ms;
+}
+.table tbody tr:nth-child(6) {
+  animation-delay: 150ms;
+}
+.table tbody tr:nth-child(7) {
+  animation-delay: 180ms;
+}
+.table tbody tr:nth-child(8) {
+  animation-delay: 210ms;
+}
 
 /* ============================================================
  * Tier badges (preserved colors from the original TierBadge)
@@ -446,10 +481,22 @@ code,
   white-space: nowrap;
 }
 
-.badge-public { color: var(--tier-public-fg); background: var(--tier-public-bg); }
-.badge-internal { color: var(--tier-internal-fg); background: var(--tier-internal-bg); }
-.badge-confidential { color: var(--tier-confidential-fg); background: var(--tier-confidential-bg); }
-.badge-restricted { color: var(--tier-restricted-fg); background: var(--tier-restricted-bg); }
+.badge-public {
+  color: var(--tier-public-fg);
+  background: var(--tier-public-bg);
+}
+.badge-internal {
+  color: var(--tier-internal-fg);
+  background: var(--tier-internal-bg);
+}
+.badge-confidential {
+  color: var(--tier-confidential-fg);
+  background: var(--tier-confidential-bg);
+}
+.badge-restricted {
+  color: var(--tier-restricted-fg);
+  background: var(--tier-restricted-bg);
+}
 .badge-pending {
   color: var(--color-muted);
   background: var(--color-line);
@@ -474,9 +521,16 @@ code,
   background: var(--color-bg);
 }
 
-.app-topbar { grid-area: topbar; }
-.app-sidebar { grid-area: sidebar; }
-.app-main { grid-area: main; overflow: auto; }
+.app-topbar {
+  grid-area: topbar;
+}
+.app-sidebar {
+  grid-area: sidebar;
+}
+.app-main {
+  grid-area: main;
+  overflow: auto;
+}
 
 .topbar {
   display: flex;
@@ -524,7 +578,9 @@ code,
   cursor: not-allowed;
 }
 
-.topbar-spacer { flex: 1; }
+.topbar-spacer {
+  flex: 1;
+}
 
 .topbar-actions {
   display: flex;
@@ -616,7 +672,9 @@ code,
   font-weight: 500;
 }
 
-.sidebar-spacer { flex: 1; }
+.sidebar-spacer {
+  flex: 1;
+}
 
 .sidebar-footer {
   padding: var(--space-3);
@@ -707,8 +765,9 @@ code,
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease),
-              border-color var(--duration-fast) var(--ease);
+  transition:
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
   margin-bottom: -1px;
 }
 
@@ -736,8 +795,9 @@ code,
   border: 1.5px dashed var(--color-line-strong);
   border-radius: var(--radius-md);
   color: var(--color-muted);
-  transition: border-color var(--duration-fast) var(--ease),
-              background var(--duration-fast) var(--ease);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
   cursor: pointer;
 }
 
@@ -779,7 +839,14 @@ code,
   animation: overlay-in 160ms var(--ease);
 }
 
-@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 
 .drawer {
   position: fixed;
@@ -797,8 +864,14 @@ code,
 }
 
 @keyframes drawer-in {
-  from { transform: translateX(8px); opacity: 0; }
-  to   { transform: none; opacity: 1; }
+  from {
+    transform: translateX(8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 .drawer-header {
@@ -858,8 +931,14 @@ code,
 }
 
 @keyframes modal-in {
-  from { transform: translate(-50%, -48%); opacity: 0; }
-  to   { transform: translate(-50%, -50%); opacity: 1; }
+  from {
+    transform: translate(-50%, -48%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
 }
 
 /* ============================================================
@@ -895,17 +974,38 @@ code,
 }
 
 @keyframes toast-in {
-  from { transform: translateY(8px); opacity: 0; }
-  to   { transform: none; opacity: 1; }
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
-.toast-success { border-left-color: var(--color-success); }
-.toast-warning { border-left-color: var(--color-warning); }
-.toast-error   { border-left-color: var(--color-danger); }
+.toast-success {
+  border-left-color: var(--color-success);
+}
+.toast-warning {
+  border-left-color: var(--color-warning);
+}
+.toast-error {
+  border-left-color: var(--color-danger);
+}
 
-.toast-body { flex: 1; color: var(--color-ink); }
-.toast-title { font-weight: 500; }
-.toast-detail { font-size: 0.8125rem; color: var(--color-muted); margin-top: 2px; }
+.toast-body {
+  flex: 1;
+  color: var(--color-ink);
+}
+.toast-title {
+  font-weight: 500;
+}
+.toast-detail {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  margin-top: 2px;
+}
 
 /* ============================================================
  * Notification bell + popover
@@ -1007,9 +1107,15 @@ code,
   transition: width var(--duration-base) var(--ease);
 }
 
-.quota-fill.ok    { background: var(--color-success); }
-.quota-fill.warn  { background: var(--color-warning); }
-.quota-fill.full  { background: var(--color-danger); }
+.quota-fill.ok {
+  background: var(--color-success);
+}
+.quota-fill.warn {
+  background: var(--color-warning);
+}
+.quota-fill.full {
+  background: var(--color-danger);
+}
 
 .quota-hint {
   font-size: 0.75rem;
@@ -1059,22 +1165,52 @@ code,
  * Misc utilities
  * ============================================================ */
 
-.stack { display: flex; flex-direction: column; }
-.stack-1 { gap: var(--space-1); }
-.stack-2 { gap: var(--space-2); }
-.stack-3 { gap: var(--space-3); }
-.stack-4 { gap: var(--space-4); }
-.stack-5 { gap: var(--space-5); }
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+.stack-1 {
+  gap: var(--space-1);
+}
+.stack-2 {
+  gap: var(--space-2);
+}
+.stack-3 {
+  gap: var(--space-3);
+}
+.stack-4 {
+  gap: var(--space-4);
+}
+.stack-5 {
+  gap: var(--space-5);
+}
 
-.row { display: flex; align-items: center; }
-.row-2 { gap: var(--space-2); }
-.row-3 { gap: var(--space-3); }
-.row-between { justify-content: space-between; }
+.row {
+  display: flex;
+  align-items: center;
+}
+.row-2 {
+  gap: var(--space-2);
+}
+.row-3 {
+  gap: var(--space-3);
+}
+.row-between {
+  justify-content: space-between;
+}
 
-.text-muted { color: var(--color-muted); }
-.text-mono { font-family: var(--font-mono); }
-.text-small { font-size: 0.8125rem; }
-.text-strong { font-weight: 600; }
+.text-muted {
+  color: var(--color-muted);
+}
+.text-mono {
+  font-family: var(--font-mono);
+}
+.text-small {
+  font-size: 0.8125rem;
+}
+.text-strong {
+  font-weight: 600;
+}
 
 .divider {
   height: 1px;
@@ -1112,9 +1248,15 @@ code,
 }
 
 /* Status indicators used by health-check style text. */
-.status-ok      { color: var(--color-success); }
-.status-fail    { color: var(--color-danger); }
-.status-pending { color: var(--color-muted); }
+.status-ok {
+  color: var(--color-success);
+}
+.status-fail {
+  color: var(--color-danger);
+}
+.status-pending {
+  color: var(--color-muted);
+}
 
 /* Interactive badge styling for clicking to open drawer */
 .badge-interactive {

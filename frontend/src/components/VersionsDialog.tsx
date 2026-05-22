@@ -27,12 +27,7 @@ interface Props {
  * icon buttons; current row only has Download (and shows the "current"
  * pill). The reaper purges history older than 30 days regardless.
  */
-export default function VersionsDialog({
-  fileId,
-  fileLabel,
-  onClose,
-  onChanged,
-}: Props) {
+export default function VersionsDialog({ fileId, fileLabel, onClose, onChanged }: Props) {
   const [versions, setVersions] = useState<FileVersionEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +64,7 @@ export default function VersionsDialog({
     } catch (err) {
       const ax = err as AxiosError<{ message?: string; error?: string }>;
       if (ax.response?.data?.error === "quota_exceeded") {
-        setError(
-          "Quota exceeded — free up space before uploading a new version.",
-        );
+        setError("Quota exceeded — free up space before uploading a new version.");
       } else {
         setError(ax.response?.data?.message ?? "Upload failed.");
       }
@@ -129,16 +122,9 @@ export default function VersionsDialog({
         >
           <Upload size={14} />
           {busy ? `Uploading… ${progress}%` : "Upload new version"}
-          <input
-            type="file"
-            onChange={onUpload}
-            disabled={busy}
-            style={{ display: "none" }}
-          />
+          <input type="file" onChange={onUpload} disabled={busy} style={{ display: "none" }} />
         </label>
-        <span className="text-small text-muted">
-          The reaper purges history older than 30 days.
-        </span>
+        <span className="text-small text-muted">The reaper purges history older than 30 days.</span>
       </div>
 
       {error && <p className="field-error">{error}</p>}
@@ -167,17 +153,13 @@ export default function VersionsDialog({
                 <td>
                   <span className="row row-2 text-mono text-small">
                     v{v.version_number}
-                    {v.is_current && (
-                      <span className="badge badge-internal">current</span>
-                    )}
+                    {v.is_current && <span className="badge badge-internal">current</span>}
                   </span>
                 </td>
                 <td title={v.original_filename}>
                   <span className="filename">{v.original_filename}</span>
                 </td>
-                <td className="cell-right text-mono text-small">
-                  {formatBytes(v.size_bytes)}
-                </td>
+                <td className="cell-right text-mono text-small">{formatBytes(v.size_bytes)}</td>
                 <td className="cell-muted text-small">
                   {v.uploaded_at ? formatDateTime(v.uploaded_at) : "—"}
                 </td>

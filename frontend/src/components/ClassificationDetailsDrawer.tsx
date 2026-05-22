@@ -23,44 +23,41 @@ const TIER_CLASS: Record<Tier, string> = {
   restricted: "badge badge-restricted",
 };
 
-const CATEGORY_METADATA: Record<
-  string,
-  { name: string; tier: Tier; threshold: number }
-> = {
+const CATEGORY_METADATA: Record<string, { name: string; tier: Tier; threshold: number }> = {
   "personally identifiable information": {
     name: "Personally identifiable information (PII)",
     tier: "restricted",
-    threshold: 0.70,
+    threshold: 0.7,
   },
   "payment card data": {
     name: "Payment card data",
     tier: "restricted",
-    threshold: 0.70,
+    threshold: 0.7,
   },
   "authentication credentials": {
     name: "Authentication credentials",
     tier: "restricted",
-    threshold: 0.70,
+    threshold: 0.7,
   },
   "medical records": {
     name: "Medical records",
     tier: "restricted",
-    threshold: 0.70,
+    threshold: 0.7,
   },
-  "salary": {
+  salary: {
     name: "Salary, compensation records",
     tier: "confidential",
-    threshold: 0.50,
+    threshold: 0.5,
   },
   "proprietary technology": {
     name: "Proprietary technology / code",
     tier: "confidential",
-    threshold: 0.50,
+    threshold: 0.5,
   },
   "non-public business strategy": {
     name: "Non-public M&A / deals",
     tier: "confidential",
-    threshold: 0.50,
+    threshold: 0.5,
   },
   "internal business operations": {
     name: "Internal office memos / drafts",
@@ -124,16 +121,12 @@ export default function ClassificationDetailsDrawer({
           <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-ink)" }}>
             Final Sensitivity Tier:
           </span>
-          <span className={TIER_CLASS[finalTier]}>
-            {TIER_LABEL[finalTier]}
-          </span>
+          <span className={TIER_CLASS[finalTier]}>{TIER_LABEL[finalTier]}</span>
         </div>
 
         {/* Zero-Shot Progress Bars Card */}
         <div className="zero-shot-card">
-          <div className="zero-shot-title">
-            Zero-Shot Categories (NLI v6)
-          </div>
+          <div className="zero-shot-title">Zero-Shot Categories (NLI v6)</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {Object.entries(CATEGORY_METADATA).map(([key, meta]) => {
               const score = rawScores[key] ?? 0;
@@ -149,17 +142,58 @@ export default function ClassificationDetailsDrawer({
               const pctThreshold = Math.round(meta.threshold * 100);
 
               return (
-                <div key={key} style={{ fontSize: "0.75rem", display: "flex", flexDirection: "column", gap: "3px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontWeight: 500, color: triggered ? "var(--color-ink)" : "var(--color-muted)" }}>
+                <div
+                  key={key}
+                  style={{
+                    fontSize: "0.75rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "3px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 500,
+                        color: triggered ? "var(--color-ink)" : "var(--color-muted)",
+                      }}
+                    >
                       {meta.name}
                     </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", fontWeight: 600, color: barColor }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        color: barColor,
+                      }}
+                    >
                       {pctScore}% (thresh {pctThreshold}%)
                     </span>
                   </div>
-                  <div style={{ height: "6px", background: "var(--color-line)", borderRadius: "3px", position: "relative", overflow: "visible" }}>
-                    <div style={{ width: `${pctScore}%`, height: "100%", borderRadius: "3px", background: barColor }} />
+                  <div
+                    style={{
+                      height: "6px",
+                      background: "var(--color-line)",
+                      borderRadius: "3px",
+                      position: "relative",
+                      overflow: "visible",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pctScore}%`,
+                        height: "100%",
+                        borderRadius: "3px",
+                        background: barColor,
+                      }}
+                    />
                     <div
                       style={{
                         position: "absolute",
@@ -181,21 +215,70 @@ export default function ClassificationDetailsDrawer({
 
         {/* Presidio Detected Entities Card */}
         <div className="zero-shot-card">
-          <div className="zero-shot-title">
-            Presidio Detected Entities
-          </div>
+          <div className="zero-shot-title">Presidio Detected Entities</div>
           {Object.keys(presidioEntities).length === 0 ? (
             <div style={{ fontSize: "0.8125rem", color: "var(--color-muted)" }}>
               No entities detected.
             </div>
           ) : (
-            <table className="table" style={{ fontSize: "0.8rem", width: "100%", borderCollapse: "collapse" }}>
+            <table
+              className="table"
+              style={{ fontSize: "0.8rem", width: "100%", borderCollapse: "collapse" }}
+            >
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1.5px solid var(--color-line-strong)" }}>
-                  <th style={{ padding: "var(--space-2) 0", fontSize: "0.7rem", color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Entity Type</th>
-                  <th style={{ padding: "var(--space-2) 0", fontSize: "0.7rem", color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>Count</th>
-                  <th style={{ padding: "var(--space-2) 0", fontSize: "0.7rem", color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right" }}>Max Score</th>
-                  <th style={{ padding: "var(--space-2) 0", fontSize: "0.7rem", color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.04em", paddingLeft: "10px" }}>Samples</th>
+                <tr
+                  style={{
+                    textAlign: "left",
+                    borderBottom: "1.5px solid var(--color-line-strong)",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "var(--space-2) 0",
+                      fontSize: "0.7rem",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Entity Type
+                  </th>
+                  <th
+                    style={{
+                      padding: "var(--space-2) 0",
+                      fontSize: "0.7rem",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      textAlign: "center",
+                    }}
+                  >
+                    Count
+                  </th>
+                  <th
+                    style={{
+                      padding: "var(--space-2) 0",
+                      fontSize: "0.7rem",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      textAlign: "right",
+                    }}
+                  >
+                    Max Score
+                  </th>
+                  <th
+                    style={{
+                      padding: "var(--space-2) 0",
+                      fontSize: "0.7rem",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      paddingLeft: "10px",
+                    }}
+                  >
+                    Samples
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -209,14 +292,29 @@ export default function ClassificationDetailsDrawer({
                   return (
                     <tr key={entityType} style={{ borderBottom: "1px solid var(--color-line)" }}>
                       <td style={{ padding: "var(--space-2) 0" }}>
-                        <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", background: "var(--color-accent-soft)", padding: "1px 4px", borderRadius: "2px" }}>
+                        <code
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.75rem",
+                            background: "var(--color-accent-soft)",
+                            padding: "1px 4px",
+                            borderRadius: "2px",
+                          }}
+                        >
                           {entityType}
                         </code>
                       </td>
                       <td style={{ padding: "var(--space-2) 0", textAlign: "center" }}>
                         {details.count}
                       </td>
-                      <td style={{ padding: "var(--space-2) 0", textAlign: "right", color: scoreColor, fontWeight: 600 }}>
+                      <td
+                        style={{
+                          padding: "var(--space-2) 0",
+                          textAlign: "right",
+                          color: scoreColor,
+                          fontWeight: 600,
+                        }}
+                      >
                         {details.max_score.toFixed(2)}
                       </td>
                       <td style={{ padding: "var(--space-2) 0", paddingLeft: "10px" }}>
@@ -233,10 +331,31 @@ export default function ClassificationDetailsDrawer({
         </div>
 
         {/* Metadata Footer */}
-        <div style={{ fontSize: "0.75rem", color: "var(--color-muted)", display: "flex", flexDirection: "column", gap: "var(--space-1)", marginTop: "auto", paddingTop: "var(--space-4)", borderTop: "1px dashed var(--color-line)" }}>
-          <div>Classifier Engine: <code style={{ fontFamily: "var(--font-mono)" }}>{classification.classifier_version || "unknown"}</code></div>
+        <div
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--color-muted)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--space-1)",
+            marginTop: "auto",
+            paddingTop: "var(--space-4)",
+            borderTop: "1px dashed var(--color-line)",
+          }}
+        >
+          <div>
+            Classifier Engine:{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>
+              {classification.classifier_version || "unknown"}
+            </code>
+          </div>
           {classification.classified_at && (
-            <div>Scanned at: <span style={{ fontFamily: "var(--font-mono)" }}>{formatDateTime(classification.classified_at)}</span></div>
+            <div>
+              Scanned at:{" "}
+              <span style={{ fontFamily: "var(--font-mono)" }}>
+                {formatDateTime(classification.classified_at)}
+              </span>
+            </div>
           )}
         </div>
       </div>

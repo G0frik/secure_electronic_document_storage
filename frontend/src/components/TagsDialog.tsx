@@ -83,9 +83,7 @@ export default function TagsDialog({ fileId, fileLabel, onClose }: Props) {
       }
     >
       <div className="row row-2" style={{ flexWrap: "wrap" }}>
-        {tags.length === 0 && (
-          <span className="text-small text-muted">No tags yet.</span>
-        )}
+        {tags.length === 0 && <span className="text-small text-muted">No tags yet.</span>}
         {tags.map((t) => (
           <span
             key={t.id}
@@ -138,11 +136,7 @@ export default function TagsDialog({ fileId, fileLabel, onClose }: Props) {
         </div>
         {error && <p className="field-error">{error}</p>}
         <div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={busy || !input.trim()}
-          >
+          <button type="submit" className="btn btn-primary" disabled={busy || !input.trim()}>
             {busy ? "Adding…" : "Add"}
           </button>
         </div>

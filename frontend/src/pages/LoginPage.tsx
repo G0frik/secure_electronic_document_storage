@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { useAuth } from "@/state/auth";
 import { Lock } from "@/components/icons";
@@ -50,9 +50,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       const axiosErr = err as AxiosError<{ message?: string }>;
-      setError(
-        axiosErr.response?.data?.message ?? "Login failed. Please try again.",
-      );
+      setError(axiosErr.response?.data?.message ?? "Login failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -76,10 +74,7 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div
-          className="row row-2"
-          style={{ marginBottom: "var(--space-3)" }}
-        >
+        <div className="row row-2" style={{ marginBottom: "var(--space-3)" }}>
           <span className="topbar-brand-mark" aria-hidden="true">
             <Lock size={14} strokeWidth={2.5} />
           </span>
@@ -94,9 +89,7 @@ export default function LoginPage() {
         {step === "password" && (
           <>
             <h1>Sign in</h1>
-            <p className="auth-card-subtitle">
-              Use your work email and password.
-            </p>
+            <p className="auth-card-subtitle">Use your work email and password.</p>
 
             <form onSubmit={onPasswordSubmit} className="auth-form">
               <div className="field">
@@ -138,6 +131,15 @@ export default function LoginPage() {
                 {submitting ? "Signing in…" : "Sign in"}
               </button>
             </form>
+
+            <div style={{ marginTop: "var(--space-4)", textAlign: "center" }}>
+              <p className="text-small text-muted">
+                Don't have an account?{" "}
+                <Link to="/register" className="link" style={{ fontWeight: 500 }}>
+                  Create one
+                </Link>
+              </p>
+            </div>
           </>
         )}
 
@@ -145,8 +147,7 @@ export default function LoginPage() {
           <>
             <h1>Two-factor code</h1>
             <p className="auth-card-subtitle">
-              Enter the 6-digit code from your authenticator app, or one of
-              your recovery codes.
+              Enter the 6-digit code from your authenticator app, or one of your recovery codes.
             </p>
 
             <form onSubmit={onTotpSubmit} className="auth-form">

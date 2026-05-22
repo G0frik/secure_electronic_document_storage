@@ -58,8 +58,8 @@ export default function OverrideRequestDialog({
       subtitle={<span className="filename">{fileLabel}</span>}
     >
       <p className="text-small text-muted">
-        Current tier: <strong>{currentTier ?? "not classified yet"}</strong>.
-        An admin must approve before the file's tier changes.
+        Current tier: <strong>{currentTier ?? "not classified yet"}</strong>. An admin must approve
+        before the file's tier changes.
       </p>
 
       <form onSubmit={onSubmit} className="stack stack-4">
@@ -93,9 +93,7 @@ export default function OverrideRequestDialog({
             rows={5}
             placeholder="Why should the tier change?"
           />
-          <span className="field-hint">
-            Be specific — the admin reviewing this needs context.
-          </span>
+          <span className="field-hint">Be specific — the admin reviewing this needs context.</span>
         </div>
         {error && <p className="field-error">{error}</p>}
         <div className="row row-2" style={{ justifyContent: "flex-end" }}>

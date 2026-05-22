@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AxiosError } from "axios";
-import {
-  AdminEventEnvelope,
-  listEvents,
-} from "@/api/admin";
+import { AdminEventEnvelope, listEvents } from "@/api/admin";
 import AdminShell from "@/components/AdminShell";
 
 type Severity = "info" | "warning" | "critical" | "";
@@ -45,8 +42,8 @@ export default function AdminEventsPage() {
     <AdminShell>
       <h1>Events / SIEM stream</h1>
       <p style={{ color: "#6e7781" }}>
-        ECS-shaped audit stream. Same payload Filebeat / Wazuh agent reads
-        from <code>./logs/events.jsonl</code>.
+        ECS-shaped audit stream. Same payload Filebeat / Wazuh agent reads from{" "}
+        <code>./logs/events.jsonl</code>.
       </p>
 
       <div
@@ -120,9 +117,7 @@ export default function AdminEventsPage() {
               <td style={{ padding: "0.4rem", color: "#6e7781" }}>
                 {e.user?.email ?? e.user?.id ?? "—"}
               </td>
-              <td style={{ padding: "0.4rem", color: "#6e7781" }}>
-                {e.source?.ip ?? "—"}
-              </td>
+              <td style={{ padding: "0.4rem", color: "#6e7781" }}>{e.source?.ip ?? "—"}</td>
               <td style={{ padding: "0.4rem" }}>{e.message}</td>
             </tr>
           ))}

@@ -2,14 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/state/auth";
 import NotificationBell from "@/components/NotificationBell";
-import {
-  ChevronDown,
-  Lock,
-  LogOut,
-  Search,
-  Settings,
-  ShieldCheck,
-} from "@/components/icons";
+import { ChevronDown, Lock, LogOut, Search, Settings, ShieldCheck } from "@/components/icons";
 
 /**
  * Top navigation bar for the authenticated app shell.
@@ -50,11 +43,7 @@ export default function TopBar() {
 
       {/* Search is a placeholder — not a shipped feature yet. Disabled so it
           reads as "coming" rather than broken. */}
-      <div
-        className="topbar-search"
-        aria-disabled="true"
-        title="Search is not available yet"
-      >
+      <div className="topbar-search" aria-disabled="true" title="Search is not available yet">
         <Search size={14} />
         <span>Search…</span>
       </div>
@@ -171,9 +160,7 @@ function MenuItem({
         color: "var(--color-ink)",
         cursor: "pointer",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "var(--color-bg)")
-      }
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-bg)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       {icon}

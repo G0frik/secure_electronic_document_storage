@@ -26,11 +26,7 @@ export default function Breadcrumb({ items }: { items: Crumb[] }) {
           <Fragment key={`${item.label}-${idx}`}>
             {renderCrumb(item, isLast)}
             {!isLast && (
-              <ChevronRight
-                size={12}
-                className="breadcrumb-separator"
-                aria-hidden="true"
-              />
+              <ChevronRight size={12} className="breadcrumb-separator" aria-hidden="true" />
             )}
           </Fragment>
         );

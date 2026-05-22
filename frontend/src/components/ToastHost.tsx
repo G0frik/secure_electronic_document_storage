@@ -1,11 +1,5 @@
 import { useToastList } from "@/state/toast";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Close,
-  Info,
-  XCircle,
-} from "@/components/icons";
+import { AlertTriangle, CheckCircle2, Close, Info, XCircle } from "@/components/icons";
 
 const KIND_CLASS = {
   info: "toast",

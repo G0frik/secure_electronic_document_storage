@@ -125,10 +125,7 @@ export default function SecuritySettingsPage() {
 
           {status?.enabled && (
             <>
-              <p
-                className="row row-2"
-                style={{ color: "var(--color-success)" }}
-              >
+              <p className="row row-2" style={{ color: "var(--color-success)" }}>
                 <CheckCircle2 size={14} />
                 <span>2FA is enabled on this account.</span>
               </p>
@@ -159,11 +156,7 @@ export default function SecuritySettingsPage() {
                   />
                 </div>
                 <div>
-                  <button
-                    type="submit"
-                    className="btn btn-danger"
-                    disabled={busy || !disableCode}
-                  >
+                  <button type="submit" className="btn btn-danger" disabled={busy || !disableCode}>
                     Disable 2FA
                   </button>
                 </div>
@@ -173,28 +166,18 @@ export default function SecuritySettingsPage() {
 
           {status && !status.enabled && (
             <>
-              <p
-                className="row row-2"
-                style={{ color: "var(--color-muted)" }}
-              >
+              <p className="row row-2" style={{ color: "var(--color-muted)" }}>
                 <XCircle size={14} />
                 <span>
                   2FA is not enabled.
-                  {status.pending_enrollment &&
-                    " An enrolment was started but never verified."}
+                  {status.pending_enrollment && " An enrolment was started but never verified."}
                 </span>
               </p>
 
               {!setupBundle && (
                 <p style={{ marginTop: "var(--space-3)" }}>
-                  <button
-                    className="btn btn-primary"
-                    onClick={onBeginSetup}
-                    disabled={busy}
-                  >
-                    {status.pending_enrollment
-                      ? "Re-generate QR code"
-                      : "Enable 2FA"}
+                  <button className="btn btn-primary" onClick={onBeginSetup} disabled={busy}>
+                    {status.pending_enrollment ? "Re-generate QR code" : "Enable 2FA"}
                   </button>
                 </p>
               )}
@@ -202,8 +185,8 @@ export default function SecuritySettingsPage() {
               {setupBundle && (
                 <div className="stack stack-4" style={{ marginTop: "var(--space-3)" }}>
                   <div>
-                    <strong>1. Scan this QR code</strong> with your authenticator
-                    app, or paste the secret manually.
+                    <strong>1. Scan this QR code</strong> with your authenticator app, or paste the
+                    secret manually.
                     <div
                       style={{
                         marginTop: "var(--space-3)",
@@ -216,18 +199,14 @@ export default function SecuritySettingsPage() {
                     >
                       <QRCodeSVG value={setupBundle.otpauth_uri} size={184} />
                     </div>
-                    <p
-                      className="text-small text-muted"
-                      style={{ marginTop: "var(--space-2)" }}
-                    >
-                      Manual entry secret:{" "}
-                      <code>{setupBundle.secret}</code>
+                    <p className="text-small text-muted" style={{ marginTop: "var(--space-2)" }}>
+                      Manual entry secret: <code>{setupBundle.secret}</code>
                     </p>
                   </div>
 
                   <div>
-                    <strong>2. Save your recovery codes</strong> somewhere safe.
-                    Each works once. They will not be shown again.
+                    <strong>2. Save your recovery codes</strong> somewhere safe. Each works once.
+                    They will not be shown again.
                     <pre
                       style={{
                         marginTop: "var(--space-2)",
@@ -247,9 +226,7 @@ export default function SecuritySettingsPage() {
                       onClick={() =>
                         navigator.clipboard
                           ?.writeText(setupBundle.recovery_codes.join("\n"))
-                          .then(() =>
-                            setInfo("Recovery codes copied to clipboard."),
-                          )
+                          .then(() => setInfo("Recovery codes copied to clipboard."))
                       }
                     >
                       Copy recovery codes

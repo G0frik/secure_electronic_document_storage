@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AxiosError } from "axios";
-import {
-  hardDeleteFile,
-  listTrash,
-  restoreFile,
-  TrashedFile,
-} from "@/api/files";
+import { hardDeleteFile, listTrash, restoreFile, TrashedFile } from "@/api/files";
 import { formatBytes, formatDateTime } from "@/utils/format";
 import Breadcrumb from "@/components/Breadcrumb";
 import { FileGeneric, RotateCcw, Trash2 } from "@/components/icons";
@@ -61,11 +56,7 @@ export default function TrashPage() {
   }
 
   async function onHardDelete(file: TrashedFile) {
-    if (
-      !window.confirm(
-        `Permanently delete "${file.original_filename}"? This cannot be undone.`,
-      )
-    ) {
+    if (!window.confirm(`Permanently delete "${file.original_filename}"? This cannot be undone.`)) {
       return;
     }
     try {
@@ -98,8 +89,7 @@ export default function TrashPage() {
         <div className="empty">
           <div className="empty-title">Trash is empty</div>
           <div className="text-small text-muted">
-            Deleted files appear here and are kept for {RETENTION_DAYS} days
-            before being purged.
+            Deleted files appear here and are kept for {RETENTION_DAYS} days before being purged.
           </div>
         </div>
       )}
@@ -130,15 +120,13 @@ export default function TrashPage() {
                     <td>
                       <span className="row row-3">
                         <FileGeneric size={16} className="text-muted" />
-                        <span className="filename" title={f.original_filename}>{f.original_filename}</span>
+                        <span className="filename" title={f.original_filename}>
+                          {f.original_filename}
+                        </span>
                       </span>
                     </td>
-                    <td className="cell-right text-mono text-small">
-                      {formatBytes(f.size_bytes)}
-                    </td>
-                    <td className="cell-muted text-small">
-                      {formatDateTime(f.deleted_at)}
-                    </td>
+                    <td className="cell-right text-mono text-small">{formatBytes(f.size_bytes)}</td>
+                    <td className="cell-muted text-small">{formatDateTime(f.deleted_at)}</td>
                     <td className="text-small" style={{ color: tone }}>
                       {left} days
                     </td>

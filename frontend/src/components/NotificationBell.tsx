@@ -67,10 +67,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     function onClick(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
@@ -97,11 +94,7 @@ export default function NotificationBell() {
   }
 
   return (
-    <div
-      ref={wrapperRef}
-      className="notification-bell"
-      style={{ position: "relative" }}
-    >
+    <div ref={wrapperRef} className="notification-bell" style={{ position: "relative" }}>
       <button
         type="button"
         className="btn btn-ghost btn-icon"

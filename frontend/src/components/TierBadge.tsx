@@ -52,8 +52,7 @@ export default function TierBadge({ classification, loading, onClick }: Props) {
     return <span className="badge badge-pending">—</span>;
   }
 
-  const tooltip =
-    (classification.categories_triggered ?? []).join(", ") || undefined;
+  const tooltip = (classification.categories_triggered ?? []).join(", ") || undefined;
 
   if (onClick) {
     return (
@@ -72,10 +71,7 @@ export default function TierBadge({ classification, loading, onClick }: Props) {
   }
 
   return (
-    <span
-      className={TIER_CLASS[classification.final_tier]}
-      title={tooltip}
-    >
+    <span className={TIER_CLASS[classification.final_tier]} title={tooltip}>
       {TIER_LABEL[classification.final_tier]}
     </span>
   );

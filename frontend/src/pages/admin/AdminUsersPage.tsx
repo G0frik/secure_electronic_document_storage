@@ -107,9 +107,7 @@ export default function AdminUsersPage() {
                   {u.status}
                 </span>
               </td>
-              <td style={{ padding: "0.4rem", color: "#6e7781" }}>
-                {u.department ?? "—"}
-              </td>
+              <td style={{ padding: "0.4rem", color: "#6e7781" }}>{u.department ?? "—"}</td>
               <td style={{ padding: "0.4rem", color: "#6e7781" }}>
                 {formatBytes(u.used_bytes)} / {formatBytes(u.quota_bytes)}
               </td>
@@ -163,9 +161,7 @@ function EditModal({
   const [role, setRole] = useState<Role>(user.role);
   const [status, setStatus] = useState<UserStatus>(user.status);
   const [departmentId, setDepartmentId] = useState<string>(user.department_id ?? "");
-  const [quotaMb, setQuotaMb] = useState<number>(
-    Math.round(user.quota_bytes / (1024 * 1024)),
-  );
+  const [quotaMb, setQuotaMb] = useState<number>(Math.round(user.quota_bytes / (1024 * 1024)));
 
   return (
     <div
@@ -321,12 +317,8 @@ function AuditModal({
                     <code>{r.action_type}</code>
                   </td>
                   <td style={{ padding: "0.3rem" }}>{r.severity}</td>
-                  <td style={{ padding: "0.3rem", color: "#6e7781" }}>
-                    {r.target_type ?? "—"}
-                  </td>
-                  <td style={{ padding: "0.3rem", color: "#6e7781" }}>
-                    {r.actor_ip ?? "—"}
-                  </td>
+                  <td style={{ padding: "0.3rem", color: "#6e7781" }}>{r.target_type ?? "—"}</td>
+                  <td style={{ padding: "0.3rem", color: "#6e7781" }}>{r.actor_ip ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

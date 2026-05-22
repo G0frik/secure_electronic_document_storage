@@ -6,13 +6,7 @@ import {
   publicShareDownloadUrl,
 } from "@/api/shareLinks";
 import { formatBytes, formatDateTime } from "@/utils/format";
-import {
-  AlertTriangle,
-  Download,
-  FileText,
-  Lock,
-  XCircle,
-} from "@/components/icons";
+import { AlertTriangle, Download, FileText, Lock, XCircle } from "@/components/icons";
 
 type State =
   | { kind: "loading" }
@@ -67,16 +61,12 @@ export default function PublicSharePage() {
           </span>
         </div>
 
-        {state.kind === "loading" && (
-          <p className="text-muted">Loading link…</p>
-        )}
+        {state.kind === "loading" && <p className="text-muted">Loading link…</p>}
 
         {(state.kind === "missing" ||
           state.kind === "expired" ||
           state.kind === "revoked" ||
-          state.kind === "exhausted") && (
-          <InvalidState kind={state.kind} />
-        )}
+          state.kind === "exhausted") && <InvalidState kind={state.kind} />}
 
         {state.kind === "ok" && <OkState info={state.info} token={token!} />}
       </div>
@@ -84,11 +74,7 @@ export default function PublicSharePage() {
   );
 }
 
-function InvalidState({
-  kind,
-}: {
-  kind: "missing" | "expired" | "revoked" | "exhausted";
-}) {
+function InvalidState({ kind }: { kind: "missing" | "expired" | "revoked" | "exhausted" }) {
   const copy: Record<typeof kind, { title: string; body: string }> = {
     missing: {
       title: "Link not found",
@@ -112,10 +98,7 @@ function InvalidState({
   return (
     <>
       <h1>{copy[kind].title}</h1>
-      <p
-        className="row row-2"
-        style={{ color: "var(--color-muted)", marginTop: "var(--space-3)" }}
-      >
+      <p className="row row-2" style={{ color: "var(--color-muted)", marginTop: "var(--space-3)" }}>
         <Icon size={16} />
         <span>{copy[kind].body}</span>
       </p>
@@ -123,13 +106,7 @@ function InvalidState({
   );
 }
 
-function OkState({
-  info,
-  token,
-}: {
-  info: PublicShareLinkInfo;
-  token: string;
-}) {
+function OkState({ info, token }: { info: PublicShareLinkInfo; token: string }) {
   return (
     <>
       <div
@@ -147,8 +124,7 @@ function OkState({
           {info.filename}
         </div>
         <div className="text-small text-muted">
-          {formatBytes(info.size_bytes)} ·{" "}
-          <span className="text-mono">{info.mime_type}</span>
+          {formatBytes(info.size_bytes)} · <span className="text-mono">{info.mime_type}</span>
         </div>
       </div>
 
@@ -175,9 +151,7 @@ function OkState({
             {info.expires_at && " · "}
           </>
         )}
-        {info.expires_at && (
-          <>expires {formatDateTime(info.expires_at)}</>
-        )}
+        {info.expires_at && <>expires {formatDateTime(info.expires_at)}</>}
       </p>
     </>
   );

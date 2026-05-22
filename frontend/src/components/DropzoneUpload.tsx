@@ -1,10 +1,4 @@
-import {
-  ChangeEvent,
-  DragEvent,
-  useCallback,
-  useRef,
-  useState,
-} from "react";
+import { ChangeEvent, DragEvent, useCallback, useRef, useState } from "react";
 import { AxiosError } from "axios";
 import { uploadFile } from "@/api/files";
 import { Folder } from "@/api/folders";

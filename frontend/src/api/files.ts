@@ -73,9 +73,7 @@ export interface ClassificationResult {
 }
 
 export async function fetchClassification(fileId: string): Promise<ClassificationResult> {
-  const { data } = await apiClient.get<ClassificationResult>(
-    `/api/files/${fileId}/classification`,
-  );
+  const { data } = await apiClient.get<ClassificationResult>(`/api/files/${fileId}/classification`);
   return data;
 }
 
@@ -98,9 +96,7 @@ export async function listFiles(params: ListFilesParams = {}): Promise<FileListR
 }
 
 export async function listSharedFiles(): Promise<{ items: StoredFile[]; total: number }> {
-  const { data } = await apiClient.get<{ items: StoredFile[]; total: number }>(
-    "/api/files/shared",
-  );
+  const { data } = await apiClient.get<{ items: StoredFile[]; total: number }>("/api/files/shared");
   return data;
 }
 
@@ -150,9 +146,7 @@ export class PreviewExtractionError extends Error {
 
 export async function fetchPreview(fileId: string): Promise<PreviewResponse> {
   try {
-    const { data } = await apiClient.get<PreviewResponse>(
-      `/api/files/${fileId}/preview`,
-    );
+    const { data } = await apiClient.get<PreviewResponse>(`/api/files/${fileId}/preview`);
     return data;
   } catch (err) {
     if (err instanceof AxiosError && err.response) {
@@ -191,10 +185,7 @@ export async function listTrash(): Promise<TrashedFile[]> {
 }
 
 export async function restoreFile(fileId: string): Promise<TrashedFile> {
-  const { data } = await apiClient.post<TrashedFile>(
-    `/api/trash/${fileId}/restore`,
-    {},
-  );
+  const { data } = await apiClient.post<TrashedFile>(`/api/trash/${fileId}/restore`, {});
   return data;
 }
 
@@ -202,9 +193,7 @@ export async function hardDeleteFile(fileId: string): Promise<void> {
   await apiClient.delete(`/api/trash/${fileId}`);
 }
 
-export async function listFileVersions(
-  fileId: string,
-): Promise<FileVersionEntry[]> {
+export async function listFileVersions(fileId: string): Promise<FileVersionEntry[]> {
   const { data } = await apiClient.get<{ items: FileVersionEntry[] }>(
     `/api/files/${fileId}/versions`,
   );
@@ -218,18 +207,14 @@ export async function uploadFileVersion(
 ): Promise<StoredFile> {
   const form = new FormData();
   form.append("file", file);
-  const { data } = await apiClient.post<StoredFile>(
-    `/api/files/${fileId}/versions`,
-    form,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress: (evt) => {
-        if (options.onProgress && evt.total) {
-          options.onProgress(Math.round((evt.loaded / evt.total) * 100));
-        }
-      },
+  const { data } = await apiClient.post<StoredFile>(`/api/files/${fileId}/versions`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (evt) => {
+      if (options.onProgress && evt.total) {
+        options.onProgress(Math.round((evt.loaded / evt.total) * 100));
+      }
     },
-  );
+  });
   return data;
 }
 
@@ -253,10 +238,7 @@ export async function downloadFileVersion(
   URL.revokeObjectURL(url);
 }
 
-export async function deleteFileVersion(
-  fileId: string,
-  versionNumber: number,
-): Promise<void> {
+export async function deleteFileVersion(fileId: string, versionNumber: number): Promise<void> {
   await apiClient.delete(`/api/files/${fileId}/versions/${versionNumber}`);
 }
 

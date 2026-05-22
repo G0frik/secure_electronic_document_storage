@@ -135,9 +135,7 @@ export default function AdminGroupsPage() {
           {groups.map((g) => (
             <tr key={g.id} style={{ borderBottom: "1px solid #eaeef2" }}>
               <td style={{ padding: "0.4rem" }}>{g.name}</td>
-              <td style={{ padding: "0.4rem", color: "#6e7781" }}>
-                {g.description ?? "—"}
-              </td>
+              <td style={{ padding: "0.4rem", color: "#6e7781" }}>{g.description ?? "—"}</td>
               <td style={{ padding: "0.4rem", color: "#6e7781" }}>
                 {new Date(g.created_at).toLocaleString()}
               </td>
@@ -198,8 +196,7 @@ function MembersPanel({
         <ul>
           {group.members?.map((m) => (
             <li key={m.id}>
-              {m.email} ({m.role}){" "}
-              <button onClick={() => onRemove(m.id)}>Remove</button>
+              {m.email} ({m.role}) <button onClick={() => onRemove(m.id)}>Remove</button>
             </li>
           ))}
         </ul>

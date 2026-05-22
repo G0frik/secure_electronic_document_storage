@@ -7,17 +7,12 @@ export interface Tag {
 }
 
 export async function listTags(fileId: string): Promise<Tag[]> {
-  const { data } = await apiClient.get<{ items: Tag[] }>(
-    `/api/files/${fileId}/tags`,
-  );
+  const { data } = await apiClient.get<{ items: Tag[] }>(`/api/files/${fileId}/tags`);
   return data.items;
 }
 
 export async function addTags(fileId: string, names: string[]): Promise<Tag[]> {
-  const { data } = await apiClient.post<{ items: Tag[] }>(
-    `/api/files/${fileId}/tags`,
-    { names },
-  );
+  const { data } = await apiClient.post<{ items: Tag[] }>(`/api/files/${fileId}/tags`, { names });
   return data.items;
 }
 

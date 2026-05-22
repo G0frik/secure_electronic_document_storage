@@ -92,8 +92,8 @@ export default function AdminPoliciesPage() {
       <h1>Access policies</h1>
       <p style={{ color: "#6e7781" }}>
         Resolution order: <strong>group</strong> → <strong>department</strong> →{" "}
-        <strong>global</strong>. Among group-targeted policies the
-        max-permissive <code>allowed_max_tier</code> wins.
+        <strong>global</strong>. Among group-targeted policies the max-permissive{" "}
+        <code>allowed_max_tier</code> wins.
       </p>
       {error && <p className="status-fail">{error}</p>}
 
@@ -182,9 +182,7 @@ export default function AdminPoliciesPage() {
               <td style={{ padding: "0.4rem", color: "#6e7781" }}>
                 {(p.denied_categories ?? []).join(", ") || "—"}
               </td>
-              <td style={{ padding: "0.4rem", color: "#6e7781" }}>
-                {p.description ?? "—"}
-              </td>
+              <td style={{ padding: "0.4rem", color: "#6e7781" }}>{p.description ?? "—"}</td>
               <td style={{ padding: "0.4rem" }}>
                 <button onClick={() => onDelete(p)}>Delete</button>
               </td>

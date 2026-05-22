@@ -27,11 +27,7 @@ export default function FoldersPage() {
 
   async function refresh() {
     try {
-      const [fs, gs, gl] = await Promise.all([
-        listFolders(),
-        listGranted(),
-        listGrantedLinks(),
-      ]);
+      const [fs, gs, gl] = await Promise.all([listFolders(), listGranted(), listGrantedLinks()]);
       setFolders(fs);
       setGrantedShares(gs);
       setGrantedLinks(gl);
@@ -147,15 +143,15 @@ export default function FoldersPage() {
                 </option>
               ))}
             </select>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={busy || !newName.trim()}
-            >
+            <button type="submit" className="btn btn-primary" disabled={busy || !newName.trim()}>
               Create
             </button>
           </form>
-          {error && <p className="field-error" style={{ marginTop: "var(--space-3)" }}>{error}</p>}
+          {error && (
+            <p className="field-error" style={{ marginTop: "var(--space-3)" }}>
+              {error}
+            </p>
+          )}
         </div>
       </div>
 
@@ -192,7 +188,7 @@ export default function FoldersPage() {
                   </td>
                   <td className="cell-muted">
                     {f.parent_id
-                      ? folders.find((p) => p.id === f.parent_id)?.name ?? f.parent_id
+                      ? (folders.find((p) => p.id === f.parent_id)?.name ?? f.parent_id)
                       : "—"}
                   </td>
                   <td className="cell-muted text-small">
@@ -262,10 +258,7 @@ export default function FoldersPage() {
                     {new Date(s.created_at).toLocaleString()}
                   </td>
                   <td className="cell-actions">
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => onRevokeShare(s)}
-                    >
+                    <button className="btn btn-ghost btn-sm" onClick={() => onRevokeShare(s)}>
                       Revoke
                     </button>
                   </td>
@@ -331,10 +324,7 @@ export default function FoldersPage() {
                     </td>
                     <td className="cell-actions">
                       {!l.revoked_at && (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => onRevokeLink(l)}
-                        >
+                        <button className="btn btn-ghost btn-sm" onClick={() => onRevokeLink(l)}>
                           Revoke
                         </button>
                       )}

@@ -30,8 +30,8 @@ export default function AdminShell({ children }: Props) {
   return (
     <section className="page" style={{ maxWidth: "100%" }}>
       <div className="legacy-banner">
-        Legacy admin UI — pending redesign. The user-facing pages have moved to
-        the Paper Archive design; admin pages follow in a later batch.
+        Legacy admin UI — pending redesign. The user-facing pages have moved to the Paper Archive
+        design; admin pages follow in a later batch.
       </div>
 
       <div

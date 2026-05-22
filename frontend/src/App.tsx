@@ -9,6 +9,7 @@ import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import FoldersPage from "@/pages/FoldersPage";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
 import PublicSharePage from "@/pages/PublicSharePage";
 import SecuritySettingsPage from "@/pages/SecuritySettingsPage";
 import TrashPage from "@/pages/TrashPage";
@@ -19,7 +20,7 @@ import ProtectedRoute from "@/routes/ProtectedRoute";
 /**
  * Route table.
  *
- * Public routes (`/login`, `/share/:token`) render directly — they have
+ * Public routes (`/login`, `/register`, `/share/:token`) render directly — they have
  * their own centered-card layouts. Every other route wraps the page in
  * `<AppShell>` (topbar + sidebar + main).
  */
@@ -27,6 +28,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
 
       <Route

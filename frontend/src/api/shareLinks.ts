@@ -61,9 +61,7 @@ export async function fetchPublicShareLink(
   token: string,
 ): Promise<{ info: PublicShareLinkInfo | null; invalid?: PublicShareLinkInvalid }> {
   try {
-    const { data } = await apiClient.get<PublicShareLinkInfo>(
-      `/api/public/share-links/${token}`,
-    );
+    const { data } = await apiClient.get<PublicShareLinkInfo>(`/api/public/share-links/${token}`);
     return { info: data };
   } catch (err) {
     const ax = err as { response?: { status?: number; data?: PublicShareLinkInvalid } };

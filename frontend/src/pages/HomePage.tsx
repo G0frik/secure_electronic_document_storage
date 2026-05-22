@@ -101,10 +101,7 @@ export default function HomePage() {
       />
 
       <div className="tabs">
-        <button
-          className={tab === "mine" ? "tab active" : "tab"}
-          onClick={() => setTab("mine")}
-        >
+        <button className={tab === "mine" ? "tab active" : "tab"} onClick={() => setTab("mine")}>
           My files ({total})
         </button>
         <button

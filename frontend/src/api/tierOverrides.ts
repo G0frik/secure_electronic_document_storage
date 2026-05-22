@@ -33,9 +33,7 @@ export async function createOverrideRequest(
   return data;
 }
 
-export async function listOverridesForFile(
-  fileId: string,
-): Promise<TierOverrideRequest[]> {
+export async function listOverridesForFile(fileId: string): Promise<TierOverrideRequest[]> {
   const { data } = await apiClient.get<{ items: TierOverrideRequest[] }>(
     `/api/files/${fileId}/tier-override-requests`,
   );

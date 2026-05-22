@@ -82,11 +82,7 @@ export default function AdminTierOverridesPage() {
       <p style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
         Filter:
         {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            disabled={filter === f.value}
-          >
+          <button key={f.value} onClick={() => setFilter(f.value)} disabled={filter === f.value}>
             {f.label}
           </button>
         ))}
@@ -116,9 +112,7 @@ export default function AdminTierOverridesPage() {
             {items.map((r) => (
               <tr key={r.id} style={{ borderBottom: "1px solid #eaeef2" }}>
                 <td style={{ padding: "0.5rem" }}>{r.filename ?? "(removed)"}</td>
-                <td style={{ padding: "0.5rem" }}>
-                  {r.requested_by_email ?? r.requested_by_id}
-                </td>
+                <td style={{ padding: "0.5rem" }}>{r.requested_by_email ?? r.requested_by_id}</td>
                 <td style={{ padding: "0.5rem" }}>
                   <code>{r.current_tier}</code> → <code>{r.requested_tier}</code>
                 </td>
@@ -145,9 +139,7 @@ export default function AdminTierOverridesPage() {
                     {r.status}
                   </span>
                   {r.decision_reason && (
-                    <div style={{ fontSize: "0.85em", color: "#6e7781" }}>
-                      {r.decision_reason}
-                    </div>
+                    <div style={{ fontSize: "0.85em", color: "#6e7781" }}>{r.decision_reason}</div>
                   )}
                 </td>
                 <td style={{ padding: "0.5rem", color: "#6e7781" }}>

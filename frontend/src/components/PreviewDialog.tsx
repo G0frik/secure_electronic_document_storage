@@ -62,10 +62,7 @@ function sampleToPattern(sample: string): string {
   return escapeRegExp(sample);
 }
 
-function renderHighlightedText(
-  text: string,
-  classification: ClassificationResult | null
-) {
+function renderHighlightedText(text: string, classification: ClassificationResult | null) {
   if (!text) return "(empty document)";
   if (!classification || !classification.presidio_entities) {
     return text;
@@ -103,11 +100,7 @@ function renderHighlightedText(
       if (entityType) {
         const tier = ENTITY_TIERS[entityType] || "confidential";
         return (
-          <span
-            key={index}
-            className={`entity-highlight ${tier}`}
-            data-entity={entityType}
-          >
+          <span key={index} className={`entity-highlight ${tier}`} data-entity={entityType}>
             {part}
           </span>
         );
@@ -125,11 +118,7 @@ function renderHighlightedText(
  * convention is centered + wide. Uses the `.modal` class for placement +
  * shadow. Click outside or the X button closes it.
  */
-export default function PreviewDialog({
-  fileId,
-  fileLabel,
-  onClose,
-}: Props) {
+export default function PreviewDialog({ fileId, fileLabel, onClose }: Props) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
 
@@ -138,10 +127,7 @@ export default function PreviewDialog({
     setState({ kind: "loading" });
     setClassification(null);
 
-    Promise.all([
-      fetchPreview(fileId),
-      fetchClassification(fileId).catch(() => null),
-    ])
+    Promise.all([fetchPreview(fileId), fetchClassification(fileId).catch(() => null)])
       .then(([payload, classResult]) => {
         if (!cancelled) {
           setState({ kind: "ready", payload });
@@ -213,9 +199,7 @@ export default function PreviewDialog({
               padding: "var(--space-4) var(--space-5)",
             }}
           >
-            {state.kind === "loading" && (
-              <p className="text-muted">Loading preview…</p>
-            )}
+            {state.kind === "loading" && <p className="text-muted">Loading preview…</p>}
             {state.kind === "ready" && (
               <pre
                 style={{
@@ -231,18 +215,10 @@ export default function PreviewDialog({
                 {renderHighlightedText(state.payload.text, classification)}
               </pre>
             )}
-            {state.kind === "unsupported" && (
-              <p className="text-muted">{state.message}</p>
-            )}
-            {state.kind === "extraction_failed" && (
-              <p className="field-error">{state.message}</p>
-            )}
-            {state.kind === "denied" && (
-              <p className="field-error">{state.message}</p>
-            )}
-            {state.kind === "error" && (
-              <p className="field-error">{state.message}</p>
-            )}
+            {state.kind === "unsupported" && <p className="text-muted">{state.message}</p>}
+            {state.kind === "extraction_failed" && <p className="field-error">{state.message}</p>}
+            {state.kind === "denied" && <p className="field-error">{state.message}</p>}
+            {state.kind === "error" && <p className="field-error">{state.message}</p>}
           </div>
         </div>
       </div>

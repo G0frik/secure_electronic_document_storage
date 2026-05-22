@@ -1,13 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/state/auth";
 import QuotaBar from "@/components/QuotaBar";
-import {
-  Files,
-  ShieldCheck,
-  Trash2,
-  Lock,
-  HardDrive,
-} from "@/components/icons";
+import { Files, ShieldCheck, Trash2, Lock, HardDrive } from "@/components/icons";
 
 /**
  * Left navigation for the authenticated app shell.
@@ -28,9 +22,7 @@ export default function Sidebar() {
         <NavLink
           to="/"
           end
-          className={({ isActive }) =>
-            isActive ? "sidebar-item active" : "sidebar-item"
-          }
+          className={({ isActive }) => (isActive ? "sidebar-item active" : "sidebar-item")}
         >
           <Files size={16} />
           <span>My files</span>
@@ -38,9 +30,7 @@ export default function Sidebar() {
 
         <NavLink
           to="/folders"
-          className={({ isActive }) =>
-            isActive ? "sidebar-item active" : "sidebar-item"
-          }
+          className={({ isActive }) => (isActive ? "sidebar-item active" : "sidebar-item")}
         >
           <HardDrive size={16} />
           <span>Folders &amp; shares</span>
@@ -48,9 +38,7 @@ export default function Sidebar() {
 
         <NavLink
           to="/trash"
-          className={({ isActive }) =>
-            isActive ? "sidebar-item active" : "sidebar-item"
-          }
+          className={({ isActive }) => (isActive ? "sidebar-item active" : "sidebar-item")}
         >
           <Trash2 size={16} />
           <span>Trash</span>
@@ -61,9 +49,7 @@ export default function Sidebar() {
         <div className="sidebar-section-label">Account</div>
         <NavLink
           to="/settings/security"
-          className={({ isActive }) =>
-            isActive ? "sidebar-item active" : "sidebar-item"
-          }
+          className={({ isActive }) => (isActive ? "sidebar-item active" : "sidebar-item")}
         >
           <Lock size={16} />
           <span>Security</span>
@@ -72,9 +58,7 @@ export default function Sidebar() {
         {isAdmin && (
           <NavLink
             to="/admin"
-            className={({ isActive }) =>
-              isActive ? "sidebar-item active" : "sidebar-item"
-            }
+            className={({ isActive }) => (isActive ? "sidebar-item active" : "sidebar-item")}
           >
             <ShieldCheck size={16} />
             <span>Admin</span>
@@ -90,4 +74,3 @@ export default function Sidebar() {
     </nav>
   );
 }
-

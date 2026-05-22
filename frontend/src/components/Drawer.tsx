@@ -28,14 +28,7 @@ interface Props {
  * modals (Preview, confirmation prompts) stay as the old `<div>` pattern
  * or use the `.modal` class.
  */
-export default function Drawer({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
-  footer,
-}: Props) {
+export default function Drawer({ open, onClose, title, subtitle, children, footer }: Props) {
   return (
     <Dialog.Root
       open={open}
@@ -54,11 +47,7 @@ export default function Drawer({
               {subtitle && <div className="drawer-subtitle">{subtitle}</div>}
             </div>
             <Dialog.Close asChild>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon btn-sm"
-                aria-label="Close"
-              >
+              <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label="Close">
                 <Close size={16} />
               </button>
             </Dialog.Close>

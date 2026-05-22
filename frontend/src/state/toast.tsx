@@ -56,14 +56,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
-  const value = useMemo(
-    () => ({ toasts, show, dismiss }),
-    [toasts, show, dismiss],
-  );
+  const value = useMemo(() => ({ toasts, show, dismiss }), [toasts, show, dismiss]);
 
-  return (
-    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
-  );
+  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -74,10 +69,8 @@ export function useToast() {
   }
   return {
     info: (title: string, detail?: string) => ctx.show("info", title, detail),
-    success: (title: string, detail?: string) =>
-      ctx.show("success", title, detail),
-    warning: (title: string, detail?: string) =>
-      ctx.show("warning", title, detail),
+    success: (title: string, detail?: string) => ctx.show("success", title, detail),
+    warning: (title: string, detail?: string) => ctx.show("warning", title, detail),
     error: (title: string, detail?: string) => ctx.show("error", title, detail),
   };
 }

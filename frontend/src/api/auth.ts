@@ -19,9 +19,7 @@ export interface CurrentUser {
   used_bytes: number;
 }
 
-export type LoginResult =
-  | { kind: "complete"; user: CurrentUser }
-  | { kind: "requires_totp" };
+export type LoginResult = { kind: "complete"; user: CurrentUser } | { kind: "requires_totp" };
 
 export async function fetchCsrfToken(): Promise<string> {
   const { data } = await apiClient.get<{ csrf_token: string }>("/api/auth/csrf");
@@ -29,10 +27,10 @@ export async function fetchCsrfToken(): Promise<string> {
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {
-  const { data } = await apiClient.post<CurrentUser | { requires_totp: true }>(
-    "/api/auth/login",
-    { email, password },
-  );
+  const { data } = await apiClient.post<CurrentUser | { requires_totp: true }>("/api/auth/login", {
+    email,
+    password,
+  });
   if (data && typeof data === "object" && "requires_totp" in data) {
     return { kind: "requires_totp" };
   }
@@ -88,4 +86,12 @@ export async function verifyTotpSetup(code: string): Promise<void> {
 
 export async function disableTotp(code: string): Promise<void> {
   await apiClient.post("/api/auth/totp/disable", { code });
+}
+
+export async function register(email: string, password: string): Promise<CurrentUser> {
+  const { data } = await apiClient.post<CurrentUser>("/api/auth/register", {
+    email,
+    password,
+  });
+  return data;
 }

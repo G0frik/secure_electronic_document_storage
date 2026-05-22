@@ -43,10 +43,7 @@ export async function updateUser(id: string, body: AdminUserUpdate): Promise<Adm
 }
 
 export async function forceLogout(id: string): Promise<AdminUser> {
-  const { data } = await apiClient.post<AdminUser>(
-    `/api/admin/users/${id}/force-logout`,
-    {},
-  );
+  const { data } = await apiClient.post<AdminUser>(`/api/admin/users/${id}/force-logout`, {});
   return data;
 }
 
@@ -63,10 +60,9 @@ export interface AuditRow {
 }
 
 export async function userAudit(id: string, limit = 100): Promise<AuditRow[]> {
-  const { data } = await apiClient.get<{ items: AuditRow[] }>(
-    `/api/admin/users/${id}/audit`,
-    { params: { limit } },
-  );
+  const { data } = await apiClient.get<{ items: AuditRow[] }>(`/api/admin/users/${id}/audit`, {
+    params: { limit },
+  });
   return data.items;
 }
 
@@ -79,9 +75,7 @@ export interface AdminDepartment {
 }
 
 export async function listDepartments(): Promise<AdminDepartment[]> {
-  const { data } = await apiClient.get<{ items: AdminDepartment[] }>(
-    "/api/admin/departments",
-  );
+  const { data } = await apiClient.get<{ items: AdminDepartment[] }>("/api/admin/departments");
   return data.items;
 }
 
@@ -93,10 +87,7 @@ export async function createDepartment(name: string): Promise<AdminDepartment> {
 }
 
 export async function renameDepartment(id: string, name: string): Promise<AdminDepartment> {
-  const { data } = await apiClient.patch<AdminDepartment>(
-    `/api/admin/departments/${id}`,
-    { name },
-  );
+  const { data } = await apiClient.patch<AdminDepartment>(`/api/admin/departments/${id}`, { name });
   return data;
 }
 

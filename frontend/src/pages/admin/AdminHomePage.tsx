@@ -8,13 +8,15 @@ export default function AdminHomePage() {
   const [recent, setRecent] = useState<{ action: string; time: string }[]>([]);
 
   useEffect(() => {
-    listUsers().then((u) => setUsers(u.length)).catch(() => setUsers(null));
-    listGroups().then((g) => setGroups(g.length)).catch(() => setGroups(null));
+    listUsers()
+      .then((u) => setUsers(u.length))
+      .catch(() => setUsers(null));
+    listGroups()
+      .then((g) => setGroups(g.length))
+      .catch(() => setGroups(null));
     listEvents({ limit: 8 })
       .then((r) =>
-        setRecent(
-          r.items.map((e) => ({ action: e.event.action, time: e["@timestamp"] })),
-        ),
+        setRecent(r.items.map((e) => ({ action: e.event.action, time: e["@timestamp"] }))),
       )
       .catch(() => setRecent([]));
   }, []);
@@ -23,8 +25,8 @@ export default function AdminHomePage() {
     <AdminShell>
       <h1>Admin overview</h1>
       <p style={{ color: "#6e7781" }}>
-        Consolidated administration for users, departments, groups, access
-        policies, tier-override workflow, and the SIEM event stream.
+        Consolidated administration for users, departments, groups, access policies, tier-override
+        workflow, and the SIEM event stream.
       </p>
 
       <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
@@ -66,7 +68,9 @@ export default function AdminHomePage() {
           <tbody>
             {recent.map((r, i) => (
               <tr key={i} style={{ borderBottom: "1px solid #eaeef2" }}>
-                <td style={{ padding: "0.4rem" }}><code>{r.action}</code></td>
+                <td style={{ padding: "0.4rem" }}>
+                  <code>{r.action}</code>
+                </td>
                 <td style={{ padding: "0.4rem", color: "#6e7781" }}>
                   {new Date(r.time).toLocaleString()}
                 </td>
