@@ -86,6 +86,8 @@ def _outcome_for(action_type: str, severity: str) -> str:
         return "failure"
     if "use_denied" in action_type or "challenge_failed" in action_type:
         return "failure"
+    if "tier_blocked" in action_type:
+        return "failure"
     if severity in (AuditSeverity.CRITICAL.value, AuditSeverity.WARNING.value):
         # Many warning-level rows are still successes (e.g. share.revoked) —
         # only flag as failure when the action_type semantics say so. The
@@ -134,7 +136,15 @@ def to_ecs(row: AuditLog) -> dict[str, Any]:
 
     if row.actor_user_id is not None:
         payload["user"] = {"id": str(row.actor_user_id)}
-        actor_email = (row.event_metadata or {}).get("email")
+        # Resolve email: prefer the actor relationship (always available
+        # when the user row exists), fall back to event_metadata.email
+        # (set explicitly at login-time when the relationship may not be
+        # loaded yet).
+        actor_email = None
+        if row.actor is not None:
+            actor_email = row.actor.email
+        if not actor_email:
+            actor_email = (row.event_metadata or {}).get("email")
         if actor_email:
             payload["user"]["email"] = actor_email
 
@@ -193,6 +203,8 @@ def _human_message(row: AuditLog) -> str:
         return f"File classified RESTRICTED: {meta.get('filename', '?')}"
     if action == "share_link.created":
         return f"External link minted (tier {meta.get('tier', '?')})"
+    if action == "share_link.tier_blocked":
+        return f"External link blocked: {meta.get('filename', '?')} is RESTRICTED"
     if action == "share_link.downloaded":
         return f"External link used (use #{meta.get('use_count_after', '?')})"
     if action == "tier_override.requested":

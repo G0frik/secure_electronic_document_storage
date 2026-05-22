@@ -170,6 +170,18 @@ def create_link(
     if current.final_tier == ClassificationTier.RESTRICTED and not (
         creator.is_admin and force_for_restricted
     ):
+        audit.record(
+            "share_link.tier_blocked",
+            actor=creator,
+            target_type="file",
+            target_id=file_id,
+            metadata={
+                "tier": current.final_tier.value,
+                "filename": file_record.original_filename,
+                "is_admin": creator.is_admin,
+            },
+            severity=AuditSeverity.WARNING,
+        )
         raise ShareLinkTierBlockedError(
             "External links are not allowed for RESTRICTED files."
         )
