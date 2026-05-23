@@ -59,11 +59,28 @@ def load_kek() -> bytes:
     """Return the KEK bytes (32B), caching after first call.
 
     Resolution order:
-    1. `KEK` env var (base64 of 32 raw bytes)
-    2. Dev-only fallback: SHA-256(SECRET_KEY) with a loud WARNING
+    1. HashiCorp Vault at ``secret/docstore/kek`` (if configured)
+    2. ``KEK`` env var (base64 of 32 raw bytes)
+    3. Dev-only fallback: SHA-256(SECRET_KEY) with a loud WARNING
     """
     global _kek_cache
     if _kek_cache is not None:
+        return _kek_cache
+
+    from app.services.vault import read_secret
+
+    vault_kek = read_secret("docstore/kek", "kek")
+    if vault_kek:
+        try:
+            decoded = base64.b64decode(vault_kek, validate=True)
+        except (ValueError, TypeError) as exc:
+            raise CryptoError(f"KEK from Vault is not valid base64: {exc}") from exc
+        if len(decoded) != _KEY_BYTES:
+            raise CryptoError(
+                f"KEK from Vault must decode to {_KEY_BYTES} bytes, got {len(decoded)}."
+            )
+        log.info("kek.loaded_from_vault")
+        _kek_cache = decoded
         return _kek_cache
 
     if settings.kek_base64:

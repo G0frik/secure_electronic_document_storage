@@ -24,10 +24,12 @@ npm-debug.log*
 
 # --- Env / secrets ---
 .env
+.env.init
 .env.local
 .env.*.local
 *.pem
 *.key
+docker/nginx/certs/*.crt
 
 # --- IDE ---
 .vscode/

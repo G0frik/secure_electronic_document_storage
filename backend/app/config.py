@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     test_database_url: str = Field(default="", alias="TEST_DATABASE_URL")
 
     # Redis / Celery
-    redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
+    redis_url: str = Field(default="redis://:redis-dev-pass@redis:6379/0", alias="REDIS_URL")
 
     # MinIO
     minio_endpoint: str = Field(default="minio:9000", alias="MINIO_ENDPOINT")
@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     classifier_multilingual: bool = Field(default=False, alias="CLASSIFIER_MULTILINGUAL")
     classifier_model: str = Field(default="base", alias="CLASSIFIER_MODEL")
     classifier_disable_presidio: bool = Field(default=False, alias="CLASSIFIER_DISABLE_PRESIDIO")
+
+    # Vault (optional — infrastructure hardening)
+    vault_addr: str = Field(default="", alias="VAULT_ADDR")
+    vault_token: str = Field(default="", alias="VAULT_TOKEN")
 
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

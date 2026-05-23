@@ -31,6 +31,7 @@ dependencies = [
     "cryptography==43.0.1",
     "requests==2.32.3",
     "pyotp==2.9.0",  # Phase 6 — TOTP / HOTP RFC 6238/4226
+    "hvac>=2.1.0,<3",  # HashiCorp Vault client
 
     # Config / validation
     "pydantic[email]==2.9.2",

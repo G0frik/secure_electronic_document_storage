@@ -8,16 +8,20 @@ import secrets
 import pytest
 
 from app.config import settings
-from app.services import crypto
+from app.services import crypto, vault
 from app.services.crypto import CryptoError
 
 
 @pytest.fixture(autouse=True)
-def _fresh_kek_cache():
-    """Drop the cached KEK so monkeypatch'd settings take effect per test."""
+def _fresh_kek_cache(monkeypatch):
+    """Drop the cached KEK so monkeypatch'd settings take effect per test.
+    Also disable Vault so tests exercise the env-var / fallback paths."""
     crypto.reset_kek_cache()
+    vault.reset_vault_cache()
+    monkeypatch.setattr("app.services.vault.read_secret", lambda *_a, **_kw: None)
     yield
     crypto.reset_kek_cache()
+    vault.reset_vault_cache()
 
 
 @pytest.fixture

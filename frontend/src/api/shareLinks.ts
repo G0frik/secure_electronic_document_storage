@@ -70,6 +70,6 @@ export async function fetchPublicShareLink(
 }
 
 export function publicShareDownloadUrl(token: string): string {
-  const base = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+  const base = import.meta.env.VITE_API_BASE_URL ?? "";
   return `${base}/api/public/share-links/${token}/download`;
 }

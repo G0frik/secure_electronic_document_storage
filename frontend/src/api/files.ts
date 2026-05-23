@@ -167,7 +167,7 @@ export async function fetchPreview(fileId: string): Promise<PreviewResponse> {
 }
 
 export function downloadFileUrl(fileId: string): string {
-  const base = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+  const base = import.meta.env.VITE_API_BASE_URL ?? "";
   return `${base}/api/files/${fileId}/download`;
 }
 
