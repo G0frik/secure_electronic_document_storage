@@ -2,7 +2,7 @@
 
 A web app for storing documents where access is decided by their **content**, not just by who owns them. Upload a file, an ML classifier reads it and assigns a sensitivity tier (public / internal / confidential / restricted), and role-based access control uses that tier to decide who can see it. Every file is encrypted at rest with AES-256-GCM.
 
-The 17-phase build plan is in [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md); the day-to-day notes live in [`wiki_notes/`](wiki_notes/).
+The 17-phase build plan is in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md); the day-to-day notes live in [wiki_notes/](wiki_notes/).
 
 ---
 
@@ -46,7 +46,7 @@ The 17-phase build plan is in [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md); the 
 - Production refuses to start with an empty KEK; dev derives one from `SECRET_KEY` with a loud warning.
 
 **Operations**
-- SIEM-friendly NDJSON event stream at `logs/events.jsonl`, ECS (Elastic Common Schema) mapped, ready for Filebeat → Elastic or a Wazuh agent. Example configs in [`docs/siem/`](docs/siem/).
+- SIEM-friendly NDJSON event stream at `logs/events.jsonl`, ECS (Elastic Common Schema) mapped, ready for Filebeat → Elastic or a Wazuh agent. Example configs in [docs/siem/](docs/siem/).
 - HTTP pull endpoint `/api/admin/events` for air-gapped setups that prefer polling over file tail.
 - In-app notification bell with severity coloring. Email path for critical events (SMTP, Mailhog in dev).
 - Background reaper tasks for trash and old file versions (Celery + `flask reap-trash` / `flask reap-file-versions` CLI).
@@ -159,11 +159,11 @@ make test       # 316 tests, ~85s
 make coverage   # adds coverage.xml + terminal report (~86% line coverage)
 ```
 
-GitHub Actions runs the backend tests with coverage and the frontend lint/typecheck/build on every push and PR. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+GitHub Actions runs the backend tests with coverage and the frontend lint/typecheck/build on every push and PR. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Status
 
-16 of 17 phases shipped. See [`wiki_notes/Roadmap/Phase Tracker.md`](wiki_notes/Roadmap/Phase%20Tracker.md) for the full per-phase breakdown with file paths and test counts.
+16 of 17 phases shipped. See [wiki_notes/Roadmap/Phase Tracker.md](wiki_notes/Roadmap/Phase%20Tracker.md) for the full per-phase breakdown with file paths and test counts.
 
 | Phase | What | Status |
 |---|---|---|
@@ -188,12 +188,12 @@ GitHub Actions runs the backend tests with coverage and the frontend lint/typech
 
 ## Reading more
 
-- [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) — the 17-phase build plan
-- [`wiki_notes/Home.md`](wiki_notes/Home.md) — wiki entry point (architecture, security, API reference, ADRs)
-- [`wiki_notes/Roadmap/Phase Tracker.md`](wiki_notes/Roadmap/Phase%20Tracker.md) — what shipped in each phase, with file paths
-- [`wiki_notes/Security/RBAC & Access Control.md`](wiki_notes/Security/RBAC%20&%20Access%20Control.md) — how the policy decision point works
-- [`wiki_notes/Backend/API Reference.md`](wiki_notes/Backend/API%20Reference.md) — every endpoint, request/response shapes, deny reasons
-- [`docs/siem/`](docs/siem/) — Filebeat and Wazuh snippets for ingesting the NDJSON event stream
+- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) — the 17-phase build plan
+- [wiki_notes/Home.md](wiki_notes/Home.md) — wiki entry point (architecture, security, API reference, ADRs)
+- [wiki_notes/Roadmap/Phase Tracker.md](wiki_notes/Roadmap/Phase%20Tracker.md) — what shipped in each phase, with file paths
+- [wiki_notes/Security/RBAC & Access Control.md](wiki_notes/Security/RBAC%20%26%20Access%20Control.md) — how the policy decision point works
+- [wiki_notes/Backend/API Reference.md](wiki_notes/Backend/API%20Reference.md) — every endpoint, request/response shapes, deny reasons
+- [docs/siem/](docs/siem/) — Filebeat and Wazuh snippets for ingesting the NDJSON event stream
 
 ## Known limitations
 
