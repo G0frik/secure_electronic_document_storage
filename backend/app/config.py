@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+import os
+
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,17 +23,14 @@ class Settings(BaseSettings):
     flask_env: str = Field(default="production", alias="FLASK_ENV")
 
     # Database
-    database_url: str = Field(
-        default="postgresql+psycopg://docstore:docstore@db:5432/docstore",
-        alias="DATABASE_URL",
-    )
+    database_url: str = Field(default="", alias="DATABASE_URL")
     # When set, the test suite uses this URL instead of `database_url` so the
     # autouse TRUNCATE fixture never touches the dev/prod database. Conftest
     # falls back to deriving `<database_url>_test` if this is left empty.
     test_database_url: str = Field(default="", alias="TEST_DATABASE_URL")
 
     # Redis / Celery
-    redis_url: str = Field(default="redis://:redis-dev-pass@redis:6379/0", alias="REDIS_URL")
+    redis_url: str = Field(default="", alias="REDIS_URL")
 
     # MinIO
     minio_endpoint: str = Field(default="minio:9000", alias="MINIO_ENDPOINT")
@@ -39,6 +38,34 @@ class Settings(BaseSettings):
     minio_secret_key: str = Field(default="minioadmin", alias="MINIO_SECRET_KEY")
     minio_bucket: str = Field(default="documents", alias="MINIO_BUCKET")
     minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
+
+    @model_validator(mode="after")
+    def _build_urls_from_components(self) -> "Settings":
+        """Construct DATABASE_URL, REDIS_URL, and MinIO creds from individual
+        env vars when the composite URL is not provided directly.  This lets
+        docker-compose keep passwords out of interpolated strings — sensitive
+        values arrive via env_file (.env.init) as separate vars."""
+        if not self.database_url:
+            user = os.environ.get("POSTGRES_USER", "docstore")
+            pwd = os.environ.get("POSTGRES_PASSWORD", "docstore")
+            host = os.environ.get("POSTGRES_HOST", "db")
+            db = os.environ.get("POSTGRES_DB", "docstore")
+            self.database_url = (
+                f"postgresql+psycopg://{user}:{pwd}@{host}:5432/{db}"
+            )
+        if not self.redis_url:
+            pwd = os.environ.get("REDIS_PASSWORD", "")
+            host = os.environ.get("REDIS_HOST", "redis")
+            self.redis_url = f"redis://:{pwd}@{host}:6379/0"
+        if not os.environ.get("MINIO_SECRET_KEY"):
+            self.minio_secret_key = os.environ.get(
+                "MINIO_ROOT_PASSWORD", "minioadmin"
+            )
+        if not os.environ.get("MINIO_ACCESS_KEY"):
+            self.minio_access_key = os.environ.get(
+                "MINIO_ROOT_USER", "minioadmin"
+            )
+        return self
     # Like TEST_DATABASE_URL, but for the object store. Tests wipe their bucket
     # every run; sharing it with dev would clobber uploaded files.
     test_minio_bucket: str = Field(default="", alias="TEST_MINIO_BUCKET")

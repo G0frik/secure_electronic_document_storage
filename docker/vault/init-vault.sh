@@ -12,8 +12,7 @@
 
 set -e
 
-export VAULT_ADDR="http://vault:8200"
-export VAULT_TOKEN="dev-root-token"
+# VAULT_ADDR and VAULT_TOKEN are set by docker-compose environment block.
 
 echo "=== Vault init: waiting for Vault to be ready ==="
 until vault status > /dev/null 2>&1; do
@@ -22,16 +21,16 @@ done
 
 echo "=== Writing general app secrets to secret/docstore/config ==="
 vault kv put secret/docstore/config \
-    secret_key="${SECRET_KEY:-dev-secret-change-me}" \
-    postgres_password="${POSTGRES_PASSWORD:-docstore}" \
-    minio_root_user="${MINIO_ROOT_USER:-minioadmin}" \
-    minio_root_password="${MINIO_ROOT_PASSWORD:-minioadmin}" \
-    redis_password="${REDIS_PASSWORD:-redis-dev-pass}"
+    secret_key="${SECRET_KEY}" \
+    postgres_password="${POSTGRES_PASSWORD}" \
+    minio_root_user="${MINIO_ROOT_USER}" \
+    minio_root_password="${MINIO_ROOT_PASSWORD}" \
+    redis_password="${REDIS_PASSWORD}"
 
 echo "=== Writing KEK to separate path secret/docstore/kek ==="
 vault kv put secret/docstore/kek \
-    kek="${KEK:-}" \
-    kek_version="${KEK_VERSION:-1}"
+    kek="${KEK}" \
+    kek_version="${KEK_VERSION}"
 
 echo "=== Creating Vault policies ==="
 
