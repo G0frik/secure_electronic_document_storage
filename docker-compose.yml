@@ -141,7 +141,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: flask --app app.wsgi run --host 0.0.0.0 --port 8000 --debug
+    command: sh -c "alembic upgrade head && flask --app app.wsgi run --host 0.0.0.0 --port 8000 --debug"
     env_file:
       - .env.init
     environment:
@@ -215,6 +215,9 @@ services:
         condition: service_healthy
       vault-init:
         condition: service_completed_successfully
+      # backend applies migrations on start
+      backend:
+        condition: service_healthy
 
   frontend:
     build:

@@ -214,6 +214,9 @@ jobs:
           docker compose logs --tail=50 nginx backend vault-init
           exit 1
 
+      - name: Seed (needs migrated schema)
+        run: docker compose exec -T backend flask seed-dev
+
       - name: Tear down
         if: always()
         run: docker compose down -v
