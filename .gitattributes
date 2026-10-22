@@ -1,0 +1,9 @@
+* text=auto
+
+# Executed inside Linux containers; CRLF breaks /bin/sh.
+*.sh     text eol=lf
+Makefile text eol=lf
+
+*.png binary
+*.jpg binary
+*.woff2 binary

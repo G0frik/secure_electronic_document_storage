@@ -1,16 +1,11 @@
 .PHONY: up down logs build migrate revision shell-backend shell-db test coverage seed-dev seed-demo ensure-test-db lint format clean certs
 
-certs: docker/nginx/certs/selfsigned.key
+# `docker compose up` runs this automatically; the target is kept for
+# regenerating after deleting docker/nginx/certs/selfsigned.*.
+certs:
+	docker compose run --rm certs
 
-docker/nginx/certs/selfsigned.key:
-	docker run --rm -v "$(shell cd)\\docker\\nginx\\certs:/certs" alpine sh -c "\
-		apk add --no-cache openssl > /dev/null 2>&1; \
-		openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-		-keyout /certs/selfsigned.key -out /certs/selfsigned.crt \
-		-subj '/CN=localhost/O=DocStore-Dev' \
-		-addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'"
-
-up: certs
+up:
 	docker compose up -d
 
 down:
