@@ -1,5 +1,7 @@
 # Secure Document Storage
 
+[![CI](https://github.com/G0frik/secure_electronic_document_storage/actions/workflows/ci.yml/badge.svg)](https://github.com/G0frik/secure_electronic_document_storage/actions/workflows/ci.yml)
+
 A document store that decides who can open a file based on what is in it. When a file is uploaded, a classifier reads it and assigns a sensitivity tier: public, internal, confidential or restricted. Role-based access control checks that tier on every download, preview and share. Files are encrypted at rest with AES-256-GCM.
 
 ![File list with a RESTRICTED tier badge](docs/images/files.png)
