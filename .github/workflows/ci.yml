@@ -170,3 +170,50 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  # -------------------------------------------------------------------
+  # Secret scan over the full history, not just the current tree.
+  # -------------------------------------------------------------------
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # -------------------------------------------------------------------
+  # Full stack from a fresh checkout, configured only from the committed
+  # example env files — the same steps the README gives.
+  # -------------------------------------------------------------------
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure from examples
+        run: |
+          cp .env.example .env
+          cp .env.init.example .env.init
+
+      - name: Start stack
+        run: docker compose up -d --build
+
+      - name: Wait for /readyz through nginx
+        run: |
+          for i in $(seq 1 60); do
+            if curl -kfsS https://localhost/readyz; then echo; exit 0; fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail=50 nginx backend vault-init
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
