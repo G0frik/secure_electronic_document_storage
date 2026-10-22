@@ -1,20 +1,33 @@
 version: 2
 updates:
+  # Minor/patch updates arrive grouped; each major version gets its own PR.
   - package-ecosystem: pip
     directory: /backend
     schedule:
       interval: monthly
     groups:
-      python:
+      # Changes here can shift classification results, so they are reviewed
+      # on their own rather than alongside routine bumps.
+      ml-stack:
+        patterns:
+          - "torch"
+          - "transformers"
+          - "accelerate"
+          - "sentencepiece"
+          - "spacy"
+          - "presidio-*"
+      python-minor:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: monthly
     groups:
-      npm:
+      npm-minor:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /
