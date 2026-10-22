@@ -55,6 +55,8 @@ jobs:
       TEST_MINIO_BUCKET: documents-test
       MINIO_SECURE: "false"
       SECRET_KEY: ci-secret-not-for-prod
+      # Same mode as the compose stack; production mode refuses to run without a KEK.
+      FLASK_ENV: development
       HIBP_USER_AGENT: secure-docstore-ci
       # Mirror the test conftest: no NDJSON file sink, no emails out.
       EVENT_LOG_PATH: ""
