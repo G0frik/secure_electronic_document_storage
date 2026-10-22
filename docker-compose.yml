@@ -183,9 +183,18 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: celery -A app.tasks.celery_app.celery worker --loglevel=info --concurrency=1 -Q classification,av_scan,cleanup,notify,default
+    # The image's HEALTHCHECK probes the HTTP server, which the worker doesn't run.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app.celery inspect ping -d celery@$$HOSTNAME --timeout 10"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     env_file:
       - .env.init
     environment:
+      # Must match the backend: both derive the dev KEK the same way when KEK is empty.
+      FLASK_ENV: development
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: db
