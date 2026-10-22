@@ -21,6 +21,7 @@ dist/
 .vite/
 *.log
 npm-debug.log*
+*.tsbuildinfo
 
 # --- Env / secrets ---
 .env
@@ -42,9 +43,9 @@ docker/nginx/certs/*.crt
 Thumbs.db
 
 # --- Project-specific ---
-# Obsidian vault workspace state (keep config, ignore workspace)
-wiki_notes/.obsidian/workspace.json
-wiki_notes/.obsidian/workspace-mobile.json
+# Runtime audit/event log (directory is bind-mounted into the containers)
+logs/*
+!logs/.gitkeep
 
 # Classifier model cache
 .cache/
