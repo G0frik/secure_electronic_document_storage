@@ -102,7 +102,10 @@ select = [
     "S",   # flake8-bandit (security)
     "N",   # pep8-naming
 ]
-ignore = ["E501"]  # line length handled by formatter
+ignore = [
+    "E501",   # line length handled by formatter
+    "UP042",  # (str, Enum) -> StrEnum changes str()/format() output; migrate deliberately
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S105", "S106"]  # allow assert + test passwords
