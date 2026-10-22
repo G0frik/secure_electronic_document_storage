@@ -23,7 +23,7 @@ import secrets
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -125,7 +125,7 @@ def lookup_active(token: str) -> ShareLink:
 
 
 def _validate_active(link: ShareLink) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if link.revoked_at is not None:
         raise ShareLinkInvalidError("revoked")
     if link.expires_at is not None and link.expires_at <= now:
@@ -191,7 +191,7 @@ def create_link(
     if expires_at is not None:
         # Strip microseconds to keep token URLs readable in audit data.
         expires_at = expires_at.replace(microsecond=0)
-        if expires_at <= datetime.now(timezone.utc):
+        if expires_at <= datetime.now(UTC):
             raise ShareLinkError("expires_at must be in the future.")
 
     token = secrets.token_urlsafe(32)  # 256 bits → 43-ish chars
@@ -236,7 +236,7 @@ def revoke_link(link: ShareLink, *, actor: User) -> None:
         )
     if link.revoked_at is not None:
         return
-    link.revoked_at = datetime.now(timezone.utc)
+    link.revoked_at = datetime.now(UTC)
     audit.record(
         "share_link.revoked",
         actor=actor,

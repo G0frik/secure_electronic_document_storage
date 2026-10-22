@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.config import settings
 from app.models.audit import AuditLog, AuditSeverity
@@ -19,7 +19,7 @@ from app.services import audit, events
 def _make_row(action_type: str, **kwargs) -> AuditLog:
     return AuditLog(
         id=kwargs.pop("id", uuid.uuid4()),
-        timestamp=kwargs.pop("timestamp", datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)),
+        timestamp=kwargs.pop("timestamp", datetime(2026, 5, 20, 12, 0, 0, tzinfo=UTC)),
         actor_user_id=kwargs.pop("actor_user_id", None),
         actor_ip=kwargs.pop("actor_ip", None),
         action_type=action_type,

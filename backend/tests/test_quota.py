@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import io
 import uuid
+from datetime import UTC
 
 from sqlalchemy import select
 
 from app.models.file import File
-from app.models.user import User
 from app.services import quota
 
 
@@ -147,7 +147,7 @@ def test_hard_delete_frees_quota(client, db_session, logged_in_admin, csrf_token
 
 def test_reaper_frees_quota(client, db_session, logged_in_admin, csrf_token) -> None:
     """Reaper-driven hard-delete decrements the counter the same way."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from app.services import trash
 
@@ -156,7 +156,7 @@ def test_reaper_frees_quota(client, db_session, logged_in_admin, csrf_token) -> 
 
     # Back-date the trashed file past the cutoff.
     row = db_session.scalar(select(File).where(File.id == uuid.UUID(up["id"])))
-    row.deleted_at = datetime.now(timezone.utc) - timedelta(days=31)
+    row.deleted_at = datetime.now(UTC) - timedelta(days=31)
     db_session.commit()
 
     purged = trash.reap_expired_trash(retention_days=30)

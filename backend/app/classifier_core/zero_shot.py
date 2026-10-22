@@ -81,7 +81,7 @@ def zero_shot_classify(classifier, text: str, max_words: int) -> dict[str, float
         hypothesis_template="This document contains {}.",
         multi_label=True,
     )
-    return dict(zip(result["labels"], result["scores"]))
+    return dict(zip(result["labels"], result["scores"], strict=False))
 
 
 def zero_shot_tier(

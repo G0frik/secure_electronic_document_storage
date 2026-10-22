@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -279,14 +279,14 @@ def get_for_user(user: User, notification_id: uuid.UUID) -> Notification | None:
 
 def mark_read(notification: Notification) -> Notification:
     if notification.read_at is None:
-        notification.read_at = datetime.now(timezone.utc)
+        notification.read_at = datetime.now(UTC)
         db.session.commit()
     return notification
 
 
 def mark_all_read(user: User) -> int:
     """Bulk mark every unread notification for *user* as read. Returns count."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = db.session.execute(
         Notification.__table__.update()
         .where(

@@ -390,7 +390,8 @@ def download_version(  # type: ignore[no-untyped-def]
     else:
         if record.owner_id != user.id and user.role.value != "admin":
             return jsonify({"error": "access_denied", "reason": "not_owner"}), 403
-        assert version_row is not None  # narrow for mypy
+        if version_row is None:
+            abort(404, description="Version not found.")
         chunks = file_versions.stream_version_download(
             record, version_row, actor=user
         )
@@ -440,7 +441,8 @@ def delete_version(  # type: ignore[no-untyped-def]
             ),
             409,
         )
-    assert version_row is not None
+    if version_row is None:
+        abort(404, description="Version not found.")
     file_versions.delete_version(record, version_row, actor=user)
     return ("", 204)
 

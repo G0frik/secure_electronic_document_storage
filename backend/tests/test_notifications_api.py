@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -40,7 +40,7 @@ def _classify(db_session, file_id, tier, *, categories=None):
     existing.presidio_tier = ClassificationTier.PUBLIC
     existing.categories_triggered = categories or []
     existing.classifier_version = "v6"
-    existing.classified_at = datetime.now(timezone.utc)
+    existing.classified_at = datetime.now(UTC)
     db_session.commit()
     return existing
 

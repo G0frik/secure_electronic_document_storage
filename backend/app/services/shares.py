@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -216,7 +216,7 @@ def create_share(
         # Reactivate the most recent revoked row in place.
         existing.revoked_at = None
         existing.permission = permission
-        existing.created_at = datetime.now(timezone.utc)
+        existing.created_at = datetime.now(UTC)
         share = existing
     else:
         share = Share(
@@ -260,7 +260,7 @@ def revoke_share(share: Share, *, actor: User) -> None:
     if share.revoked_at is not None:
         return  # idempotent
 
-    share.revoked_at = datetime.now(timezone.utc)
+    share.revoked_at = datetime.now(UTC)
     audit.record(
         "share.revoked",
         actor=actor,

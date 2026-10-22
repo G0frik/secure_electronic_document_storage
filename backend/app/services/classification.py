@@ -16,7 +16,7 @@ import os
 import tempfile
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -156,7 +156,7 @@ def run_classification(
         record.presidio_entities = result.presidio_entities
         record.classifier_version = CLASSIFIER_VERSION
         record.status = ClassificationStatus.COMPLETED
-        record.classified_at = datetime.now(timezone.utc)
+        record.classified_at = datetime.now(UTC)
         db.session.commit()
 
         audit.record(
@@ -185,7 +185,7 @@ def run_classification(
         log.exception("classify.failed", file_id=str(file_id), error=str(exc))
         record.status = ClassificationStatus.FAILED
         record.error_message = str(exc)[:500]
-        record.classified_at = datetime.now(timezone.utc)
+        record.classified_at = datetime.now(UTC)
         db.session.commit()
         audit.record(
             "classification.failed",

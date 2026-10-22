@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
 from app.models.audit import AuditLog
-from app.models.user import Department, Role, User, UserStatus
+from app.models.user import Department, Role, UserStatus
 
 
 def _patch(client, csrf_token, user_id, payload):
@@ -172,7 +172,7 @@ def test_force_logout_self_invalidates_current_session(
 
     alice = users_service.get_user_by_email(logged_in_user.email)
     assert alice is not None
-    alice.session_invalid_before = datetime.now(timezone.utc) + timedelta(seconds=1)
+    alice.session_invalid_before = datetime.now(UTC) + timedelta(seconds=1)
     db_session.commit()
     # Next request from alice's session is rejected
     resp = client.get("/api/auth/me")

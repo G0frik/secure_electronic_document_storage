@@ -18,7 +18,7 @@ CLI command. Default retention: 30 days from `deleted_at`.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -50,7 +50,7 @@ def soft_delete(file: File, *, actor: User) -> None:
     """Move *file* to the user's trash. Idempotent on already-trashed rows."""
     if file.deleted_at is not None:
         return
-    file.deleted_at = datetime.now(timezone.utc)
+    file.deleted_at = datetime.now(UTC)
     audit.record(
         "file.soft_deleted",
         actor=actor,
@@ -200,7 +200,7 @@ def reap_expired_trash(
     Returns the count of files removed.
     """
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
     cutoff = now - timedelta(days=retention_days)
     expired = list(
         db.session.scalars(

@@ -19,7 +19,7 @@ This file is the consolidated view: one parametrized test,
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -34,7 +34,6 @@ from app.models.file import File
 from app.models.policy import PolicyEvaluation
 from app.models.user import Department, Role, User
 from app.services import crypto, passwords, storage
-
 
 # Cells of the matrix. `expected_allowed=True` means the role can download;
 # `False` means a 403 access_denied. Reason codes match what the API
@@ -93,7 +92,7 @@ def _seed_file(db_session, owner: User, tier: ClassificationTier) -> File:
             final_tier=tier,
             zero_shot_tier=tier,
             classifier_version="matrix-test",
-            classified_at=datetime.now(timezone.utc),
+            classified_at=datetime.now(UTC),
         )
     )
     db_session.commit()

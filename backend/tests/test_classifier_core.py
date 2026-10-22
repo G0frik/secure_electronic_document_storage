@@ -8,8 +8,6 @@ smoke test in the Phase 4 verification step.
 
 from __future__ import annotations
 
-import pytest
-
 from app.classifier_core.presidio_layer import (
     _filter_by_floor,
     _is_predominantly_non_latin,

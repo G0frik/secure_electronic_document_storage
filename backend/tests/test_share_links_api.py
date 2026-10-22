@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import io
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -57,7 +57,7 @@ def _classify(
     existing.presidio_tier = ClassificationTier.PUBLIC
     existing.categories_triggered = categories or []
     existing.classifier_version = "v6"
-    existing.classified_at = datetime.now(timezone.utc)
+    existing.classified_at = datetime.now(UTC)
     db_session.commit()
     return existing
 
@@ -362,12 +362,12 @@ def test_public_expired_link_is_410(
         "/api/share-links",
         json={
             "file_id": up.json["id"],
-            "expires_at": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+            "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
         },
         headers={"X-CSRF-Token": csrf_token, "Content-Type": "application/json"},
     ).json
     row = db_session.scalar(select(ShareLink).where(ShareLink.id == uuid.UUID(minted["id"])))
-    row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    row.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     db_session.commit()
 
     resp = client.get(f"/api/public/share-links/{minted['token']}")
@@ -384,7 +384,7 @@ def test_create_with_past_expiry_is_400(
         "/api/share-links",
         json={
             "file_id": up.json["id"],
-            "expires_at": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(),
+            "expires_at": (datetime.now(UTC) - timedelta(minutes=5)).isoformat(),
         },
         headers={"X-CSRF-Token": csrf_token, "Content-Type": "application/json"},
     )

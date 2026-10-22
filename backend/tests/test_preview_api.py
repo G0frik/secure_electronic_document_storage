@@ -28,7 +28,6 @@ from app.models.classification import (
 from app.models.file import File
 from app.services import preview
 
-
 # Hand-crafted minimal PDF that pdfplumber can read. Built once so the
 # test only pays the parse cost once per test.
 _MINIMAL_PDF = b"""%PDF-1.4

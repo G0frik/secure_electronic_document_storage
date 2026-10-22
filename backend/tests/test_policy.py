@@ -13,7 +13,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -23,7 +23,6 @@ from app.models.file import File
 from app.models.policy import AccessPolicy, PolicyDecision, PolicyEvaluation
 from app.models.user import Department, Role, User
 from app.services import passwords, policy
-
 
 # --- helpers ---
 
@@ -62,7 +61,7 @@ def _classify(
         presidio_tier=ClassificationTier.PUBLIC,
         categories_triggered=categories or [],
         classifier_version="v6",
-        classified_at=datetime.now(timezone.utc),
+        classified_at=datetime.now(UTC),
     )
     db_session.add(c)
     db_session.commit()

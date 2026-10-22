@@ -7,7 +7,7 @@ import uuid
 from flask import Blueprint, abort, jsonify, request
 from pydantic import ValidationError
 
-from app.models.user import Role, User, UserStatus
+from app.models.user import User
 from app.schemas.admin import UserUpdateRequest
 from app.services import admin_users, csrf
 from app.services.admin_users import (

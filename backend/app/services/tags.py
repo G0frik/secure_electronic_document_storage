@@ -71,7 +71,9 @@ def get_or_create(name: str) -> Tag:
     except IntegrityError:
         db.session.rollback()
         existing = db.session.scalar(select(Tag).where(Tag.name == normalised))
-        assert existing is not None  # the UNIQUE only fires when somebody else inserted
+        # The UNIQUE only fires when somebody else inserted the same name.
+        if existing is None:
+            raise
         return existing
     return tag
 

@@ -11,7 +11,7 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -26,7 +26,6 @@ from app.models.folder import Folder
 from app.models.policy import AccessPolicy
 from app.models.share import Share, SharePermission, ShareTargetType
 from app.models.user import Role
-
 
 # --- Helpers ---
 
@@ -62,7 +61,7 @@ def _classify(
         presidio_tier=ClassificationTier.PUBLIC,
         categories_triggered=categories or [],
         classifier_version="v6",
-        classified_at=datetime.now(timezone.utc),
+        classified_at=datetime.now(UTC),
     )
     db_session.add(c)
     db_session.commit()

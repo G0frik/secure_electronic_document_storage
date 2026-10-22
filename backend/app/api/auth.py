@@ -9,8 +9,8 @@ from app.config import settings
 from app.extensions import limiter
 from app.models.audit import AuditSeverity
 from app.schemas.auth import LoginRequest, RegisterRequest, TotpCodeRequest
-from app.services import audit, auth as auth_service
-from app.services import csrf, passwords, totp, users
+from app.services import audit, csrf, passwords, totp, users
+from app.services import auth as auth_service
 from app.services.totp import TotpError
 from app.services.users import UserAlreadyExistsError
 from app.utils.auth_decorators import current_user_or_none, login_required

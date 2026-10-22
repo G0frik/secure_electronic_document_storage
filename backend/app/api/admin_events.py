@@ -5,7 +5,7 @@ for SIEMs that prefer polling an HTTP endpoint over tailing a file.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy import select
@@ -73,7 +73,7 @@ def list_events():  # type: ignore[no-untyped-def]
                 "items": [events.to_ecs(r) for r in rows],
                 "count": len(rows),
                 "limit": limit,
-                "queried_at": datetime.now(timezone.utc).isoformat(),
+                "queried_at": datetime.now(UTC).isoformat(),
             }
         ),
         200,

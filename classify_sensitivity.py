@@ -3,9 +3,8 @@
 
 The actual pipeline lives in `backend/app/classifier_core/`. This file is
 a thin CLI front-end that drives the library on individual files or
-directories — useful for manual evaluation against the test/blind corpora.
-
-The pre-refactor monolith is preserved at `classify_sensitivity_v6_original.py.bak`.
+directories — useful for checking how a document would be tiered without
+running the whole stack.
 
 USAGE
 -----

@@ -14,6 +14,7 @@ Bootstrap: `make test` runs `make ensure-test-db` first to CREATE DATABASE
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Generator
 
 import pytest
@@ -99,12 +100,10 @@ def _isolate_state(app: Flask) -> Generator[None, None, None]:
         # (admin → restricted, user → confidential, guest → public).
         ensure_default_policies()
         # MinIO cleanup — best-effort
-        try:
+        with contextlib.suppress(Exception):
             storage.ensure_bucket()
             for key in list(storage.list_keys()):
                 storage.delete(key)
-        except Exception:
-            pass
     yield
 
 

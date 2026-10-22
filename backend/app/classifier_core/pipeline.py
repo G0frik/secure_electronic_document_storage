@@ -73,7 +73,8 @@ def _ensure_loaded() -> tuple[Any, int, Any | None]:
         log.info("classifier.loading_presidio")
         _presidio_analyzer = presidio_layer.build_analyzer()
 
-    assert _zero_shot_max_words is not None
+    if _zero_shot_max_words is None:
+        raise RuntimeError("zero-shot model failed to load")
     return _zero_shot_pipeline, _zero_shot_max_words, _presidio_analyzer
 
 

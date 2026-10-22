@@ -18,7 +18,7 @@ change a previously approved/denied outcome, they file a fresh request.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -190,13 +190,13 @@ def approve(
         # zero_shot/presidio left NULL — this row records a human decision,
         # not a model output.
         classifier_version=_MANUAL_CLASSIFIER_VERSION,
-        classified_at=datetime.now(timezone.utc),
+        classified_at=datetime.now(UTC),
     )
     db.session.add(new_classification)
 
     request.status = OverrideStatus.APPROVED
     request.reviewed_by_id = reviewer.id
-    request.reviewed_at = datetime.now(timezone.utc)
+    request.reviewed_at = datetime.now(UTC)
     request.decision_reason = (decision_reason or "").strip() or None
 
     audit.record(
@@ -232,7 +232,7 @@ def deny(
 
     request.status = OverrideStatus.DENIED
     request.reviewed_by_id = reviewer.id
-    request.reviewed_at = datetime.now(timezone.utc)
+    request.reviewed_at = datetime.now(UTC)
     request.decision_reason = (decision_reason or "").strip() or None
 
     audit.record(

@@ -7,6 +7,7 @@ import io
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import UTC
 
 from sqlalchemy import func, select
 from werkzeug.datastructures import FileStorage
@@ -236,9 +237,9 @@ def list_shared_with(user: User) -> list[File]:
 
 
 def _epoch():  # type: ignore[no-untyped-def]
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def stream_download(

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pyotp
 from sqlalchemy import select
@@ -178,7 +178,7 @@ def enable_for_user(user: User, code: str) -> None:
         raise TotpError("Invalid TOTP code.")
 
     row.enabled = True
-    row.enabled_at = datetime.now(timezone.utc)
+    row.enabled_at = datetime.now(UTC)
     row.last_used_at = row.enabled_at
     db.session.commit()
 
@@ -208,7 +208,7 @@ def verify_for_login(user: User, code: str) -> bool:
         return False
     matched = _verify_or_consume_recovery(row, code)
     if matched:
-        row.last_used_at = datetime.now(timezone.utc)
+        row.last_used_at = datetime.now(UTC)
         db.session.commit()
     return matched
 
@@ -231,7 +231,7 @@ def _verify_or_consume_recovery(row: UserTotp, code: str) -> bool:
         if entry.get("used_at"):
             continue
         if passwords.verify_password(normalised, entry["hash"]):
-            entry["used_at"] = datetime.now(timezone.utc).isoformat()
+            entry["used_at"] = datetime.now(UTC).isoformat()
             changed = True
             break
     if not changed:

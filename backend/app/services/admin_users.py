@@ -7,7 +7,7 @@ captures the admin's actions for SIEM ingestion.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -149,7 +149,7 @@ def update_status(*, target: User, new_status: UserStatus, actor: User) -> User:
     # Disabling or locking a user also force-logs them out so an existing
     # session can't keep working.
     if new_status != UserStatus.ACTIVE:
-        target.session_invalid_before = datetime.now(timezone.utc)
+        target.session_invalid_before = datetime.now(UTC)
     audit.record(
         "admin.user.status_changed",
         actor=actor,
@@ -191,7 +191,7 @@ def force_logout(*, target: User, actor: User) -> User:
     """Bump `session_invalid_before` to now. Every existing session for the
     target user is treated as expired on the next request.
     """
-    target.session_invalid_before = datetime.now(timezone.utc)
+    target.session_invalid_before = datetime.now(UTC)
     audit.record(
         "admin.user.force_logout",
         actor=actor,

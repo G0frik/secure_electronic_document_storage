@@ -13,10 +13,9 @@ Covers:
 
 from __future__ import annotations
 
-import hashlib
 import io
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -27,8 +26,7 @@ from app.models.classification import (
     ClassificationTier,
 )
 from app.models.file import File
-from app.models.folder import Folder
-from app.models.share import Share, SharePermission, ShareTargetType
+from app.models.share import Share, ShareTargetType
 from app.models.share_link import ShareLink
 from app.services import storage, trash
 
@@ -55,7 +53,7 @@ def _classify(db_session, file_id, tier=ClassificationTier.PUBLIC, categories=No
     existing.presidio_tier = ClassificationTier.PUBLIC
     existing.categories_triggered = categories or []
     existing.classifier_version = "v6"
-    existing.classified_at = datetime.now(timezone.utc)
+    existing.classified_at = datetime.now(UTC)
     db_session.commit()
     return existing
 
@@ -389,7 +387,7 @@ def test_reaper_purges_only_expired(client, db_session, logged_in_admin, csrf_to
 
     # Back-date the "old" trashed file to 31 days ago
     old_row = db_session.scalar(select(File).where(File.id == uuid.UUID(old["id"])))
-    old_row.deleted_at = datetime.now(timezone.utc) - timedelta(days=31)
+    old_row.deleted_at = datetime.now(UTC) - timedelta(days=31)
     db_session.commit()
 
     count = trash.reap_expired_trash(retention_days=30)

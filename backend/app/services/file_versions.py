@@ -33,7 +33,7 @@ import io
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from werkzeug.datastructures import FileStorage
@@ -159,7 +159,7 @@ def upload_new_version(
     file_record.nonce = blob.nonce
     file_record.auth_tag = blob.auth_tag
     file_record.kek_version = blob.kek_version
-    file_record.uploaded_at = datetime.now(timezone.utc)
+    file_record.uploaded_at = datetime.now(UTC)
     file_record.current_version = file_record.current_version + 1
 
     # 3. Quota — new bytes on top of existing.
@@ -389,7 +389,7 @@ def reap_expired_versions(
     Returns the count of versions removed.
     """
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
     cutoff = now - timedelta(days=retention_days)
     expired = list(
         db.session.scalars(

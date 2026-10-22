@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import io
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -25,7 +25,7 @@ from app.models.audit import AuditLog
 from app.models.file import File
 from app.models.file_version import FileVersion
 from app.models.user import User
-from app.services import file_versions, storage, trash
+from app.services import file_versions, storage
 
 
 def _upload_initial(client, csrf_token, filename, content, content_type="text/plain"):
@@ -343,7 +343,7 @@ def test_reaper_removes_old_historical_versions_but_keeps_current(
     _upload_version(client, csrf_token, file_id, "r.txt", b"z" * 75)
 
     # Backdate the v1 + v2 snapshots so the 30-day reaper hits them
-    long_ago = datetime.now(timezone.utc) - timedelta(days=90)
+    long_ago = datetime.now(UTC) - timedelta(days=90)
     db_session.execute(
         FileVersion.__table__.update()
         .where(FileVersion.file_id == uuid.UUID(file_id))

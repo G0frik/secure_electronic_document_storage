@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -17,7 +17,6 @@ from app.models.file import File
 from app.models.group import Group, UserGroup
 from app.models.policy import AccessPolicy
 from app.models.user import Role
-
 
 # --- Departments ---
 
@@ -158,7 +157,7 @@ def _classify_file(db_session, file_id, tier):
     existing.presidio_tier = ClassificationTier.PUBLIC
     existing.categories_triggered = []
     existing.classifier_version = "v6"
-    existing.classified_at = datetime.now(timezone.utc)
+    existing.classified_at = datetime.now(UTC)
     db_session.commit()
     return existing
 

@@ -20,7 +20,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from typing import Any
 
@@ -102,7 +102,7 @@ def to_ecs(row: AuditLog) -> dict[str, Any]:
     that Elastic, Wazuh, and most other SIEMs index natively.
     """
     severity_value = row.severity.value if hasattr(row.severity, "value") else str(row.severity)
-    timestamp = row.timestamp or datetime.now(timezone.utc)
+    timestamp = row.timestamp or datetime.now(UTC)
     category, type_ = _categorise(row.action_type)
 
     payload: dict[str, Any] = {

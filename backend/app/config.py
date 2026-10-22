@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
 
     @model_validator(mode="after")
-    def _build_urls_from_components(self) -> "Settings":
+    def _build_urls_from_components(self) -> Settings:
         """Construct DATABASE_URL, REDIS_URL, and MinIO creds from individual
         env vars when the composite URL is not provided directly.  This lets
         docker-compose keep passwords out of interpolated strings — sensitive
