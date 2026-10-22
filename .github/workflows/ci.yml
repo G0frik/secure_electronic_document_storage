@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref to avoid wasted CI time.
 concurrency:
