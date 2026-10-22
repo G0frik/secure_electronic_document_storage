@@ -74,7 +74,7 @@ jobs:
           docker run -d --name minio -p 9000:9000 -p 9001:9001 \
             -e MINIO_ROOT_USER=minioadmin \
             -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:latest server /data --console-address ":9001"
+            pgsty/minio:RELEASE.2026-08-04T00-00-00Z server /data --console-address ":9001"
           # Wait until MinIO is live (max ~30 s).
           for i in $(seq 1 30); do
             if curl -fsS http://localhost:9000/minio/health/live; then
@@ -113,12 +113,11 @@ jobs:
         run: alembic upgrade head
 
       - name: Create MinIO buckets
+        # dl.min.io no longer serves mc; use the copy inside the server image.
         run: |
-          curl -fsSL https://dl.min.io/client/mc/release/linux-amd64/mc \
-            -o /tmp/mc && chmod +x /tmp/mc
-          /tmp/mc alias set local http://localhost:9000 minioadmin minioadmin
-          /tmp/mc mb --ignore-existing local/documents
-          /tmp/mc mb --ignore-existing local/documents-test
+          docker exec minio mc alias set local http://localhost:9000 minioadmin minioadmin
+          docker exec minio mc mb --ignore-existing local/documents
+          docker exec minio mc mb --ignore-existing local/documents-test
 
       - name: Lint — ruff
         working-directory: backend

@@ -60,8 +60,10 @@ services:
       timeout: 3s
       retries: 10
 
+  # MinIO stopped publishing free images in 2025 (minio/minio and minio/mc are
+  # gone from Docker Hub); pgsty/* are drop-in community builds from source.
   minio:
-    image: minio/minio:latest
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: server /data --console-address ":9001"
     env_file:
       - .env.init
@@ -80,7 +82,7 @@ services:
       retries: 10
 
   minio-init:
-    image: minio/mc:latest
+    image: pgsty/mc:RELEASE.2026-10-18T00-00-00Z
     env_file:
       - .env.init
     environment:
