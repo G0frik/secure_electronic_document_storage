@@ -21,6 +21,8 @@ dependencies = [
 
     # Async
     "celery==5.6.3",
+    # kombu 5.7 (pulled in by celery) needs redis-py >= 6.4; keep both pinned until redis is bumped
+    "kombu==5.6.2",
     "redis==5.1.1",
 
     # Storage
