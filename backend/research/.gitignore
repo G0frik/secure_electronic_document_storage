@@ -1,0 +1,3 @@
+# Run outputs and the result cache stay local; per-run summary/ folders are committed.
+results/*/*
+!results/*/summary/
