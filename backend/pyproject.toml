@@ -68,6 +68,7 @@ dependencies = [
 # Research harness only (corpus renderings); not used by the service.
 research = [
     "fpdf2==2.9.0",
+    "matplotlib==3.11.2",
 ]
 dev = [
     "pytest==8.3.3",
