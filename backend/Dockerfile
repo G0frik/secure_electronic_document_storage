@@ -11,10 +11,11 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # System deps. `libpq-dev` for psycopg, `curl` for healthcheck, `git` so HF
-# can pull repos when needed.
+# can pull repos when needed, `fonts-dejavu-core` for Cyrillic PDF renderings.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         curl \
+        fonts-dejavu-core \
         git \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -24,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml /app/
 RUN pip install --upgrade pip && \
     pip install --extra-index-url https://download.pytorch.org/whl/cpu \
-        -e ".[dev]"
+        -e ".[dev,research]"
 
 # spaCy English model — required by Presidio for NER (PERSON/LOCATION/NRP).
 # Bakes into the image so workers don't have to download at runtime.

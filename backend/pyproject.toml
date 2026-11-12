@@ -65,6 +65,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Research harness only (corpus renderings); not used by the service.
+research = [
+    "fpdf2==2.9.0",
+]
 dev = [
     "pytest==8.3.3",
     "pytest-cov==5.0.0",
