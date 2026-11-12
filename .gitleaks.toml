@@ -1,0 +1,16 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+# Fake credentials in research test data. Generated keys carry a FAKE marker; the smoke-test documents are
+# synthetic and their text is classifier input, so they cannot carry inline gitleaks:allow comments.
+[allowlist]
+description = "Synthetic research data"
+regexes = [
+  '''AKIAFAKE[0-9A-Z]{12}''',
+  '''sk_test_FAKE\w+''',
+]
+paths = [
+  '''^backend/research/smoke/docs/''',
+]
