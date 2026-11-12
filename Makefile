@@ -1,4 +1,4 @@
-.PHONY: up down logs build migrate revision shell-backend shell-db test coverage seed-dev seed-demo ensure-test-db lint format clean certs
+.PHONY: up down logs build migrate revision shell-backend shell-db test coverage seed-dev seed-demo ensure-test-db lint format clean certs research
 
 # `docker compose up` runs this automatically; the target is kept for
 # regenerating after deleting docker/nginx/certs/selfsigned.*.
@@ -66,3 +66,11 @@ format:
 
 clean:
 	docker compose down -v
+
+# Research harness (backend/research). Example:
+#   make research MOD=classify_dir ARGS="research/smoke/docs --configs nli_en --labels research/smoke/labels.csv"
+# Host GGUFs are mounted read-only at /models so runs can hash them into the manifest.
+LLM_MODELS_DIR ?= $(HOME)/llm/models
+research:
+	docker compose run --rm --no-deps -e GIT_COMMIT=$$(git describe --always --dirty) \
+	  -v "$(LLM_MODELS_DIR):/models:ro" worker python -m research.$(MOD) $(ARGS)
