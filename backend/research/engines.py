@@ -68,15 +68,34 @@ def _truncate(text: str, max_words: int) -> tuple[str, bool]:
 
 
 class NliEngine:
-    def __init__(self, config_id: str) -> None:
+    """Zero-shot NLI as the service runs it. With `remote_url`, the forward pass runs on the host GPU
+    (research/nli_server.py, ONNX Runtime + DirectML); truncation and the tier mapping stay here."""
+
+    def __init__(self, config_id: str, remote_url: str = "") -> None:
         self.model_id, self.max_words = NLI_MODELS[config_id]
+        self.remote_url = remote_url.rstrip("/")
         self._pipe: Any = None
 
+    def server_info(self) -> dict[str, Any]:
+        return requests.get(self.remote_url, timeout=10).json() if self.remote_url else {}
+
+    def _remote_scores(self, text: str) -> dict[str, float]:
+        payload = {"model": self.model_id, "text": text, "labels": zero_shot.CATEGORIES,
+                   "template": zero_shot.HYPOTHESIS_TEMPLATE, "multi_label": True}  # fmt: skip
+        r = requests.post(f"{self.remote_url}/zero-shot", json=payload, timeout=600)
+        body = r.json()
+        if r.status_code != 200:
+            raise RuntimeError(body.get("error", r.text))
+        return body["scores"]
+
     def classify(self, text: str) -> SemanticResult:
-        if self._pipe is None:
-            self._pipe = zero_shot.load_classifier(self.model_id)
-        _, truncated = _truncate(text, self.max_words)
-        scores = zero_shot.zero_shot_classify(self._pipe, text, self.max_words)
+        clipped, truncated = _truncate(text, self.max_words)
+        if self.remote_url:
+            scores = self._remote_scores(clipped)
+        else:
+            if self._pipe is None:
+                self._pipe = zero_shot.load_classifier(self.model_id)
+            scores = zero_shot.zero_shot_classify(self._pipe, text, self.max_words)
         tier, triggered = zero_shot.zero_shot_tier(scores)
         return SemanticResult(
             tier=tier,
