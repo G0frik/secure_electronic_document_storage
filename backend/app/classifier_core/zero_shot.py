@@ -21,6 +21,7 @@ CATEGORY_TO_TIER: dict[str, Tier] = {
     "publicly available marketing material, press releases, or general public information": Tier.PUBLIC,
 }
 CATEGORIES = list(CATEGORY_TO_TIER.keys())
+HYPOTHESIS_TEMPLATE = "This document contains {}."
 
 # DeBERTa-v3 caps at 512 tokens → ~400 words. bge-m3 supports 8192 tokens,
 # we use 6000 words there. Set by `select_model`.
@@ -78,7 +79,7 @@ def zero_shot_classify(classifier, text: str, max_words: int) -> dict[str, float
     result = classifier(
         text,
         candidate_labels=CATEGORIES,
-        hypothesis_template="This document contains {}.",
+        hypothesis_template=HYPOTHESIS_TEMPLATE,
         multi_label=True,
     )
     return dict(zip(result["labels"], result["scores"], strict=False))

@@ -10,7 +10,9 @@ worker image, so the NLI configs use the same torch/transformers as the service.
 
 | Path | What |
 |---|---|
-| `classify_dir.py` | Classify a folder with the chosen configs → `predictions.csv` + `manifest.json` |
+| `classify_dir.py` | Classify one or more folders with the chosen configs → `predictions.csv` + `manifest.json` |
+| `nli_server.py` | Host-side NLI on the GPU (ONNX Runtime + DirectML), called by the harness with `--nli-url` |
+| `corpus/` | Corpus tools: `synthetic_ids.py` (fake identifiers), `translate.py` (DeepL), `stats.py` (distribution), `render.py` (DOCX/PDF/TXT) |
 | `engines.py` | NLI, LLM (llama-server) and Presidio engines |
 | `cache.py` | Result cache keyed by `(sha256(text), engine, model, prompt_version)` |
 | `manifest.py` | Run manifest: git commit, package versions, GGUF sha256, server build, seed |
@@ -53,6 +55,21 @@ ggml-org/llama.cpp releases). GGUFs live outside the repo in `%USERPROFILE%\llm\
 | `mamaylm-12b` | `MamayLM-Gemma-3-12B-IT-v2.0-Q4_K_M.gguf` (INSAIT) | `aeb8e3676b5a` |
 | `qwen35-2b` | `Qwen3.5-2B-Q4_K_M.gguf` (unsloth) | `aaf42c8b7c3c` |
 
+## 1b. Start the NLI server (Windows host, GPU)
+
+The RX 6700 XT has no CUDA/ROCm path on Windows, so NLI runs through ONNX Runtime with DirectML on the host,
+using MoritzLaurer's pre-converted ONNX exports cached in `%USERPROFILE%\.cache\doc_classifier_onnx`.
+The host venv needs `optimum`, `onnxruntime-directml` and `transformers`.
+
+```sh
+.venv/Scripts/python.exe backend/research/nli_server.py      # http://127.0.0.1:8081
+```
+
+Pass `--nli-url http://host.docker.internal:8081` to the harness. Only the forward pass moves to the GPU:
+truncation and the tier mapping run in the container exactly as in the service. On the 96-document corpus the
+GPU and CPU paths gave the same tier for every document (largest score difference 0.0001). GPU results are
+cached under `<model>@onnx-dml`, separately from CPU results.
+
 ## 2. Run
 
 From the repo root (Git Bash), with Docker Desktop running:
@@ -67,8 +84,11 @@ make research MOD=classify_dir ARGS="research/smoke/docs \
   `/models` (override with `LLM_MODELS_DIR=...`), and the file is hashed into the manifest.
 - `make research` passes `GIT_COMMIT` because `.git` is not mounted into the container.
 - `LLM_BASE_URL` overrides the default `http://host.docker.internal:8080`.
-- NLI models download into the `hf-cache` volume on first use; they run on CPU.
+- Without `--nli-url`, NLI models download into the `hf-cache` volume and run on CPU in the container.
 - Reruns are cheap: unchanged `(text, engine, model, prompt)` combinations come from the cache.
+  A cached row keeps the latency measured when it was first computed, so timing runs need a fresh cache.
+- The corpus lives outside the public repo; run it with
+  `ARGS="research/corpus/data/shareable research/corpus/data/link_only --labels research/corpus/data/labels.csv ..."`.
 
 Output: `results/<run_id>/predictions.csv` (columns listed in `classify_dir.FIELDS`)
 and `manifest.json`. With `--labels` the run also prints accuracy, under-classification rate,
