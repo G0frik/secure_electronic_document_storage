@@ -11,7 +11,8 @@ def test_wilson_known_values() -> None:
     lo, hi = wilson(8, 10)  # statsmodels proportion_confint(8, 10, method="wilson")
     assert lo == pytest.approx(0.4902, abs=1e-4)
     assert hi == pytest.approx(0.9433, abs=1e-4)
-    assert wilson(0, 10)[0] == 0.0
+    assert wilson(0, 48)[0] == 0.0
+    assert wilson(48, 48)[1] == 1.0
     assert wilson(0, 0) == (0.0, 1.0)
 
 
