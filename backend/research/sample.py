@@ -48,7 +48,7 @@ def main() -> None:
         rows = list(csv.DictReader(f))
     files = sample(rows, args.target, args.seed)
     args.out.write_text("\n".join(files) + "\n", encoding="utf-8")
-    print(f"{len(files)} files (attack variants + their clean twins) → {args.out}")
+    print(f"{len(files)} files (attack variants + their clean twins) -> {args.out}")
 
 
 if __name__ == "__main__":
