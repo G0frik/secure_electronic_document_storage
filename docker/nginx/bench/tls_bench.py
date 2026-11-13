@@ -54,6 +54,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--n", type=int, default=1000)
     p.add_argument("--out", type=Path, default=HERE / "results")
+    p.add_argument("--rounds", type=int, default=10, help="interleaved rounds; n is split evenly")
+    p.add_argument("--warmup", type=int, default=20, help="discarded handshakes per group first")
     args = p.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -71,28 +73,39 @@ def main() -> None:
         versions = client("openssl version; curl --version | head -1")
         server_v = sh("docker", "exec", SERVER, "sh", "-c", "nginx -V 2>&1", check=False)
         rows, summary = [], []
-        for g in GROUPS:
-            sizes = hello_sizes(g)
-            fmt = "%{time_connect} %{time_appconnect}\\n"
+        sizes = {g: hello_sizes(g) for g in GROUPS}
+        fmt = "%{time_connect} %{time_appconnect}\\n"
+
+        def handshakes(g: str, n: int) -> list[tuple[float, float]]:
             out = client(
-                f"for i in $(seq {args.n}); do curl -sk -o /dev/null --tlsv1.3 --tls-max 1.3 "
+                f"for i in $(seq {n}); do curl -sk -o /dev/null --tlsv1.3 --tls-max 1.3 "
                 f"--curves {g} -w '{fmt}' https://{SERVER}/; done"
             )
+            return [(float(c) * 1000, float(a) * 1000) for c, a in (ln.split() for ln in out.strip().splitlines())]
+
+        for g in GROUPS:  # warm-up, discarded: server caches, CPU frequency
+            handshakes(g, args.warmup)
+        # Interleaved rounds with a rotating group order, so drift over time hits every group alike.
+        per_round = args.n // args.rounds
+        measured: dict[str, list[tuple[float, float]]] = {g: [] for g in GROUPS}
+        for r in range(args.rounds):
+            for g in GROUPS[r % len(GROUPS):] + GROUPS[: r % len(GROUPS)]:
+                measured[g] += handshakes(g, per_round)
+        for g in GROUPS:
             conn, app = [], []
-            pairs = [ln.split() for ln in out.strip().splitlines()]
-            for i, (c, a) in enumerate(pairs):
-                c_ms, a_ms = float(c) * 1000, float(a) * 1000
+            for i, (c_ms, a_ms) in enumerate(measured[g]):
                 conn.append(c_ms)
                 app.append(a_ms)
                 rows.append({"group": g, "i": i, "connect_ms": round(c_ms, 3), "appconnect_ms": round(a_ms, 3),
                              "tls_ms": round(a_ms - c_ms, 3)})  # fmt: skip
+            sizes_g = sizes[g]
             tls = [a - c for a, c in zip(app, conn, strict=True)]
-            assert len(tls) == args.n, (g, len(tls))
+            assert len(tls) == per_round * args.rounds, (g, len(tls))
             summary.append({
                 "group": g, "n": len(tls),
                 "appconnect_median_ms": round(statistics.median(app), 3), "appconnect_p95_ms": round(pct(app, 0.95), 3),
                 "tls_median_ms": round(statistics.median(tls), 3), "tls_p95_ms": round(pct(tls, 0.95), 3),
-                "clienthello_bytes": sizes["ClientHello"], "serverhello_bytes": sizes["ServerHello"],
+                "clienthello_bytes": sizes_g["ClientHello"], "serverhello_bytes": sizes_g["ServerHello"],
             })  # fmt: skip
             print(summary[-1], flush=True)
         for name, data in (("raw.csv", rows), ("summary.csv", summary)):
