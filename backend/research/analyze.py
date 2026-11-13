@@ -242,7 +242,7 @@ def figure(metric_rows: list[dict[str, Any]], configs: list[str], fig_dir: Path)
 
     semantic = [c for c in configs if "+" not in c]
     get = {(m["config"], m["lang"]): m for m in metric_rows if m["subset"] == "all"}
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(max(12.0, 1.3 * len(semantic) + 3), 4.5))
     width = 0.38
     xs = range(len(semantic))
     for ax, key, title in (

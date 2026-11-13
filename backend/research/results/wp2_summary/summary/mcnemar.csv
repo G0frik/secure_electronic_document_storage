@@ -1,42 +1,84 @@
 family,comparison,lang,n,acc_a,acc_b,b_only_a_right,c_only_b_right,p,p_holm
-nli_vs_llm,nli_en vs llm:gemma4-12b,en,48,0.7083,0.9792,1,14,0.001,0.0146
-nli_vs_llm,nli_en vs llm:gemma4-12b,uk,48,0.6667,0.9792,1,16,0.0003,0.0049
-nli_vs_llm,nli_en vs llm:gemma4-e4b,en,48,0.7083,0.8542,4,11,0.1185,0.385
-nli_vs_llm,nli_en vs llm:gemma4-e4b,uk,48,0.6667,0.875,4,14,0.0309,0.265
-nli_vs_llm,nli_en vs llm:mamaylm-12b,en,48,0.7083,0.875,5,13,0.0963,0.385
+nli_vs_llm,nli_en vs llm:gemma4-12b,en,48,0.7083,0.9792,1,14,0.001,0.0371
+nli_vs_llm,nli_en vs llm:gemma4-12b,uk,48,0.6667,0.9792,1,16,0.0003,0.0115
+nli_vs_llm,nli_en vs llm:gemma4-e2b,en,48,0.7083,0.7708,7,10,0.6291,1.0
+nli_vs_llm,nli_en vs llm:gemma4-e2b,uk,48,0.6667,0.7292,7,10,0.6291,1.0
+nli_vs_llm,nli_en vs llm:gemma4-e4b,en,48,0.7083,0.8542,4,11,0.1185,1.0
+nli_vs_llm,nli_en vs llm:gemma4-e4b,uk,48,0.6667,0.875,4,14,0.0309,0.6486
+nli_vs_llm,nli_en vs llm:lapa-12b,en,48,0.7083,0.7083,9,9,1.0,1.0
+nli_vs_llm,nli_en vs llm:lapa-12b,uk,48,0.6667,0.75,11,15,0.5572,1.0
+nli_vs_llm,nli_en vs llm:mamaylm-12b,en,48,0.7083,0.875,5,13,0.0963,1.0
 nli_vs_llm,nli_en vs llm:mamaylm-12b,uk,48,0.6667,0.6667,13,13,1.0,1.0
-nli_vs_llm,nli_en vs llm:qwen35-2b,en,48,0.7083,0.4167,22,8,0.0161,0.1612
-nli_vs_llm,nli_en vs llm:qwen35-2b,uk,48,0.6667,0.3542,21,6,0.0059,0.0711
-nli_vs_llm,nli_en vs llm:qwen35-9b,en,48,0.7083,0.9167,0,10,0.002,0.0273
-nli_vs_llm,nli_en vs llm:qwen35-9b,uk,48,0.6667,0.9583,1,15,0.0005,0.0083
-nli_vs_llm,nli_ml vs llm:gemma4-12b,en,48,0.6875,0.9792,0,14,0.0001,0.0024
-nli_vs_llm,nli_ml vs llm:gemma4-12b,uk,48,0.7083,0.9792,0,13,0.0002,0.0046
-nli_vs_llm,nli_ml vs llm:gemma4-e4b,en,48,0.6875,0.8542,3,11,0.0574,0.3442
-nli_vs_llm,nli_ml vs llm:gemma4-e4b,uk,48,0.7083,0.875,4,12,0.0768,0.3841
-nli_vs_llm,nli_ml vs llm:mamaylm-12b,en,48,0.6875,0.875,3,12,0.0352,0.265
+nli_vs_llm,nli_en vs llm:ministral3-14b,en,48,0.7083,0.8958,3,12,0.0352,0.7031
+nli_vs_llm,nli_en vs llm:ministral3-14b,uk,48,0.6667,0.9583,1,15,0.0005,0.0208
+nli_vs_llm,nli_en vs llm:ministral3-3b,en,48,0.7083,0.5,19,9,0.0872,1.0
+nli_vs_llm,nli_en vs llm:ministral3-3b,uk,48,0.6667,0.5833,14,10,0.5413,1.0
+nli_vs_llm,nli_en vs llm:qwen35-2b,en,48,0.7083,0.4167,22,8,0.0161,0.4837
+nli_vs_llm,nli_en vs llm:qwen35-2b,uk,48,0.6667,0.3542,21,6,0.0059,0.2014
+nli_vs_llm,nli_en vs llm:qwen35-4b,en,48,0.7083,0.9167,3,13,0.0213,0.5956
+nli_vs_llm,nli_en vs llm:qwen35-4b,uk,48,0.6667,0.9167,3,15,0.0075,0.2487
+nli_vs_llm,nli_en vs llm:qwen35-9b-think1k,en,48,0.7083,0.8958,2,11,0.0225,0.5956
+nli_vs_llm,nli_en vs llm:qwen35-9b-think1k,uk,48,0.6667,0.8958,3,14,0.0127,0.3945
+nli_vs_llm,nli_en vs llm:qwen35-9b,en,48,0.7083,0.9167,0,10,0.002,0.0723
+nli_vs_llm,nli_en vs llm:qwen35-9b,uk,48,0.6667,0.9583,1,15,0.0005,0.0208
+nli_vs_llm,nli_ml vs llm:gemma4-12b,en,48,0.6875,0.9792,0,14,0.0001,0.0054
+nli_vs_llm,nli_ml vs llm:gemma4-12b,uk,48,0.7083,0.9792,0,13,0.0002,0.0105
+nli_vs_llm,nli_ml vs llm:gemma4-e2b,en,48,0.6875,0.7708,7,11,0.4807,1.0
+nli_vs_llm,nli_ml vs llm:gemma4-e2b,uk,48,0.7083,0.7292,12,13,1.0,1.0
+nli_vs_llm,nli_ml vs llm:gemma4-e4b,en,48,0.6875,0.8542,3,11,0.0574,1.0
+nli_vs_llm,nli_ml vs llm:gemma4-e4b,uk,48,0.7083,0.875,4,12,0.0768,1.0
+nli_vs_llm,nli_ml vs llm:lapa-12b,en,48,0.6875,0.7083,5,6,1.0,1.0
+nli_vs_llm,nli_ml vs llm:lapa-12b,uk,48,0.7083,0.75,9,11,0.8238,1.0
+nli_vs_llm,nli_ml vs llm:mamaylm-12b,en,48,0.6875,0.875,3,12,0.0352,0.7031
 nli_vs_llm,nli_ml vs llm:mamaylm-12b,uk,48,0.7083,0.6667,13,11,0.8388,1.0
-nli_vs_llm,nli_ml vs llm:qwen35-2b,en,48,0.6875,0.4167,22,9,0.0294,0.265
-nli_vs_llm,nli_ml vs llm:qwen35-2b,uk,48,0.7083,0.3542,27,10,0.0076,0.084
-nli_vs_llm,nli_ml vs llm:qwen35-9b,en,48,0.6875,0.9167,1,12,0.0034,0.0444
-nli_vs_llm,nli_ml vs llm:qwen35-9b,uk,48,0.7083,0.9583,0,12,0.0005,0.0083
+nli_vs_llm,nli_ml vs llm:ministral3-14b,en,48,0.6875,0.8958,3,13,0.0213,0.5956
+nli_vs_llm,nli_ml vs llm:ministral3-14b,uk,48,0.7083,0.9583,2,14,0.0042,0.1463
+nli_vs_llm,nli_ml vs llm:ministral3-3b,en,48,0.6875,0.5,19,10,0.136,1.0
+nli_vs_llm,nli_ml vs llm:ministral3-3b,uk,48,0.7083,0.5833,17,11,0.3449,1.0
+nli_vs_llm,nli_ml vs llm:qwen35-2b,en,48,0.6875,0.4167,22,9,0.0294,0.6479
+nli_vs_llm,nli_ml vs llm:qwen35-2b,uk,48,0.7083,0.3542,27,10,0.0076,0.2487
+nli_vs_llm,nli_ml vs llm:qwen35-4b,en,48,0.6875,0.9167,4,15,0.0192,0.5571
+nli_vs_llm,nli_ml vs llm:qwen35-4b,uk,48,0.7083,0.9167,3,13,0.0213,0.5956
+nli_vs_llm,nli_ml vs llm:qwen35-9b-think1k,en,48,0.6875,0.8958,3,13,0.0213,0.5956
+nli_vs_llm,nli_ml vs llm:qwen35-9b-think1k,uk,48,0.7083,0.8958,2,11,0.0225,0.5956
+nli_vs_llm,nli_ml vs llm:qwen35-9b,en,48,0.6875,0.9167,1,12,0.0034,0.123
+nli_vs_llm,nli_ml vs llm:qwen35-9b,uk,48,0.7083,0.9583,0,12,0.0005,0.02
 en_vs_uk,nli_en: en vs uk,paired,48,0.7083,0.6667,5,3,0.7266,1.0
 en_vs_uk,nli_en+presidio: en vs uk,paired,48,0.7917,0.7083,6,2,0.2891,1.0
 en_vs_uk,nli_ml: en vs uk,paired,48,0.6875,0.7083,3,4,1.0,1.0
 en_vs_uk,nli_ml+presidio: en vs uk,paired,48,0.7292,0.6875,3,1,0.625,1.0
 en_vs_uk,llm:gemma4-12b: en vs uk,paired,48,0.9792,0.9792,0,0,1.0,1.0
 en_vs_uk,llm:gemma4-12b+presidio: en vs uk,paired,48,0.9583,0.9583,0,0,1.0,1.0
+en_vs_uk,llm:gemma4-e2b: en vs uk,paired,48,0.7708,0.7292,7,5,0.7744,1.0
+en_vs_uk,llm:gemma4-e2b+presidio: en vs uk,paired,48,0.7917,0.75,7,5,0.7744,1.0
 en_vs_uk,llm:gemma4-e4b: en vs uk,paired,48,0.8542,0.875,1,2,1.0,1.0
 en_vs_uk,llm:gemma4-e4b+presidio: en vs uk,paired,48,0.8542,0.875,1,2,1.0,1.0
-en_vs_uk,llm:mamaylm-12b: en vs uk,paired,48,0.875,0.6667,10,0,0.002,0.0273
-en_vs_uk,llm:mamaylm-12b+presidio: en vs uk,paired,48,0.875,0.6667,10,0,0.002,0.0273
+en_vs_uk,llm:lapa-12b: en vs uk,paired,48,0.7083,0.75,4,6,0.7539,1.0
+en_vs_uk,llm:lapa-12b+presidio: en vs uk,paired,48,0.7292,0.75,4,5,1.0,1.0
+en_vs_uk,llm:mamaylm-12b: en vs uk,paired,48,0.875,0.6667,10,0,0.002,0.0508
+en_vs_uk,llm:mamaylm-12b+presidio: en vs uk,paired,48,0.875,0.6667,10,0,0.002,0.0508
+en_vs_uk,llm:ministral3-14b: en vs uk,paired,48,0.8958,0.9583,0,3,0.25,1.0
+en_vs_uk,llm:ministral3-14b+presidio: en vs uk,paired,48,0.875,0.9375,0,3,0.25,1.0
+en_vs_uk,llm:ministral3-3b: en vs uk,paired,48,0.5,0.5833,2,6,0.2891,1.0
+en_vs_uk,llm:ministral3-3b+presidio: en vs uk,paired,48,0.5625,0.5833,4,5,1.0,1.0
 en_vs_uk,llm:qwen35-2b: en vs uk,paired,48,0.4167,0.3542,3,0,0.25,1.0
-en_vs_uk,llm:qwen35-2b+presidio: en vs uk,paired,48,0.5,0.3958,5,0,0.0625,0.75
+en_vs_uk,llm:qwen35-2b+presidio: en vs uk,paired,48,0.5,0.3958,5,0,0.0625,1.0
+en_vs_uk,llm:qwen35-4b: en vs uk,paired,48,0.9167,0.9167,1,1,1.0,1.0
+en_vs_uk,llm:qwen35-4b+presidio: en vs uk,paired,48,0.9167,0.8958,1,0,1.0,1.0
+en_vs_uk,llm:qwen35-9b-think1k: en vs uk,paired,48,0.8958,0.8958,1,1,1.0,1.0
+en_vs_uk,llm:qwen35-9b-think1k+presidio: en vs uk,paired,48,0.875,0.875,1,1,1.0,1.0
 en_vs_uk,llm:qwen35-9b: en vs uk,paired,48,0.9167,0.9583,0,2,0.5,1.0
 en_vs_uk,llm:qwen35-9b+presidio: en vs uk,paired,48,0.8958,0.9375,0,2,0.5,1.0
-semantic_vs_hybrid,nli_en vs nli_en+presidio,all,96,0.6875,0.75,2,8,0.1094,0.7656
+semantic_vs_hybrid,nli_en vs nli_en+presidio,all,96,0.6875,0.75,2,8,0.1094,1.0
 semantic_vs_hybrid,nli_ml vs nli_ml+presidio,all,96,0.6979,0.7083,1,2,1.0,1.0
 semantic_vs_hybrid,llm:gemma4-12b vs llm:gemma4-12b+presidio,all,96,0.9792,0.9583,2,0,0.5,1.0
+semantic_vs_hybrid,llm:gemma4-e2b vs llm:gemma4-e2b+presidio,all,96,0.75,0.7708,2,4,0.6875,1.0
 semantic_vs_hybrid,llm:gemma4-e4b vs llm:gemma4-e4b+presidio,all,96,0.8646,0.8646,2,2,1.0,1.0
+semantic_vs_hybrid,llm:lapa-12b vs llm:lapa-12b+presidio,all,96,0.7292,0.7396,0,1,1.0,1.0
 semantic_vs_hybrid,llm:mamaylm-12b vs llm:mamaylm-12b+presidio,all,96,0.7708,0.7708,2,2,1.0,1.0
-semantic_vs_hybrid,llm:qwen35-2b vs llm:qwen35-2b+presidio,all,96,0.3854,0.4479,2,8,0.1094,0.7656
+semantic_vs_hybrid,llm:ministral3-14b vs llm:ministral3-14b+presidio,all,96,0.9271,0.9062,2,0,0.5,1.0
+semantic_vs_hybrid,llm:ministral3-3b vs llm:ministral3-3b+presidio,all,96,0.5417,0.5729,2,5,0.4531,1.0
+semantic_vs_hybrid,llm:qwen35-2b vs llm:qwen35-2b+presidio,all,96,0.3854,0.4479,2,8,0.1094,1.0
+semantic_vs_hybrid,llm:qwen35-4b vs llm:qwen35-4b+presidio,all,96,0.9167,0.9062,2,1,1.0,1.0
+semantic_vs_hybrid,llm:qwen35-9b-think1k vs llm:qwen35-9b-think1k+presidio,all,96,0.8958,0.875,2,0,0.5,1.0
 semantic_vs_hybrid,llm:qwen35-9b vs llm:qwen35-9b+presidio,all,96,0.9375,0.9167,2,0,0.5,1.0
