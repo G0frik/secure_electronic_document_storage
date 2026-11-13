@@ -21,7 +21,7 @@ from app.logging_config import get_logger
 
 log = get_logger(__name__)
 
-CLASSIFIER_VERSION = "v6"
+CLASSIFIER_VERSION = "v7"
 
 
 @dataclass(frozen=True)
