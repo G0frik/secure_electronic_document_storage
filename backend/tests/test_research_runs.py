@@ -110,3 +110,51 @@ def test_files_option_limits_the_run(corpus: Path, tmp_path: Path) -> None:
     pick.write_text("d1.txt\nd4.txt\n", encoding="utf-8")
     _run(corpus, out, "--files", str(pick))
     assert {r["file"] for r in _rows(out)} == {"d1.txt", "d4.txt"}
+
+
+def test_queue_entry_retries_then_gives_up(tmp_path: Path) -> None:
+    from research.run_queue import harness_cmd, run_entry
+
+    entry = {
+        "label": "x",
+        "server": "llm",
+        "harness": "--configs llm",
+        "run_id": "r1",
+        "files": "f.txt",
+    }
+    common = "/app/research/results/attacks/md --out /app/research/results/wp5"
+    cmd = harness_cmd(common, entry, "abc")
+    assert cmd[-4:] == ["--run-id", "r1", "--files", "f.txt"] and "GIT_COMMIT=abc" in cmd
+
+    codes = iter([3, 3, 0])
+    calls = {"start": 0, "stop": 0}
+
+    def start(e: dict) -> bool:
+        calls["start"] += 1
+        return True
+
+    def stop() -> None:
+        calls["stop"] += 1
+
+    assert run_entry(entry, common, tmp_path, 3, "abc", start, stop, lambda c, f: next(codes))
+    assert calls == {"start": 3, "stop": 3}  # server restarted before every attempt
+    assert not run_entry(entry, common, tmp_path, 2, "abc", start, stop, lambda c, f: 3)
+    assert "GIVING UP" in (tmp_path / "queue.log").read_text(encoding="utf-8")
+
+
+def test_sample_covers_every_cell_and_adds_clean_twins() -> None:
+    from research.sample import sample
+
+    rows = [{"file": f"{d}.{fmt}.clean", "pair_id": d, "lang": "en", "format": fmt, "attack_id": "",
+             "carrier": "", "placement": "", "payload_lang": "", "difficulty": "base"}
+            for d in "abc" for fmt in ("md", "pdf")]  # fmt: skip
+    rows += [{"file": f"{d}.{a}.{fmt}", "pair_id": d, "lang": "en", "format": fmt, "attack_id": a,
+              "carrier": "", "placement": "start", "payload_lang": "en", "difficulty": "base"}
+             for d in "abc" for a, fmt in (("A1", "md"), ("A7", "pdf"))]  # fmt: skip
+    files = sample(rows, target=2)
+    assert any(".A1." in f for f in files) and any(".A7." in f for f in files)  # every cell
+    for f in files:
+        if ".A" in f:
+            d, _, fmt = f.split(".")
+            assert f"{d}.{fmt}.clean" in files  # clean twin in the same format
+    assert sample(rows, target=2) == files  # deterministic
