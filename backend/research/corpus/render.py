@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import docx
@@ -144,7 +145,8 @@ def _pdf_text(pdf: FPDF, text: str, h: float, bold: bool = False) -> None:
     pdf.ln(h)
 
 
-def to_pdf(bl: list[Block], path: Path) -> None:
+def to_pdf(bl: list[Block], path: Path, extra: Callable[[FPDF], None] | None = None) -> None:
+    """`extra` draws on the finished document before it is written (attack carriers)."""
     pdf = FPDF(format="A4")
     pdf.set_margins(20, 20, 20)
     pdf.add_font("DejaVu", "", str(FONT_DIR / "DejaVuSans.ttf"))
@@ -187,6 +189,8 @@ def to_pdf(bl: list[Block], path: Path) -> None:
         else:
             _pdf_text(pdf, str(payload), h, bold=kind.startswith("h"))
         pdf.ln(size * 0.35)
+    if extra:
+        extra(pdf)
     pdf.output(str(path))
 
 

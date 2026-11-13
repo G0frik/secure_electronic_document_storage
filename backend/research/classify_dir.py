@@ -163,7 +163,10 @@ def main(argv: list[str] | None = None) -> None:
             base = {
                 "run_id": run_id, "pair_id": lab.get("pair_id", ""), "lang": lab.get("lang", ""),
                 "true_tier": lab.get("tier", ""), "group": lab.get("group", ""),
-                "variant_id": "clean", "format": path.suffix.lstrip(".").lower(),
+                # attack manifests (research.attacks) double as labels files and fill these
+                "variant_id": lab.get("variant_id") or "clean",
+                **{k: lab.get(k, "") for k in ("attack_id", "carrier", "placement", "payload_lang")},
+                "format": path.suffix.lstrip(".").lower(),
                 "semantic_engine": model, "defenses": "", "semantic_tier": s_val["tier"],
                 "presidio_tier": p_val["tier"], "detector_flag": "",
                 "latency_ms": s_val["latency_ms"], "input_chars": len(text),
