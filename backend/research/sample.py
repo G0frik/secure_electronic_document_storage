@@ -19,11 +19,13 @@ from pathlib import Path
 CELL = ("attack_id", "carrier", "placement", "format", "payload_lang", "lang", "difficulty")
 
 
-def sample(rows: list[dict[str, str]], target: int, seed: int = 20261113) -> list[str]:
+def sample(
+    rows: list[dict[str, str]], target: int, seed: int = 20261113, by: tuple[str, ...] = CELL
+) -> list[str]:
     attacked = [r for r in rows if r["attack_id"]]
     cells: dict[tuple[str, ...], list[dict[str, str]]] = defaultdict(list)
     for r in attacked:
-        cells[tuple(r[k] for k in CELL)].append(r)
+        cells[tuple(r[k] for k in by)].append(r)
     per_cell = max(1, math.ceil(target / max(1, len(cells))))
     rng = random.Random(seed)  # noqa: S311 — reproducible sampling, not crypto
     picked = [
@@ -42,11 +44,12 @@ def main() -> None:
         "--target", type=int, required=True, help="approximate number of attack variants"
     )
     p.add_argument("--seed", type=int, default=20261113)
+    p.add_argument("--by", default=",".join(CELL), help="manifest columns that define a cell")
     p.add_argument("--out", type=Path, required=True)
     args = p.parse_args()
     with args.manifest.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
-    files = sample(rows, args.target, args.seed)
+    files = sample(rows, args.target, args.seed, tuple(args.by.split(",")))
     args.out.write_text("\n".join(files) + "\n", encoding="utf-8")
     print(f"{len(files)} files (attack variants + their clean twins) -> {args.out}")
 
