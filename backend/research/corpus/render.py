@@ -24,6 +24,10 @@ BULLET = re.compile(r"^[-*] ")
 NUMBERED = re.compile(r"^\d+\. ")
 BOLD = re.compile(r"\*\*(.+?)\*\*")
 HEADINGS = {"# ": "h1", "## ": "h2", "### ": "h3"}
+# Official forms (П-2, 1ДР, declarations, power of attorney) are laid out as a grid of label/value cells,
+# like the printed forms; the words stay exactly as in the source, only the spacing between fields goes.
+FORM_PREFIX = "res_id_form_"
+FIELD = re.compile(r"^([^:]{1,80}):\s+(\S.*)$")
 
 Block = tuple[str, object]  # (kind, text | list of lines | table rows)
 
@@ -32,8 +36,19 @@ def _cells(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
-def blocks(text: str) -> list[Block]:
-    """Markdown → [(kind, payload)], kind in h1, h2, h3, p, table, ul, ol."""
+def _form_rows(lines: list[str]) -> list[list[str]]:
+    """Each `Label: value` field (fields on a line are split by 2+ spaces) → a [label:, value] row;
+    other text → a one-cell row. One field per row keeps cells wide enough that no word is split."""
+    rows = []
+    for ln in lines:
+        for field in re.split(r"\s{2,}", ln.strip()):
+            m = FIELD.match(field)
+            rows.append([m.group(1) + ":", m.group(2)] if m else [field])
+    return rows
+
+
+def blocks(text: str, form: bool = False) -> list[Block]:
+    """Markdown → [(kind, payload)], kind in h1, h2, h3, p, table, ul, ol (+ form for official forms)."""
     out: list[Block] = []
     for para in text.strip().split("\n\n"):
         para = para.strip("\n")
@@ -48,6 +63,8 @@ def blocks(text: str) -> list[Block]:
             out.append(("ul", [ln[2:].strip() for ln in lines]))
         elif all(NUMBERED.match(ln) for ln in lines):
             out.append(("ol", [ln.strip() for ln in lines]))  # keep the source's own numbers
+        elif form and any(FIELD.match(f) for ln in lines for f in re.split(r"\s{2,}", ln.strip())):
+            out.append(("form", _form_rows(lines)))
         else:
             out.append(("p", para.strip()))
     return out
@@ -94,6 +111,19 @@ def to_docx(bl: list[Block], path: Path) -> None:
                 cells = table.add_row().cells
                 for cell, value in zip(cells, row, strict=False):
                     _docx_runs(cell.paragraphs[0], value, bold=i == 0)
+        elif kind == "form":
+            rows = payload  # type: ignore[assignment]
+            width = max(len(r) for r in rows)  # type: ignore[attr-defined]
+            table = d.add_table(rows=0, cols=width)
+            table.style = "Table Grid"
+            for row in rows:  # type: ignore[attr-defined]
+                cells = table.add_row().cells
+                if len(row) == 1:  # section title / free line: one cell across the row
+                    cells[0].merge(cells[-1])
+                    _docx_runs(cells[0].paragraphs[0], row[0], bold=row[0].isupper())
+                    continue
+                for j, value in enumerate(row):
+                    _docx_runs(cells[j].paragraphs[0], value, bold=value.endswith(":"))
         elif kind in ("ul", "ol"):
             for item in payload:  # type: ignore[attr-defined]
                 # numbered items keep their source number as text; "List Number" would add a second
@@ -130,6 +160,24 @@ def to_pdf(bl: list[Block], path: Path) -> None:
                     row = table.row()
                     for value in row_values:
                         row.cell(value)
+        elif kind == "form":
+            width = max(len(r) for r in payload)  # type: ignore[attr-defined]
+            with pdf.table(
+                text_align="LEFT",
+                line_height=h * 1.1,
+                first_row_as_headings=False,
+                col_widths=(38, 62),
+            ) as table:
+                for row_values in payload:  # type: ignore[attr-defined]
+                    row = table.row()
+                    if len(row_values) == 1:
+                        pdf.set_font(style="B" if row_values[0].isupper() else "")
+                        row.cell(row_values[0], colspan=width)
+                        pdf.set_font(style="")
+                        continue
+                    for j, value in enumerate(row_values):
+                        span = width - len(row_values) + 1 if j == len(row_values) - 1 else 1
+                        row.cell(value, colspan=span)
         elif kind in ("ul", "ol"):
             pdf.set_left_margin(25)
             for item in payload:  # type: ignore[attr-defined]
@@ -144,7 +192,7 @@ def to_pdf(bl: list[Block], path: Path) -> None:
 
 def render(src: Path, out_dir: Path) -> None:
     text = src.read_text(encoding="utf-8")
-    bl = blocks(text)
+    bl = blocks(text, form=src.name.startswith(FORM_PREFIX))
     stem = src.name.removesuffix(".md")
     (out_dir / f"{stem}.txt").write_text(to_txt(text), encoding="utf-8")
     to_docx(bl, out_dir / f"{stem}.docx")
