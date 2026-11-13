@@ -1,0 +1,4 @@
+group,n,appconnect_median_ms,appconnect_p95_ms,tls_median_ms,tls_p95_ms,clienthello_bytes,serverhello_bytes
+X25519,1000,2.963,4.636,2.554,4.014,212,122
+X25519MLKEM768,1000,3.193,3.542,2.781,3.064,1388,1210
+MLKEM768,1000,3.067,3.325,2.649,2.861,1356,1178
