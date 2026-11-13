@@ -37,3 +37,22 @@ def test_parse_llm_output_valid_and_filters_unknown_categories() -> None:
 def test_parse_llm_output_rejects_off_schema(raw: str) -> None:
     with pytest.raises(ValueError):
         parse_llm_output(raw)
+
+
+def test_llm_request_version_default_unchanged_and_thinking_separate() -> None:
+    import hashlib
+    import json
+
+    from research.engines import LLM_MAX_TOKENS, LLM_SCHEMA, LlmEngine
+
+    def rv(**kw: object) -> str:
+        return LlmEngine("http://x", "m", "classify_v1", 42, **kw).request_version  # type: ignore[arg-type]
+
+    # default runs must keep the cache keys they had before these options existed
+    old = hashlib.sha256(
+        json.dumps([LLM_SCHEMA, LLM_MAX_TOKENS], sort_keys=True).encode()
+    ).hexdigest()[:8]
+    assert rv() == old
+    assert rv(template_kwargs={"enable_thinking": False}) == old
+    assert rv(template_kwargs={"enable_thinking": True}) != old
+    assert rv(max_tokens=4096) != old

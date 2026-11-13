@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import statistics
 import time
@@ -76,6 +77,7 @@ def _semantic_to_dict(r: SemanticResult) -> dict[str, Any]:
         "raw": r.raw,
         "truncated": r.truncated,
         "error": r.error,
+        **({"reasoning": r.reasoning} if r.reasoning else {}),
     }
 
 
@@ -97,6 +99,12 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument(
         "--gguf", help="GGUF file name in $GGUF_DIR (default /models); hashed into the manifest"
     )
+    p.add_argument(
+        "--template-kwargs",
+        type=json.loads,
+        help="""chat template kwargs as JSON, e.g. '{"enable_thinking": true}' (default: off)""",
+    )
+    p.add_argument("--max-tokens", type=int, default=LLM_MAX_TOKENS, help="raise for reasoning")
     p.add_argument("--prompt", default="classify_v1")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--run-id")
@@ -122,10 +130,12 @@ def main(argv: list[str] | None = None) -> None:
             gguf_dir = Path(os.environ.get("GGUF_DIR", "/models"))
             gguf_sha = sha256_file(gguf_dir / args.gguf) if args.gguf else ""
             model = f"{args.llm_label}@{gguf_sha[:12]}" if gguf_sha else args.llm_label
-            eng = LlmEngine(args.llm_url, args.llm_label, args.prompt, args.seed)
+            eng = LlmEngine(args.llm_url, args.llm_label, args.prompt, args.seed,
+                            template_kwargs=args.template_kwargs, max_tokens=args.max_tokens)  # fmt: skip
             llm_info = {"label": args.llm_label, "gguf": str(args.gguf or ""),
                         "gguf_sha256": gguf_sha, "server": eng.server_info(),
-                        "max_words": LLM_MAX_WORDS, "max_tokens": LLM_MAX_TOKENS,
+                        "max_words": LLM_MAX_WORDS, "max_tokens": eng.max_tokens,
+                        "template_kwargs": eng.template_kwargs,
                         "request_version": eng.request_version}  # fmt: skip
             engines[f"llm:{args.llm_label}"] = (model, eng)
         else:

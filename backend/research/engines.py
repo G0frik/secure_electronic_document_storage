@@ -58,6 +58,7 @@ class SemanticResult:
     raw: Any = None  # NLI: category scores; LLM: the raw completion text
     truncated: bool = False
     error: str = ""
+    reasoning: str = ""  # LLM thinking text, when the model reasons before answering
 
 
 def _truncate(text: str, max_words: int) -> tuple[str, bool]:
@@ -122,7 +123,14 @@ class LlmEngine:
     """OpenAI-compatible client for llama.cpp `llama-server`."""
 
     def __init__(
-        self, base_url: str, model: str, prompt_version: str, seed: int, timeout: int = 600
+        self,
+        base_url: str,
+        model: str,
+        prompt_version: str,
+        seed: int,
+        timeout: int = 600,
+        template_kwargs: dict[str, Any] | None = None,
+        max_tokens: int = LLM_MAX_TOKENS,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -130,9 +138,16 @@ class LlmEngine:
         self.prompt = (PROMPTS_DIR / f"{prompt_version}.txt").read_text(encoding="utf-8")
         self.seed = seed
         self.timeout = timeout
-        # Part of the cache key: changing the schema or token cap must not reuse old answers.
+        # Qwen3.5 thinks by default in some builds; other templates ignore this.
+        self.template_kwargs = template_kwargs or {"enable_thinking": False}
+        self.max_tokens = max_tokens
+        # Part of the cache key: changing the request must not reuse old answers. Non-default
+        # template kwargs / token caps are appended only, so default runs keep their old keys.
+        parts: list[Any] = [LLM_SCHEMA, max_tokens]
+        if self.template_kwargs != {"enable_thinking": False}:
+            parts.append(self.template_kwargs)
         self.request_version = hashlib.sha256(
-            json.dumps([LLM_SCHEMA, LLM_MAX_TOKENS], sort_keys=True).encode()
+            json.dumps(parts, sort_keys=True).encode()
         ).hexdigest()[:8]
 
     def server_info(self) -> dict[str, Any]:
@@ -151,25 +166,30 @@ class LlmEngine:
             "model": self.model,
             "messages": [{"role": "user", "content": self.prompt.replace("{document}", doc)}],
             "temperature": 0,
-            "max_tokens": LLM_MAX_TOKENS,
+            "max_tokens": self.max_tokens,
             "seed": self.seed,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": "classification", "schema": LLM_SCHEMA},
             },
-            # Qwen3.5 thinks by default in some builds; other templates ignore this.
-            "chat_template_kwargs": {"enable_thinking": False},
+            "chat_template_kwargs": self.template_kwargs,
         }
         resp = requests.post(
             f"{self.base_url}/v1/chat/completions", json=body, timeout=self.timeout
         )
         resp.raise_for_status()
-        raw = resp.json()["choices"][0]["message"]["content"] or ""
+        msg = resp.json()["choices"][0]["message"]
+        raw = msg.get("content") or ""
+        reasoning = msg.get("reasoning_content") or ""
         try:
             tier, cats = parse_llm_output(raw)
         except ValueError as exc:
-            return SemanticResult(tier=None, raw=raw, truncated=truncated, error=str(exc))
-        return SemanticResult(tier=tier, categories=cats, raw=raw, truncated=truncated)
+            return SemanticResult(
+                tier=None, raw=raw, truncated=truncated, error=str(exc), reasoning=reasoning
+            )
+        return SemanticResult(
+            tier=tier, categories=cats, raw=raw, truncated=truncated, reasoning=reasoning
+        )
 
 
 class PresidioEngine:
