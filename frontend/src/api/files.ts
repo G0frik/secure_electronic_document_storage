@@ -166,6 +166,31 @@ export async function fetchPreview(fileId: string): Promise<PreviewResponse> {
   }
 }
 
+/** Decrypted PDF/DOCX bytes for rendering in the browser (pdf.js / docx-preview). */
+export async function fetchPreviewDocument(fileId: string): Promise<ArrayBuffer> {
+  try {
+    const { data } = await apiClient.get<ArrayBuffer>(`/api/files/${fileId}/preview/document`, {
+      responseType: "arraybuffer",
+    });
+    return data;
+  } catch (err) {
+    // error bodies arrive as an ArrayBuffer too; decode them for the policy reason / message
+    if (err instanceof AxiosError && err.response?.data instanceof ArrayBuffer) {
+      let body: { error?: string; message?: string } = {};
+      try {
+        body = JSON.parse(new TextDecoder().decode(err.response.data));
+      } catch {
+        throw err;
+      }
+      if (err.response.status === 403 && body.error === "access_denied") {
+        throw new AccessDeniedError(body as AccessDeniedPayload);
+      }
+      throw new UnsupportedPreviewError(body.message ?? "Document preview not available.");
+    }
+    throw err;
+  }
+}
+
 export function downloadFileUrl(fileId: string): string {
   const base = import.meta.env.VITE_API_BASE_URL ?? "";
   return `${base}/api/files/${fileId}/download`;

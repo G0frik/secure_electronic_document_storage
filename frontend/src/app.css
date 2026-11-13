@@ -1343,3 +1343,35 @@ code,
   letter-spacing: 0.04em;
   color: var(--color-muted);
 }
+
+/* Preview: Document / Extracted text tabs and the rendered document */
+.preview-tabs {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.preview-tabs [aria-selected="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+}
+.modal:has(.document-view) {
+  width: min(960px, 94vw);
+}
+.document-view canvas.document-page {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto var(--space-4);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  background: #fff;
+}
+/* docx-preview draws white pages on a grey wrapper; let the modal own the scroll */
+.document-view .docx-wrapper {
+  background: transparent;
+  padding: 0;
+}
+.document-view .docx-wrapper > section.docx {
+  max-width: 100%;
+  margin-bottom: var(--space-4);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+}

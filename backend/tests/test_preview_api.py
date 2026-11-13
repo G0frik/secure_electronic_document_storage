@@ -312,3 +312,73 @@ def test_preview_non_owner_allowed_after_public_classification(
     response = client.get(f"/api/files/{file_row.id}/preview")
     assert response.status_code == 200
     assert response.json["text"] == plaintext.decode()
+
+
+# --- Document preview (raw PDF/DOCX for in-browser rendering) ---------------
+
+
+def test_preview_document_pdf_returns_bytes_inline(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    file_id = _upload(client, csrf_token, "doc.pdf", _MINIMAL_PDF, "application/pdf").json["id"]
+    response = client.get(f"/api/files/{file_id}/preview/document")
+    assert response.status_code == 200, response.data
+    assert response.data == _MINIMAL_PDF
+    assert response.mimetype == "application/pdf"
+    assert response.headers["Content-Disposition"] == "inline"
+    assert response.headers["Cache-Control"] == "no-store"
+    assert "sandbox" in response.headers["Content-Security-Policy"]
+    audits = db_session.scalars(
+        select(AuditLog).where(AuditLog.action_type == "file.previewed")
+    ).all()
+    assert [a.event_metadata["mode"] for a in audits] == ["document"]
+
+
+def test_preview_document_docx_mime(client, db_session, logged_in_admin, csrf_token) -> None:
+    body = _build_docx_bytes()
+    file_id = _upload(client, csrf_token, "doc.docx", body, preview.DOCX_MIME).json["id"]
+    response = client.get(f"/api/files/{file_id}/preview/document")
+    assert response.status_code == 200
+    assert response.data == body
+    assert response.mimetype == preview.DOCX_MIME
+
+
+def test_preview_document_rejects_text_files(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    file_id = _upload(client, csrf_token, "a.txt", b"plain", "text/plain").json["id"]
+    response = client.get(f"/api/files/{file_id}/preview/document")
+    assert response.status_code == 415
+    assert response.json["error"] == "unsupported_preview"
+
+
+def test_preview_document_too_large(
+    client, db_session, logged_in_admin, csrf_token, monkeypatch
+) -> None:
+    monkeypatch.setattr(preview, "DOCUMENT_PREVIEW_LIMIT", 10)
+    file_id = _upload(client, csrf_token, "doc.pdf", _MINIMAL_PDF, "application/pdf").json["id"]
+    response = client.get(f"/api/files/{file_id}/preview/document")
+    assert response.status_code == 413
+    assert response.json["error"] == "preview_too_large"
+
+
+def test_preview_document_non_owner_denied_while_pending(
+    client, db_session, logged_in_user, seeded_admin
+) -> None:
+    other = File(
+        owner_id=seeded_admin.id,
+        original_filename="theirs.pdf",
+        storage_key=uuid.uuid4(),
+        mime_type="application/pdf",
+        size_bytes=10,
+        sha256="0" * 64,
+        wrapped_dek=b"\x00" * 60,
+        nonce=b"\x00" * 12,
+        auth_tag=b"\x00" * 16,
+        kek_version=1,
+    )
+    db_session.add(other)
+    db_session.commit()
+    response = client.get(f"/api/files/{other.id}/preview/document")
+    assert response.status_code == 403
+    assert response.json["reason"] == "classification_pending"

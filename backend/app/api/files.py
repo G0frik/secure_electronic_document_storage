@@ -27,7 +27,11 @@ from app.services.file_versions import (
 )
 from app.services.files import EmptyUploadError, FileNotFoundError
 from app.services.folders import FolderNotFoundError
-from app.services.preview import PreviewExtractionError, UnsupportedPreviewError
+from app.services.preview import (
+    PreviewExtractionError,
+    PreviewTooLargeError,
+    UnsupportedPreviewError,
+)
 from app.services.quota import QuotaExceededError
 from app.utils.auth_decorators import current_user_or_none, login_required
 
@@ -295,6 +299,45 @@ def preview_file(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
             "text": payload.text,
         }
     )
+
+
+@bp.get("/<uuid:file_id>/preview/document")
+@login_required
+def preview_document(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    """Decrypted PDF/DOCX for rendering in the browser. Same access rule as the
+    text preview. Inline + no-store; the sandbox CSP covers opening it in a tab.
+    """
+    user = current_user_or_none()
+    record = _resolve_or_404(file_id)
+
+    if record.owner_id != user.id:
+        decision = policy.can_user_access(user, record)
+        if not decision.allowed:
+            return _deny_response(decision)
+
+    try:
+        blob, mime = preview.document_bytes(record, actor=user)
+    except UnsupportedPreviewError as exc:
+        return (
+            jsonify({"error": "unsupported_preview", "message": str(exc)}),
+            415,
+        )
+    except PreviewTooLargeError:
+        return (
+            jsonify(
+                {
+                    "error": "preview_too_large",
+                    "message": "This file is too large to preview. Download it instead.",
+                }
+            ),
+            413,
+        )
+    headers = {
+        "Content-Disposition": "inline",
+        "Cache-Control": "no-store",
+        "Content-Security-Policy": "sandbox; default-src 'none'",
+    }
+    return Response(blob, mimetype=mime, headers=headers)
 
 
 @bp.post("/<uuid:file_id>/versions")

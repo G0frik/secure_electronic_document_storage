@@ -210,3 +210,42 @@ def build_preview(file_record: File, *, actor: User | None) -> PreviewPayload:
         extractor=extractor,
         original_bytes=len(encoded),
     )
+
+
+# Raw PDF/DOCX for rendering in the browser (pdf.js / docx-preview). Bigger files are
+# better downloaded than parsed in a tab.
+DOCUMENT_PREVIEW_LIMIT = 25 * 1024 * 1024
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+class PreviewTooLargeError(ValueError):
+    """File is over DOCUMENT_PREVIEW_LIMIT."""
+
+
+def document_bytes(file_record: File, *, actor: User | None) -> tuple[bytes, str]:
+    """Decrypted PDF/DOCX bytes + mime type for in-browser rendering.
+
+    Raises UnsupportedPreviewError (not PDF/DOCX; legacy .doc included) or
+    PreviewTooLargeError. Audits `file.previewed` with mode=document.
+    """
+    if _is_pdf(file_record):
+        mime = "application/pdf"
+    elif _is_docx(file_record) and _ext_of(file_record) != ".doc":
+        mime = DOCX_MIME
+    else:
+        raise UnsupportedPreviewError("Document preview is only available for PDF and DOCX.")
+    if file_record.size_bytes > DOCUMENT_PREVIEW_LIMIT:
+        raise PreviewTooLargeError(f"{file_record.size_bytes} bytes")
+    blob = _collect_plaintext(files.stream_download(file_record, actor=actor, emit_audit=False))
+    audit.record(
+        "file.previewed",
+        actor=actor,
+        target_type="file",
+        target_id=file_record.id,
+        metadata={
+            "filename": file_record.original_filename,
+            "size_bytes": file_record.size_bytes,
+            "mode": "document",
+        },
+    )
+    return blob, mime

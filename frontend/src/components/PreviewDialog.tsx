@@ -10,6 +10,7 @@ import {
 } from "@/api/files";
 import { formatBytes } from "@/utils/format";
 import { Close } from "@/components/icons";
+import DocumentView from "@/components/DocumentView";
 
 interface Props {
   fileId: string;
@@ -121,6 +122,7 @@ function renderHighlightedText(text: string, classification: ClassificationResul
 export default function PreviewDialog({ fileId, fileLabel, onClose }: Props) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [classification, setClassification] = useState<ClassificationResult | null>(null);
+  const [tab, setTab] = useState<"document" | "text">("document");
 
   useEffect(() => {
     let cancelled = false;
@@ -185,9 +187,29 @@ export default function PreviewDialog({ fileId, fileLabel, onClose }: Props) {
               style={{
                 padding: "var(--space-2) var(--space-5)",
                 borderBottom: "1px solid var(--color-line)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "var(--space-3)",
               }}
             >
               <PreviewMeta payload={state.payload} />
+              {state.payload.extractor !== "text" && (
+                <div className="preview-tabs" role="tablist" aria-label="Preview mode">
+                  {(["document", "text"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === t}
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => setTab(t)}
+                    >
+                      {t === "document" ? "Document" : "Extracted text"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -200,7 +222,16 @@ export default function PreviewDialog({ fileId, fileLabel, onClose }: Props) {
             }}
           >
             {state.kind === "loading" && <p className="text-muted">Loading preview…</p>}
-            {state.kind === "ready" && (
+            {state.kind === "ready" && state.payload.extractor !== "text" && tab === "document" && (
+              <DocumentView fileId={fileId} kind={state.payload.extractor} />
+            )}
+            {state.kind === "ready" && state.payload.extractor !== "text" && tab === "text" && (
+              <p className="text-small text-muted" style={{ marginTop: 0 }}>
+                What the classifier read, including text a reader would not see (hidden or white
+                text, comments, metadata, attachments).
+              </p>
+            )}
+            {state.kind === "ready" && (state.payload.extractor === "text" || tab === "text") && (
               <pre
                 style={{
                   margin: 0,
