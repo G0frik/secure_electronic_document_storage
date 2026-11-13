@@ -77,7 +77,7 @@ def test_run_classification_completes_with_mock(
     assert record.presidio_tier == ClassificationTier.PUBLIC
     assert "salary, compensation, or employee financial records" in record.categories_triggered
     assert record.raw_scores["salary"] == 0.92
-    assert record.classifier_version == "v6"
+    assert record.classifier_version == "v7"
     assert record.classified_at is not None
 
     audit_rows = db_session.scalars(

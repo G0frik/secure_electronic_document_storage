@@ -10,19 +10,20 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import IO
+
+from app.classifier_core.docx_text import TextViews, docx_views
+from app.classifier_core.pdf_text import pdf_views
 
 
-def extract_pdf(path: Path) -> str:
-    import pdfplumber
-
-    with pdfplumber.open(path) as pdf:
-        return "\n".join((p.extract_text() or "") for p in pdf.pages)
+def extract_pdf(path: Path | IO[bytes]) -> str:
+    """Everything in the PDF: page text incl. hidden, annotations, forms, metadata, files."""
+    return pdf_views(path).full
 
 
-def extract_docx(path: Path) -> str:
-    import docx
-
-    return "\n".join(p.text for p in docx.Document(path).paragraphs if p.text)
+def extract_docx(path: Path | IO[bytes]) -> str:
+    """Everything in the DOCX: body, tables, headers/footers, notes, comments, properties."""
+    return docx_views(path).full
 
 
 def extract_pptx(path: Path) -> str:
@@ -178,6 +179,19 @@ EXTRACTORS: dict[str, Callable[[Path], str]] = {
 }
 
 
+# Formats whose libraries also read file-like objects: used for documents embedded
+# in DOCX/PDF, so they are extracted in memory.
+STREAM_EXTRACTORS: dict[str, Callable[..., str]] = {
+    ".pdf": extract_pdf,
+    ".docx": extract_docx,
+    ".pptx": extract_pptx,
+    ".xlsx": extract_xlsx,
+}
+
+# Formats that can hide text from a reader get a separate visible view.
+VIEW_EXTRACTORS: dict[str, Callable[[Path], TextViews]] = {".pdf": pdf_views, ".docx": docx_views}
+
+
 class UnsupportedExtensionError(ValueError):
     """Raised when no extractor is registered for the file's extension."""
 
@@ -189,3 +203,12 @@ def get_text(path: Path) -> str:
     if extractor is None:
         raise UnsupportedExtensionError(f"unsupported extension: {ext}")
     return extractor(path)
+
+
+def get_views(path: Path) -> TextViews:
+    """Full and visible text. Formats without hidden-text features return full twice."""
+    views = VIEW_EXTRACTORS.get(path.suffix.lower())
+    if views is not None:
+        return views(path)
+    text = get_text(path)
+    return TextViews(full=text, visible=text)

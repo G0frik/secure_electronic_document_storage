@@ -6,8 +6,8 @@ extracts a textual view, and returns the first ~100 KB of UTF-8 text.
 Supported formats (text only — no binary embedding):
   * Plain text variants (txt, md, log, csv, tsv, json, yaml, html, sql,
     ini, cfg, conf, env, properties, toml, rst)
-  * PDF — text per page via `pdfplumber`
-  * DOCX — paragraphs via `python-docx`
+  * PDF, DOCX — the classifier's full extraction (`classifier_core.pdf_text` /
+    `docx_text`): everything in the file, including text a reader would not see
 
 Both extractors accept file-like objects, so the plaintext never touches
 disk. Anything else returns `UnsupportedPreviewError` and the SPA shows
@@ -129,24 +129,17 @@ def _collect_plaintext(chunks: Iterable[bytes]) -> bytes:
 
 
 def _extract_pdf(blob: bytes) -> str:
-    import pdfplumber
+    from app.classifier_core.pdf_text import pdf_views
 
-    parts: list[str] = []
-    with pdfplumber.open(io.BytesIO(blob)) as pdf:
-        for page in pdf.pages:
-            parts.append(page.extract_text() or "")
-            # Cheap early-exit so a 1000-page PDF doesn't run the full
-            # extractor when the SPA is only going to render 100 KB anyway.
-            if sum(len(p) for p in parts) > PREVIEW_BYTE_LIMIT * 4:
-                break
-    return "\n\n".join(parts)
+    # Same extractor as the classifier, so the preview shows what it saw. The cap stops
+    # a 1000-page PDF early when the SPA only renders 100 KB anyway.
+    return pdf_views(io.BytesIO(blob), max_chars=PREVIEW_BYTE_LIMIT * 4).full
 
 
 def _extract_docx(blob: bytes) -> str:
-    import docx
+    from app.classifier_core.docx_text import docx_views
 
-    document = docx.Document(io.BytesIO(blob))
-    return "\n".join(p.text for p in document.paragraphs if p.text)
+    return docx_views(io.BytesIO(blob)).full
 
 
 def _extract_plain_text(blob: bytes) -> str:
@@ -170,8 +163,7 @@ def build_preview(file_record: File, *, actor: User | None) -> PreviewPayload:
         extractor = "docx"
     else:
         raise UnsupportedPreviewError(
-            f"No preview extractor for mime={file_record.mime_type!r} "
-            f"ext={_ext_of(file_record)!r}"
+            f"No preview extractor for mime={file_record.mime_type!r} ext={_ext_of(file_record)!r}"
         )
 
     # Reuse the same decrypt path the download endpoint uses, but suppress
