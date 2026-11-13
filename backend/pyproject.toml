@@ -75,6 +75,7 @@ dev = [
     "pytest-cov==5.0.0",
     "pytest-flask==1.3.0",
     "responses==0.26.3",
+    "fpdf2==2.9.0",  # builds the PDF fixtures for the hidden-text extraction tests
     "black==24.10.0",
     "ruff==0.17.1",
     "mypy==1.11.2",
