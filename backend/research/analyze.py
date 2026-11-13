@@ -42,7 +42,10 @@ def wilson(k: int, n: int, z: float = Z95) -> tuple[float, float]:
     denom = 1 + z * z / n
     centre = (p + z * z / (2 * n)) / denom
     half = z / denom * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
-    return max(0.0, centre - half), min(1.0, centre + half)
+    # exact at the edges: float rounding would leave e.g. lo = 1e-17 > p = 0
+    lo = 0.0 if k == 0 else max(0.0, centre - half)
+    hi = 1.0 if k == n else min(1.0, centre + half)
+    return lo, hi
 
 
 def mcnemar_exact(b: int, c: int) -> float:
