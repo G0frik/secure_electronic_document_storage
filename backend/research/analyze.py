@@ -198,7 +198,12 @@ def _paired(a: dict[Any, bool], b: dict[Any, bool]) -> dict[str, Any]:
     }
 
 
-def mcnemar_table(rows: list[Row], configs: list[str]) -> list[dict[str, Any]]:
+def mcnemar_table(
+    rows: list[Row], configs: list[str], confirmatory: set[str] | None = None
+) -> list[dict[str, Any]]:
+    """Paired tests in Holm families. `confirmatory`: LLM configs fixed before the results;
+    the other LLMs go to separate `:exploratory` families, so adding models later cannot
+    weaken the planned comparisons. None = every LLM is confirmatory."""
     by = defaultdict(dict)  # (config, lang) -> {pair_id: correct}
     for r in rows:
         by[(r["config_id"], r["lang"])][r["pair_id"]] = _correct(r)
@@ -209,15 +214,23 @@ def mcnemar_table(rows: list[Row], configs: list[str]) -> list[dict[str, Any]]:
     families: dict[str, list[dict[str, Any]]] = defaultdict(list)
     nlis = [c for c in configs if c.startswith("nli") and "+" not in c]
     llms = [c for c in configs if c.startswith("llm") and "+" not in c]
+
+    def kind(cfg: str) -> str:
+        planned = confirmatory is None or cfg in confirmatory or cfg.startswith("nli")
+        return "confirmatory" if planned else "exploratory"
+
     for nli in nlis:
         for llm in llms:
             for lang in LANGS:
-                families["nli_vs_llm"].append(
+                families[f"nli_vs_llm:{kind(llm)}"].append(
                     {"comparison": f"{nli} vs {llm}", "lang": lang}
                     | _paired(by[(nli, lang)], by[(llm, lang)])
                 )
     for cfg in configs:
-        families["en_vs_uk"].append(
+        # a +presidio twin repeats its semantic config's language contrast on the same documents,
+        # so it gets its own family (hybrid analysis) instead of doubling the planned one
+        family = "en_vs_uk_hybrid" if "+" in cfg else f"en_vs_uk:{kind(cfg)}"
+        families[family].append(
             {"comparison": f"{cfg}: en vs uk", "lang": "paired"}
             | _paired(by[(cfg, "en")], by[(cfg, "uk")])
         )
@@ -280,6 +293,11 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--labels", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--fig-dir", type=Path, default=RESEARCH_DIR / "figures")
+    p.add_argument(
+        "--confirmatory",
+        help="comma-separated LLM config ids fixed before the results (e.g. llm:a,llm:b); "
+        "other LLMs are tested in separate exploratory families. Default: all confirmatory",
+    )
     args = p.parse_args(argv)
 
     rows = load(args.predictions, args.labels)
@@ -311,7 +329,8 @@ def main(argv: list[str] | None = None) -> None:
     _write(out / "metrics.csv", metric_rows)
     _write(out / "per_class.csv", class_rows)
     _write(out / "confusion.csv", conf_rows)
-    _write(out / "mcnemar.csv", mcnemar_table(rows, configs))
+    planned = set(args.confirmatory.split(",")) if args.confirmatory else None
+    _write(out / "mcnemar.csv", mcnemar_table(rows, configs, planned))
     figure(metric_rows, configs, args.fig_dir)
 
     print(

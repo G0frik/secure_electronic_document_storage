@@ -53,3 +53,28 @@ def test_macro_f1_perfect_and_partial() -> None:
     assert macro_f1([_r("public", "public"), _r("restricted", "restricted")]) == 1.0
     # public: P=1/2 R=1 F1=2/3; internal: P=0 R=0 F1=0 → mean 1/3
     assert macro_f1([_r("public", "public"), _r("internal", "public")]) == pytest.approx(1 / 3)
+
+
+def test_mcnemar_families_split_confirmatory_and_exploratory() -> None:
+    from collections import Counter
+
+    from research.analyze import mcnemar_table
+
+    configs = ["nli_en", "llm:a", "llm:a+presidio", "llm:b"]
+    rows = [
+        {"config_id": c, "lang": lang, "pair_id": f"p{i}", "true_tier": "public",
+         "final_tier": "public" if (i + len(c)) % 3 else "internal"}
+        for c in configs for lang in ("en", "uk") for i in range(6)
+    ]  # fmt: skip
+    fam = Counter(r["family"] for r in mcnemar_table(rows, configs, {"llm:a"}))
+    assert fam == {
+        "nli_vs_llm:confirmatory": 2,  # nli_en vs llm:a, en + uk
+        "nli_vs_llm:exploratory": 2,  # nli_en vs llm:b
+        "en_vs_uk:confirmatory": 2,  # nli_en, llm:a
+        "en_vs_uk:exploratory": 1,  # llm:b
+        "en_vs_uk_hybrid": 1,  # llm:a+presidio
+        "semantic_vs_hybrid": 1,
+    }
+    # default: everything planned
+    fam_all = Counter(r["family"] for r in mcnemar_table(rows, configs))
+    assert fam_all["nli_vs_llm:confirmatory"] == 4 and "nli_vs_llm:exploratory" not in fam_all
