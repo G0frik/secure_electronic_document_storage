@@ -5,6 +5,10 @@
 
 Each semantic config yields two rows per file: `<config>` (semantic layer only) and
 `<config>+presidio` (hybrid via max_tier). Engine outputs are cached.
+
+Defenses (`--defenses`, recorded per row): D1 = hardened prompt for LLM configs (implied by
+`--prompt classify_hardened_*`); D2 = classify the visible text as well where it differs from the
+full text, semantic tier = max of the two.
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from app.classifier_core.extract import EXTRACTORS, get_text
+from app.classifier_core.extract import EXTRACTORS, get_text, get_views
 from app.classifier_core.tiers import max_tier, tier_rank
 from research.cache import Cache, cache_key
 from research.engines import (
@@ -38,8 +42,10 @@ FIELDS = [
     "run_id", "pair_id", "lang", "true_tier", "group", "variant_id", "attack_id", "carrier",
     "placement", "payload_lang", "format", "config_id", "semantic_engine", "defenses",
     "semantic_tier", "presidio_tier", "final_tier", "detector_flag", "latency_ms",
-    "input_chars", "truncated", "raw_output_ref", "error", "file",
+    "input_chars", "truncated", "raw_output_ref", "error", "file", "visible_ref",
 ]  # fmt: skip
+DEFENSES = {"D1", "D2"}
+HARDENED_PROMPT = "classify_hardened_v1"
 
 
 def _load_labels(path: Path | None) -> dict[str, dict[str, str]]:
@@ -90,7 +96,11 @@ def _classify_file(path, lab, engines, presidio, cache, args, run_id):  # type: 
         "format": path.suffix.lstrip(".").lower(), "file": path.name,
     }  # fmt: skip
     try:
-        text = get_text(path)
+        if "D2" in args.defenses:
+            views = get_views(path)
+            text, visible = views.full, views.visible
+        else:
+            text = visible = get_text(path)
     except Exception as exc:  # noqa: BLE001 — a broken file is a result (not retried), not a crash
         err = f"extraction failed: {type(exc).__name__}: {exc}"[:300]
         names = [n for c in engines for n in (c, f"{c}+presidio")]
@@ -100,25 +110,51 @@ def _classify_file(path, lab, engines, presidio, cache, args, run_id):  # type: 
     )
     rows, engine_failed = [], False
     for config_id, (model, eng) in engines.items():
-        prompt_v = f"{args.prompt}@{eng.request_version}" if config_id.startswith("llm") else ""
-        key = cache_key(text, config_id.split(":")[0], model, prompt_v)
+        llm = config_id.startswith("llm")
+        prompt_v = f"{args.prompt}@{eng.request_version}" if llm else ""
+        call = _semantic_call(cache, config_id.split(":")[0], model, prompt_v, eng)
+        v_ref = ""
         try:
-            s_val, _ = _cached(cache, key, lambda e=eng, t=text: _semantic_to_dict(e.classify(t)))
-            ref = str(cache.path(key).relative_to(args.out))
+            s_val, ref = call(text)
+            if visible != text:  # D2 only; a second call where hidden text exists
+                v_val, v_ref = call(visible)
+                s_val = _max_views(s_val, v_val)
         except Exception as exc:  # noqa: BLE001 — an engine failure becomes an error row, not a crash
             engine_failed, ref = True, ""
             s_val = {"tier": "", "truncated": False, "latency_ms": "",
                      "error": f"{ENGINE_ERROR}{type(exc).__name__}: {exc}"[:300]}  # fmt: skip
+        defenses = ",".join(sorted(d for d in args.defenses if llm or d != "D1"))
         base = {
-            **common, "semantic_engine": model, "defenses": "", "semantic_tier": s_val["tier"],
+            **common, "semantic_engine": model, "defenses": defenses, "semantic_tier": s_val["tier"],
             "presidio_tier": p_val["tier"], "detector_flag": "", "latency_ms": s_val["latency_ms"],
             "input_chars": len(text), "truncated": int(s_val["truncated"]), "raw_output_ref": ref,
-            "error": s_val["error"],
+            "error": s_val["error"], "visible_ref": v_ref,
         }  # fmt: skip
         rows.append({**base, "config_id": config_id, "final_tier": s_val["tier"]})
         hybrid = max_tier(s_val["tier"], p_val["tier"]).value if s_val["tier"] else ""
         rows.append({**base, "config_id": f"{config_id}+presidio", "final_tier": hybrid})
     return rows, engine_failed
+
+
+def _semantic_call(cache: Cache, engine: str, model: str, prompt_v: str, eng: Any) -> Any:
+    def call(text: str) -> tuple[dict[str, Any], str]:
+        key = cache_key(text, engine, model, prompt_v)
+        val, _ = _cached(cache, key, lambda: _semantic_to_dict(eng.classify(text)))
+        return val, str(cache.path(key).relative_to(cache.root.parent))
+
+    return call
+
+
+def _max_views(full: dict[str, Any], visible: dict[str, Any]) -> dict[str, Any]:
+    """D2: the higher tier of the two views; an invalid answer in one view leaves the other."""
+    tiers = [v["tier"] for v in (full, visible) if v["tier"]]
+    tier = max(tiers, key=tier_rank) if tiers else ""
+    return {
+        "tier": tier,
+        "truncated": full["truncated"] or visible["truncated"],
+        "latency_ms": round(full["latency_ms"] + visible["latency_ms"], 1),
+        "error": "" if tier else full["error"] or visible["error"],
+    }
 
 
 def _presidio(engine: PresidioEngine, text: str) -> dict[str, Any]:
@@ -162,6 +198,14 @@ def main(argv: list[str] | None = None) -> None:
     )
     p.add_argument("--max-tokens", type=int, default=LLM_MAX_TOKENS, help="raise for reasoning")
     p.add_argument("--prompt", default="classify_v1")
+    p.add_argument(
+        "--defenses", default="", help="comma-separated: D1 (hardened prompt), D2 (two views)"
+    )
+    p.add_argument(
+        "--cache",
+        type=Path,
+        help="engine cache folder (default <out>/cache); share it to reuse runs",
+    )
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--run-id")
     p.add_argument(
@@ -174,12 +218,19 @@ def main(argv: list[str] | None = None) -> None:
     unknown = [c for c in configs if c != "llm" and c not in NLI_MODELS]
     if unknown:
         p.error(f"unknown configs: {unknown}; known: llm, {', '.join(NLI_MODELS)}")
+    args.defenses = {d.strip() for d in args.defenses.split(",") if d.strip()}
+    if args.defenses - DEFENSES:
+        p.error(f"unknown defenses: {sorted(args.defenses - DEFENSES)}; known: {sorted(DEFENSES)}")
+    if "D1" in args.defenses and args.prompt == "classify_v1":
+        args.prompt = HARDENED_PROMPT
+    if args.prompt.startswith("classify_hardened"):
+        args.defenses.add("D1")
 
     started = now()
     run_id = args.run_id or f"{started[:19].replace(':', '').replace('-', '')}_{'-'.join(configs)}"
     run_dir = args.out / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    cache = Cache(args.out / "cache")
+    cache = Cache(args.cache or args.out / "cache")
     labels = _load_labels(args.labels)
 
     engines: dict[str, tuple[str, Any]] = {}  # config_id -> (model id, engine)
@@ -220,6 +271,7 @@ def main(argv: list[str] | None = None) -> None:
     manifest = dict(run_id=run_id, started=started, folder=[str(d) for d in args.folder],
                     configs={c: m for c, (m, _) in engines.items()}, llm=llm_info, nli_server=nli_info,
                     prompt_version=args.prompt, seed=args.seed, n_files=len(files),
+                    defenses=sorted(args.defenses), cache=str(cache.root),
                     labels=str(args.labels or ""), files=str(args.files or ""))  # fmt: skip
     write_manifest(run_dir, status="running", resumed_files=len(done), **manifest)
     out = pred_path.open("w", encoding="utf-8", newline="")
