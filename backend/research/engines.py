@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -162,6 +163,8 @@ class LlmEngine:
 
     def classify(self, text: str) -> SemanticResult:
         doc, truncated = _truncate(text, LLM_MAX_WORDS)
+        if "<document>" in self.prompt:  # D1: the document cannot close its own delimiter
+            doc = re.sub(r"<(/?)document>", r"&lt;\1document&gt;", doc, flags=re.IGNORECASE)
         body = {
             "model": self.model,
             "messages": [{"role": "user", "content": self.prompt.replace("{document}", doc)}],

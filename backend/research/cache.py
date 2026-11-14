@@ -32,4 +32,7 @@ class Cache:
     def put(self, key: str, value: dict[str, Any]) -> None:
         p = self.path(key)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+        # write then rename: a crash mid-write must not leave a truncated entry for the next run
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(p)
