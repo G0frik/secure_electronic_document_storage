@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from research.cache import Cache
-from research.detect import cached_score, windows
+from app.classifier_core.detector import windows
+from research.detect import cached_score
 
 
 @pytest.mark.parametrize("n", [0, 1, 63, 64, 100, 448, 449, 1000, 2000])

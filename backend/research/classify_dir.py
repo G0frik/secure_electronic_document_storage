@@ -25,16 +25,9 @@ from typing import Any
 
 from app.classifier_core.extract import EXTRACTORS, get_text, get_views
 from app.classifier_core.tiers import max_tier, tier_rank
+from app.classifier_core.llm import LLM_MAX_TOKENS, LLM_MAX_WORDS, LlmEngine, SemanticResult
 from research.cache import Cache, cache_key
-from research.engines import (
-    LLM_MAX_TOKENS,
-    LLM_MAX_WORDS,
-    NLI_MODELS,
-    LlmEngine,
-    NliEngine,
-    PresidioEngine,
-    SemanticResult,
-)
+from research.engines import NLI_MODELS, NliEngine, PresidioEngine
 from research.manifest import now, sha256_file, write_manifest
 
 RESEARCH_DIR = Path(__file__).parent
