@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 
 import research.classify_dir as cd
-from app.classifier_core.tiers import Tier
 from app.classifier_core.llm import SemanticResult
+from app.classifier_core.tiers import Tier
 
 
 class FakeLlm:
