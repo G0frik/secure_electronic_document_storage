@@ -6,7 +6,7 @@ import pytest
 
 from app.classifier_core.tiers import Tier
 from research.cache import Cache, cache_key
-from research.engines import parse_llm_output
+from app.classifier_core.llm import parse_llm_output
 
 
 def test_cache_key_changes_with_every_component() -> None:
@@ -43,7 +43,7 @@ def test_llm_request_version_default_unchanged_and_thinking_separate() -> None:
     import hashlib
     import json
 
-    from research.engines import LLM_MAX_TOKENS, LLM_SCHEMA, LlmEngine
+    from app.classifier_core.llm import LLM_MAX_TOKENS, LLM_SCHEMA, LlmEngine
 
     def rv(**kw: object) -> str:
         return LlmEngine("http://x", "m", "classify_v1", 42, **kw).request_version  # type: ignore[arg-type]

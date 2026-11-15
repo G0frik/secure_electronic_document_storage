@@ -16,7 +16,7 @@ worker image, so the NLI configs use the same torch/transformers as the service.
 | `engines.py` | NLI, LLM (llama-server) and Presidio engines |
 | `cache.py` | Result cache keyed by `(sha256(text), engine, model, prompt_version)` |
 | `manifest.py` | Run manifest: git commit, package versions, GGUF sha256, server build, seed |
-| `prompts/` | Versioned LLM prompts (`classify_v1.txt` = baseline, no defenses) |
+| `../app/classifier_core/prompts/` | Versioned LLM prompts (`classify_v1.txt` = baseline, no defenses), shared with the service |
 | `smoke/` | 10 EN/UK pairs used only to choose models; not part of the corpus, not reviewed |
 | `results/` | Run outputs and the cache. Git-ignored except `results/<run_id>/summary/` |
 
