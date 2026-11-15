@@ -62,6 +62,10 @@ class SameTierError(TierOverrideError):
     """Requested tier equals current tier — nothing to do."""
 
 
+class StaleRequestError(TierOverrideError):
+    """The file was reclassified (e.g. a new version) after the request was filed."""
+
+
 # --- Read helpers ---
 
 
@@ -171,6 +175,16 @@ def approve(
     if request.status != OverrideStatus.PENDING:
         raise NotPendingError(
             f"Request is already {request.status.value}."
+        )
+
+    # The request was judged against one classification; if the file has a newer
+    # one (new version, reclassify), approving would apply the tier to content the
+    # owner never asked about. Close it so the owner can file a fresh request.
+    latest = classification.get_latest(request.file_id)
+    if latest is None or latest.id != request.classification_id:
+        deny(request, reviewer=reviewer, decision_reason="superseded: file changed since request")
+        raise StaleRequestError(
+            "The file changed since this request was filed; the owner must file a new request."
         )
 
     next_version = (

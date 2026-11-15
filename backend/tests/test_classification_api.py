@@ -300,3 +300,43 @@ def test_admin_reclassify_row_reaches_completed(
     assert record.version == resp.json["classification_version"]
     assert record.status == ClassificationStatus.COMPLETED
     assert classification_service.get_latest(file_id).id == record.id
+
+
+def test_override_approved_after_new_version_is_refused_and_closed(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    from app.models.tier_override import OverrideStatus
+    from app.services import tier_overrides
+    from app.services.files import get_by_id
+
+    up = _upload(client, csrf_token, "doc.txt", b"plain notes")
+    file_id = uuid.UUID(up.json["id"])
+    classification_service.run_classification(
+        file_id, classifier_fn=_tier_classifier(Tier.CONFIDENTIAL)
+    )
+    req = tier_overrides.create_request(
+        file=get_by_id(file_id),
+        requested_tier=ClassificationTier.PUBLIC,
+        justification="nothing sensitive",
+        actor=logged_in_admin,
+    )
+    _upload_version(client, csrf_token, file_id, b"salary data")
+    classification_service.run_classification(file_id, classifier_fn=_tier_classifier(Tier.RESTRICTED))
+
+    resp = client.post(
+        f"/api/admin/tier-override-requests/{req.id}/approve",
+        json={},
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert resp.status_code == 409
+    assert resp.json["error"] == "stale_request"
+    db_session.expire_all()
+    assert tier_overrides.get_by_id(req.id).status == OverrideStatus.DENIED
+    assert classification_service.get_latest(file_id).final_tier == ClassificationTier.RESTRICTED
+    # The closed request no longer blocks a fresh one on the new version.
+    tier_overrides.create_request(
+        file=get_by_id(file_id),
+        requested_tier=ClassificationTier.CONFIDENTIAL,
+        justification="no identifiers",
+        actor=logged_in_admin,
+    )

@@ -24,6 +24,7 @@ from app.services.tier_overrides import (
     NotPendingError,
     PendingRequestExistsError,
     SameTierError,
+    StaleRequestError,
     TierOverrideError,
 )
 from app.utils.auth_decorators import (
@@ -189,6 +190,8 @@ def approve(request_id: uuid.UUID):  # type: ignore[no-untyped-def]
         )
     except NotPendingError as exc:
         return jsonify({"error": "not_pending", "message": str(exc)}), 409
+    except StaleRequestError as exc:
+        return jsonify({"error": "stale_request", "message": str(exc)}), 409
     return jsonify(_payload(req)), 200
 
 
