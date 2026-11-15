@@ -6,7 +6,9 @@ hashes it and looks up the matching row.
 
 Status codes:
     200 — valid landing / successful download
+    403 — the file's current version is RESTRICTED (reason `tier_blocked`)
     404 — token doesn't match any row (don't leak whether the file exists)
+    409 — the file's current version has no completed classification (reason `classification_pending`)
     410 Gone — token matched but revoked / expired / exhausted
 """
 
@@ -18,10 +20,13 @@ from flask import Blueprint, Response, jsonify, request
 from werkzeug.utils import secure_filename
 
 from app.extensions import limiter
+from app.models.share_link import ShareLink
 from app.services import share_links
 from app.services.share_links import (
+    ShareLinkClassificationPendingError,
     ShareLinkInvalidError,
     ShareLinkNotFoundError,
+    ShareLinkTierBlockedError,
 )
 
 bp = Blueprint("public_share_links", __name__, url_prefix="/api/public/share-links")
@@ -29,6 +34,13 @@ bp = Blueprint("public_share_links", __name__, url_prefix="/api/public/share-lin
 
 def _client_ip() -> str | None:
     return request.remote_addr
+
+
+def _tier_denied(link: ShareLink, exc: Exception) -> tuple[Response, int]:
+    blocked = isinstance(exc, ShareLinkTierBlockedError)
+    reason = "tier_blocked" if blocked else "classification_pending"
+    share_links.record_use_denied(reason, requester_ip=_client_ip(), link=link)
+    return jsonify({"error": "unavailable", "reason": reason}), 403 if blocked else 409
 
 
 @bp.get("/<token>")
@@ -45,6 +57,10 @@ def landing(token: str):  # type: ignore[no-untyped-def]
     except ShareLinkInvalidError as exc:
         share_links.record_use_denied(exc.reason, requester_ip=_client_ip())
         return jsonify({"error": "invalid", "reason": exc.reason}), 410
+    try:
+        share_links.ensure_tier_allows(link)
+    except (ShareLinkClassificationPendingError, ShareLinkTierBlockedError) as exc:
+        return _tier_denied(link, exc)
 
     share_links.record_viewed(link, requester_ip=_client_ip())
     file_row = link.file
@@ -81,7 +97,10 @@ def download(token: str):  # type: ignore[no-untyped-def]
         share_links.record_use_denied(exc.reason, requester_ip=_client_ip())
         return jsonify({"error": "invalid", "reason": exc.reason}), 410
 
-    file_row, chunks = share_links.consume_and_stream(link, requester_ip=_client_ip())
+    try:
+        file_row, chunks = share_links.consume_and_stream(link, requester_ip=_client_ip())
+    except (ShareLinkClassificationPendingError, ShareLinkTierBlockedError) as exc:
+        return _tier_denied(link, exc)
     ascii_name = secure_filename(file_row.original_filename) or "download"
     quoted = quote(file_row.original_filename, safe="")
     headers = {
