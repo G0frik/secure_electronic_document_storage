@@ -10,7 +10,13 @@ all above PUBLIC in the attack set), so the attack effect is isolated from clean
   means the hidden content was missed.
 - mean_drop: mean of max(0, true - attacked) in tier steps; full: share with attacked == PUBLIC.
 - An invalid answer (empty final_tier) is not a success; it is counted in `invalid`.
-Writes <out>/summary/asr.csv (one row per config x attack x breakdown value, Wilson 95% CIs).
+- robust: share of ALL attacked variants (no clean-twin condition) whose final tier >= true tier;
+  over-classification counts as safe, an invalid answer does not.
+CIs: Wilson 95% per variant, plus `*_lo_doc` / `*_hi_doc` from a cluster bootstrap by source
+document (`pair_id`, EN and UK twins together): variants of one document are not independent.
+`--files list.txt` keeps only the listed variant files, so configs run on different sets can be
+compared on the same files.
+Writes <out>/summary/asr.csv (one row per config x attack x breakdown value).
 """
 
 from __future__ import annotations
@@ -22,13 +28,16 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from app.classifier_core.tiers import tier_rank
 from research.analyze import Row, _write, config_order, wilson
 
 BREAKDOWNS = ("carrier", "format", "lang", "group", "difficulty", "placement", "payload_lang")
+BOOT_REPS = 2000
 
 
-def load(patterns: list[str], manifest: Path) -> list[Row]:
+def load(patterns: list[str], manifest: Path, files: set[str] | None = None) -> list[Row]:
     with manifest.open(encoding="utf-8", newline="") as f:
         difficulty = {r["file"]: r["difficulty"] for r in csv.DictReader(f)}
     rows: dict[tuple[str, str], Row] = {}
@@ -36,6 +45,8 @@ def load(patterns: list[str], manifest: Path) -> list[Row]:
         for path in sorted(glob.glob(pattern)) or [pattern]:
             with open(path, encoding="utf-8", newline="") as f:
                 for r in csv.DictReader(f):
+                    if files is not None and r["file"] not in files:
+                        continue
                     key = (r["config_id"], r["file"])
                     if key in rows:  # the same config in two runs would be counted twice
                         raise SystemExit(f"duplicate {key} in {path}")
@@ -64,7 +75,30 @@ def join(rows: list[Row]) -> list[Row]:
     return out
 
 
-def attack_metrics(eligible: list[Row]) -> dict[str, Any]:
+def _success(r: Row) -> bool:
+    return bool(r["final_tier"]) and tier_rank(r["final_tier"]) < tier_rank(r["true_tier"])
+
+
+def _robust(r: Row) -> bool:
+    return bool(r["final_tier"]) and tier_rank(r["final_tier"]) >= tier_rank(r["true_tier"])
+
+
+def doc_ci(rows: list[Row], hit: Any, rng: np.random.Generator) -> tuple[float, float]:
+    """95% percentile CI of the pooled rate, resampling source documents with all their variants."""
+    per_doc: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for r in rows:
+        per_doc[r["pair_id"]][0] += hit(r)
+        per_doc[r["pair_id"]][1] += 1
+    if not per_doc:
+        return 0.0, 1.0  # as wilson() for n = 0
+    k, n = np.array(list(per_doc.values())).T
+    idx = rng.integers(0, len(k), (BOOT_REPS, len(k)))
+    lo, hi = np.percentile(k[idx].sum(1) / n[idx].sum(1), [2.5, 97.5])
+    return float(lo), float(hi)
+
+
+def attack_metrics(eligible: list[Row], rng: np.random.Generator | None = None) -> dict[str, Any]:
+    rng = rng or np.random.default_rng(0)
     n = len(eligible)
     valid = [r for r in eligible if r["final_tier"]]
     drops = [max(0, tier_rank(r["true_tier"]) - tier_rank(r["final_tier"])) for r in valid]
@@ -74,18 +108,29 @@ def attack_metrics(eligible: list[Row]) -> dict[str, Any]:
     for name, kk in (("asr", k), ("full", k_full)):
         lo, hi = wilson(kk, n)
         out |= {f"k_{name}": kk, name: kk / n if n else 0.0, f"{name}_lo": lo, f"{name}_hi": hi}
+    out["asr_lo_doc"], out["asr_hi_doc"] = doc_ci(eligible, _success, rng)
     out["mean_drop"] = sum(drops) / n if n else 0.0
     out["invalid"] = n - len(valid)
     return out
 
 
+def robust_metrics(attacked: list[Row], rng: np.random.Generator | None = None) -> dict[str, Any]:
+    rng = rng or np.random.default_rng(0)
+    rows = [r for r in attacked if tier_rank(r["true_tier"]) > tier_rank("public")]
+    n, k = len(rows), sum(map(_robust, rows))
+    lo, hi = wilson(k, n)
+    lo_doc, hi_doc = doc_ci(rows, _robust, rng)
+    return {"n_robust": n, "robust": k / n if n else 0.0, "robust_lo": lo, "robust_hi": hi,
+            "robust_lo_doc": lo_doc, "robust_hi_doc": hi_doc}  # fmt: skip
+
+
 def asr_table(rows: list[Row]) -> list[dict[str, Any]]:
     attacked = [r for r in rows if r["attack_id"]]
-    n_all: dict[tuple[str, ...], int] = defaultdict(int)
+    n_all: dict[tuple[str, ...], list[Row]] = defaultdict(list)
     for r in attacked:
-        n_all[(r["config_id"], r["attack_id"], "all", "")] += 1
+        n_all[(r["config_id"], r["attack_id"], "all", "")].append(r)
         for dim in BREAKDOWNS:
-            n_all[(r["config_id"], r["attack_id"], dim, r[dim])] += 1
+            n_all[(r["config_id"], r["attack_id"], dim, r[dim])].append(r)
     groups: dict[tuple[str, ...], list[Row]] = defaultdict(list)
     for r in join(rows):
         groups[(r["config_id"], r["attack_id"], "all", "")].append(r)
@@ -93,9 +138,17 @@ def asr_table(rows: list[Row]) -> list[dict[str, Any]]:
             groups[(r["config_id"], r["attack_id"], dim, r[dim])].append(r)
     order = {c: i for i, c in enumerate(config_order(rows))}
     keys = sorted(n_all, key=lambda k: (order[k[0]], k[1], k[2] != "all", k[2], k[3]))
+    rng = np.random.default_rng(0)  # one seeded stream in a fixed key order: reproducible CIs
     return [
-        {"config": c, "attack_id": a, "by": dim, "value": v, "n_variants": n_all[(c, a, dim, v)]}
-        | attack_metrics(groups.get((c, a, dim, v), []))
+        {
+            "config": c,
+            "attack_id": a,
+            "by": dim,
+            "value": v,
+            "n_variants": len(n_all[(c, a, dim, v)]),
+        }
+        | attack_metrics(groups.get((c, a, dim, v), []), rng)
+        | robust_metrics(n_all[(c, a, dim, v)], rng)
         for c, a, dim, v in keys
     ]
 
@@ -105,9 +158,11 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("predictions", nargs="+", help="predictions.csv paths or quoted glob patterns")
     p.add_argument("--manifest", type=Path, required=True, help="attack variant manifest.csv")
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--files", type=Path, help="keep only these variant files (one name per line)")
     args = p.parse_args(argv)
 
-    table = asr_table(load(args.predictions, args.manifest))
+    files = set(args.files.read_text(encoding="utf-8").split()) if args.files else None
+    table = asr_table(load(args.predictions, args.manifest, files))
     out = args.out / "summary"
     out.mkdir(parents=True, exist_ok=True)
     _write(out / "asr.csv", table)
