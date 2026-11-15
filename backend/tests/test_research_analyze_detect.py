@@ -46,7 +46,7 @@ def test_load_takes_max_over_views_and_table_counts_flags(tmp_path: Path) -> Non
         _manifest_row("h1", "d1", "A3/A1", fmt="docx", carrier="vanish"),
     ]
     scores = [  # (file, view, score)
-        ("c1", "full", 0.1), ("c2", "full", 0.2), ("a1", "full", 0.9), ("a2", "full", 0.3),
+        ("c1", "full", 0.1), ("c2", "full", 0.2), ("a1", "full", 0.9), ("a2", "full", 0.15),
         ("h1", "visible", 0.05), ("h1", "full", 0.8),  # flagged through the full view
     ]  # fmt: skip
     with (tmp_path / "m.csv").open("w", encoding="utf-8", newline="") as f:
@@ -64,6 +64,6 @@ def test_load_takes_max_over_views_and_table_counts_flags(tmp_path: Path) -> Non
     assert table[("clean", "all", "")]["k"] == 0
     a1 = table[("A1", "all", "")]
     assert (a1["n"], a1["k"], a1["rate"]) == (2, 1, 0.5)
-    assert a1["auc"] == 0.75  # 0.9 beats both clean, 0.3 beats one
+    assert a1["auc"] == 0.75  # 0.9 beats both clean, 0.15 beats one
     assert table[("A3/A1", "carrier", "vanish")]["k"] == 1
     assert table[("A3/A1", "all", "")]["n_neg"] == 0  # no clean docx scored
