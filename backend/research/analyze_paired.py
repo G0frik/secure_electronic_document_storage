@@ -12,7 +12,7 @@ b = robust only in A, c = robust only in B. Variants of one source document are 
 so `p_cluster` is the cluster-adjusted McNemar test of Durkalski et al. (2003) with documents
 (`pair_id`) as clusters: X2 = (sum_k (b_k - c_k))^2 / sum_k (b_k - c_k)^2, 1 df. `p_exact` is the
 exact McNemar test on variants, for reference only. Holm on p_cluster within each family; the
-confirmatory families follow D-041 (planned before the results), the rest are exploratory.
+confirmatory families were fixed before the results were seen, the rest are exploratory.
 Writes <out>/summary/paired.csv.
 """
 
