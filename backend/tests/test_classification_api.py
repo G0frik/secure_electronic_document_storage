@@ -198,3 +198,105 @@ def test_create_pending_is_idempotent(db_session, logged_in_admin) -> None:
     r1 = classification_service.create_pending(fake_file_id)
     r2 = classification_service.create_pending(fake_file_id)
     assert r1.id == r2.id
+
+
+# --- One classification row per file version ---
+
+
+def _tier_classifier(tier: Tier):
+    result = ClassifyResult(final_tier=tier, zero_shot_tier=tier, presidio_tier=Tier.PUBLIC)
+    return lambda _text: result
+
+
+def _upload_version(client, csrf_token, file_id, content):
+    return client.post(
+        f"/api/files/{file_id}/versions",
+        data={"file": (io.BytesIO(content), "doc.txt", "text/plain")},
+        headers={"X-CSRF-Token": csrf_token},
+        content_type="multipart/form-data",
+    )
+
+
+def _rows(db_session, file_id) -> list[Classification]:
+    db_session.expire_all()
+    return list(
+        db_session.scalars(
+            select(Classification)
+            .where(Classification.file_id == file_id)
+            .order_by(Classification.version)
+        )
+    )
+
+
+def test_new_file_version_gets_its_own_classification_row(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    up = _upload(client, csrf_token, "doc.txt", b"plain notes")
+    file_id = uuid.UUID(up.json["id"])
+    classification_service.run_classification(file_id, classifier_fn=_tier_classifier(Tier.PUBLIC))
+
+    assert _upload_version(client, csrf_token, file_id, b"salary data").status_code == 201
+    v1, v2 = _rows(db_session, file_id)
+    assert (v1.status, v1.final_tier) == (ClassificationStatus.COMPLETED, ClassificationTier.PUBLIC)
+    assert v2.status == ClassificationStatus.PENDING
+    assert classification_service.get_latest(file_id).id == v2.id
+
+    # The worker writes to the newest row and leaves the old decision alone.
+    record = classification_service.run_classification(
+        file_id, classifier_fn=_tier_classifier(Tier.RESTRICTED)
+    )
+    assert record.id == v2.id
+    v1, v2 = _rows(db_session, file_id)
+    assert v1.final_tier == ClassificationTier.PUBLIC
+    assert (v2.status, v2.final_tier) == (ClassificationStatus.COMPLETED, ClassificationTier.RESTRICTED)
+
+
+def test_approved_override_does_not_carry_over_to_new_version(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    from app.services import tier_overrides
+    from app.services.files import get_by_id
+
+    up = _upload(client, csrf_token, "doc.txt", b"plain notes")
+    file_id = uuid.UUID(up.json["id"])
+    classification_service.run_classification(
+        file_id, classifier_fn=_tier_classifier(Tier.CONFIDENTIAL)
+    )
+    req = tier_overrides.create_request(
+        file=get_by_id(file_id),
+        requested_tier=ClassificationTier.PUBLIC,
+        justification="nothing sensitive",
+        actor=logged_in_admin,
+    )
+    override = tier_overrides.approve(req, reviewer=logged_in_admin)
+
+    # A repeated worker run must not overwrite the human decision.
+    classification_service.run_classification(file_id, classifier_fn=_tier_classifier(Tier.RESTRICTED))
+    assert classification_service.get_latest(file_id).id == override.id
+    assert classification_service.get_latest(file_id).final_tier == ClassificationTier.PUBLIC
+
+    _upload_version(client, csrf_token, file_id, b"salary data")
+    latest = classification_service.get_latest(file_id)
+    assert latest.id != override.id
+    assert latest.status == ClassificationStatus.PENDING
+
+    classification_service.run_classification(file_id, classifier_fn=_tier_classifier(Tier.RESTRICTED))
+    assert classification_service.get_latest(file_id).final_tier == ClassificationTier.RESTRICTED
+
+
+def test_admin_reclassify_row_reaches_completed(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    up = _upload(client, csrf_token, "doc.txt", b"plain notes")
+    file_id = uuid.UUID(up.json["id"])
+    resp = client.post(
+        f"/api/admin/files/{file_id}/reclassify", headers={"X-CSRF-Token": csrf_token}
+    )
+    assert resp.status_code == 202
+
+    record = classification_service.run_classification(
+        file_id, classifier_fn=_tier_classifier(Tier.INTERNAL)
+    )
+    assert record.version == resp.json["classification_version"]
+    assert record.status == ClassificationStatus.COMPLETED
+    assert classification_service.get_latest(file_id).id == record.id

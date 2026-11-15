@@ -19,7 +19,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.extensions import db
 from app.logging_config import get_logger
@@ -32,15 +32,16 @@ log = get_logger(__name__)
 
 
 def create_pending(file_id: uuid.UUID, *, commit: bool = True) -> Classification:
-    """Insert a new PENDING Classification row for *file_id*. Idempotent on retry."""
-    existing = db.session.scalar(
-        select(Classification).where(Classification.file_id == file_id, Classification.version == 1)
-    )
-    if existing is not None:
-        return existing
+    """Insert a PENDING row for the file's current content (one per uploaded
+    version). Reuses the latest row while it is still PENDING: the worker
+    hasn't read the content yet, so it will classify whatever is current.
+    """
+    latest = get_latest(file_id)
+    if latest is not None and latest.status == ClassificationStatus.PENDING:
+        return latest
     record = Classification(
         file_id=file_id,
-        version=1,
+        version=_next_version(file_id),
         status=ClassificationStatus.PENDING,
     )
     db.session.add(record)
@@ -57,24 +58,25 @@ def request_reclassification(file_id: uuid.UUID) -> Classification:
     same file without losing the historical decisions. Callers enqueue
     `classify_file.delay(file_id)` after committing.
     """
-    from sqlalchemy import func as sa_func
-
-    next_version = (
-        db.session.scalar(
-            select(sa_func.coalesce(sa_func.max(Classification.version), 0)).where(
-                Classification.file_id == file_id
-            )
-        )
-        or 0
-    ) + 1
     record = Classification(
         file_id=file_id,
-        version=next_version,
+        version=_next_version(file_id),
         status=ClassificationStatus.PENDING,
     )
     db.session.add(record)
     db.session.commit()
     return record
+
+
+def _next_version(file_id: uuid.UUID) -> int:
+    return (
+        db.session.scalar(
+            select(func.coalesce(func.max(Classification.version), 0)).where(
+                Classification.file_id == file_id
+            )
+        )
+        or 0
+    ) + 1
 
 
 def get_latest(file_id: uuid.UUID) -> Classification | None:
@@ -91,7 +93,9 @@ def run_classification(
     *,
     classifier_fn: Callable[[str], object] | None = None,
 ) -> Classification:
-    """Worker entrypoint. Idempotent by (file_id, version=1).
+    """Worker entrypoint. Classifies into the file's latest row while it is
+    PENDING/RUNNING; a decided latest row (e.g. a duplicate task, or an
+    approved manual override) is returned untouched.
 
     Steps: load file row → fetch ciphertext → decrypt → write temp file →
     extract text → classify → update Classification row → audit → cleanup.
@@ -109,7 +113,12 @@ def run_classification(
         log.warning("classify.file_missing", file_id=str(file_id))
         raise LookupError(f"File {file_id} not found.")
 
-    record = create_pending(file_id, commit=False)
+    record = get_latest(file_id)
+    if record is None:
+        record = create_pending(file_id, commit=False)
+    elif record.status not in (ClassificationStatus.PENDING, ClassificationStatus.RUNNING):
+        log.info("classify.nothing_pending", file_id=str(file_id), version=record.version)
+        return record
     record.status = ClassificationStatus.RUNNING
     db.session.commit()
 
