@@ -1,7 +1,8 @@
 """Classification model — sensitivity tier per file (per version).
 
-Phase 4: one row per file. Phase 10 (versioning) will add the `version`
-column to a unique constraint on `(file_id, version)`.
+`version` is a per-file sequence of decisions: every uploaded file version,
+admin reclassify and approved tier override inserts the next one, so the
+highest `version` is the decision for the file's current content.
 """
 
 from __future__ import annotations
@@ -49,7 +50,6 @@ class Classification(Base):
         nullable=False,
         index=True,
     )
-    # Always 1 in Phase 4; Phase 10 starts using this for file versioning.
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     status: Mapped[ClassificationStatus] = mapped_column(
