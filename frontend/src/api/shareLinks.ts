@@ -48,8 +48,8 @@ export interface PublicShareLinkInfo {
 }
 
 export interface PublicShareLinkInvalid {
-  error: "not_found" | "invalid";
-  reason?: "revoked" | "expired" | "exhausted";
+  error: "not_found" | "invalid" | "unavailable";
+  reason?: "revoked" | "expired" | "exhausted" | "tier_blocked" | "classification_pending";
 }
 
 /**

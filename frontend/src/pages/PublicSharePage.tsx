@@ -14,7 +14,9 @@ type State =
   | { kind: "missing" }
   | { kind: "expired" }
   | { kind: "revoked" }
-  | { kind: "exhausted" };
+  | { kind: "exhausted" }
+  | { kind: "tier_blocked" }
+  | { kind: "classification_pending" };
 
 /**
  * Public landing for an external share link.
@@ -40,6 +42,10 @@ export default function PublicSharePage() {
         setState({ kind: "revoked" });
       } else if (invalid?.reason === "exhausted") {
         setState({ kind: "exhausted" });
+      } else if (invalid?.reason === "tier_blocked") {
+        setState({ kind: "tier_blocked" });
+      } else if (invalid?.reason === "classification_pending") {
+        setState({ kind: "classification_pending" });
       } else {
         setState({ kind: "missing" });
       }
@@ -63,10 +69,7 @@ export default function PublicSharePage() {
 
         {state.kind === "loading" && <p className="text-muted">Loading link…</p>}
 
-        {(state.kind === "missing" ||
-          state.kind === "expired" ||
-          state.kind === "revoked" ||
-          state.kind === "exhausted") && <InvalidState kind={state.kind} />}
+        {state.kind !== "loading" && state.kind !== "ok" && <InvalidState kind={state.kind} />}
 
         {state.kind === "ok" && <OkState info={state.info} token={token!} />}
       </div>
@@ -74,7 +77,7 @@ export default function PublicSharePage() {
   );
 }
 
-function InvalidState({ kind }: { kind: "missing" | "expired" | "revoked" | "exhausted" }) {
+function InvalidState({ kind }: { kind: Exclude<State["kind"], "loading" | "ok"> }) {
   const copy: Record<typeof kind, { title: string; body: string }> = {
     missing: {
       title: "Link not found",
@@ -91,6 +94,15 @@ function InvalidState({ kind }: { kind: "missing" | "expired" | "revoked" | "exh
     exhausted: {
       title: "Download limit reached",
       body: "This share link has reached its maximum number of downloads.",
+    },
+    // Neither message names the tier: it would tell an outsider what the file contains.
+    tier_blocked: {
+      title: "File not available",
+      body: "The current version of this file can't be shared through an external link.",
+    },
+    classification_pending: {
+      title: "File is being checked",
+      body: "This file was updated and is still being checked. Try again in a few minutes.",
     },
   };
 
