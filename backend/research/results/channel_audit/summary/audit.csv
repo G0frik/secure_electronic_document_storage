@@ -1,0 +1,17 @@
+format,carrier,legacy,full,visible
+docx,body,1,1,1
+docx,vanish,1,1,0
+docx,white_1pt,1,1,0
+docx,text_box,0,1,1
+docx,header,0,1,1
+docx,footer,0,1,1
+docx,comment,0,1,0
+docx,table_cell,0,1,1
+docx,core_props,0,1,0
+pdf,body,1,1,1
+pdf,invisible,1,1,0
+pdf,white,1,1,0
+pdf,tiny,1,1,0
+pdf,cropbox,1,1,0
+pdf,annotation,0,1,0
+pdf,metadata,0,1,0
