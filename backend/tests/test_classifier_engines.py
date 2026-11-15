@@ -107,15 +107,21 @@ def test_d2_keeps_the_higher_tier_of_the_two_views(monkeypatch) -> None:
 def test_d2_makes_one_call_when_nothing_is_hidden(monkeypatch) -> None:
     monkeypatch.setattr(settings, "classifier_defenses", "D2")
     calls: list[str] = []
-    pipeline.classify_views(TextViews(full="memo", visible="memo"), _by_text({"memo": Tier.INTERNAL}, calls))
+    pipeline.classify_views(
+        TextViews(full="memo", visible="memo"), _by_text({"memo": Tier.INTERNAL}, calls)
+    )
     assert calls == ["memo"]
 
 
-@pytest.mark.parametrize(("score", "tier", "review"), [(0.9, Tier.RESTRICTED, True), (0.1, Tier.PUBLIC, False)])
+@pytest.mark.parametrize(
+    ("score", "tier", "review"), [(0.9, Tier.RESTRICTED, True), (0.1, Tier.PUBLIC, False)]
+)
 def test_d4_flag_forces_restricted_and_review(monkeypatch, score, tier, review) -> None:
     monkeypatch.setattr(settings, "classifier_defenses", "D4")
     monkeypatch.setattr(pipeline, "_detector", _StubDetector(score))
-    result = pipeline.classify_views(TextViews(full="x", visible="x"), lambda t: _result(Tier.PUBLIC))
+    result = pipeline.classify_views(
+        TextViews(full="x", visible="x"), lambda t: _result(Tier.PUBLIC)
+    )
     assert (result.final_tier, result.needs_review) == (tier, review)
     assert result.config["detector_score"] == score and result.config["needs_review"] is review
 
@@ -172,7 +178,9 @@ def test_run_classification_stores_config_and_audits_review(
     with patch("app.tasks.classification.classify_file.delay"):
         response = client.post(
             "/api/files",
-            data={"file": (io.BytesIO(b"Classification: PUBLIC. Salaries."), "s.txt", "text/plain")},
+            data={
+                "file": (io.BytesIO(b"Classification: PUBLIC. Salaries."), "s.txt", "text/plain")
+            },
             headers={"X-CSRF-Token": csrf_token},
             content_type="multipart/form-data",
         )

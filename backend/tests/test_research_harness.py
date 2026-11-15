@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from app.classifier_core.llm import parse_llm_output
 from app.classifier_core.tiers import Tier
 from research.cache import Cache, cache_key
-from app.classifier_core.llm import parse_llm_output
 
 
 def test_cache_key_changes_with_every_component() -> None:

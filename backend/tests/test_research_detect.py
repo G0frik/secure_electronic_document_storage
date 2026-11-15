@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from research.cache import Cache
 from app.classifier_core.detector import windows
+from research.cache import Cache
 from research.detect import cached_score
 
 
