@@ -190,7 +190,7 @@ STREAM_EXTRACTORS: dict[str, Callable[..., str]] = {
 }
 
 # Formats that can hide text from a reader get a separate visible view.
-VIEW_EXTRACTORS: dict[str, Callable[[Path], TextViews]] = {".pdf": pdf_views, ".docx": docx_views}
+VIEW_EXTRACTORS: dict[str, Callable[..., TextViews]] = {".pdf": pdf_views, ".docx": docx_views}
 
 
 class UnsupportedExtensionError(ValueError):
@@ -221,6 +221,15 @@ def get_text_bytes(data: bytes, filename: str) -> str:
     if extractor is None:
         raise UnsupportedExtensionError(f"unsupported extension: {ext}")
     return extractor(_InMemoryFile(data))
+
+
+def get_views_bytes(data: bytes, filename: str) -> TextViews:
+    """get_views for in-memory content."""
+    views = VIEW_EXTRACTORS.get(Path(filename).suffix.lower())
+    if views is not None:
+        return views(_InMemoryFile(data))
+    text = get_text_bytes(data, filename)
+    return TextViews(full=text, visible=text)
 
 
 def get_views(path: Path) -> TextViews:

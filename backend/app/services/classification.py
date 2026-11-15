@@ -103,8 +103,9 @@ def run_classification(
     otherwise retry and we don't want infinite retry loops for bad files.
     """
     # Lazy import — keeps `transformers` out of the web process unless used.
-    from app.classifier_core import CLASSIFIER_VERSION, ClassifyResult, classify
-    from app.classifier_core.extract import UnsupportedExtensionError, get_text_bytes
+    from app.classifier_core import CLASSIFIER_VERSION
+    from app.classifier_core.extract import UnsupportedExtensionError, get_views_bytes
+    from app.classifier_core.pipeline import classify_views
 
     file_record = db.session.get(File, file_id)
     if file_record is None:
@@ -120,7 +121,6 @@ def run_classification(
     record.status = ClassificationStatus.RUNNING
     db.session.commit()
 
-    fn = classifier_fn or classify
     try:
         # 1. Pull ciphertext from MinIO and decrypt.
         response = storage.get(str(file_record.storage_key))
@@ -138,14 +138,12 @@ def run_classification(
             kek_version=file_record.kek_version,
         )
 
-        # 2. Extract text in memory + classify.
-        text = get_text_bytes(plaintext, file_record.original_filename)
-        if not text.strip():
+        # 2. Extract text in memory + classify with the configured engine and defenses.
+        views = get_views_bytes(plaintext, file_record.original_filename)
+        if not views.full.strip():
             raise ValueError("No text extracted (file may be empty or scanned PDF without OCR).")
 
-        result = fn(text)
-        if not isinstance(result, ClassifyResult):
-            raise TypeError(f"classifier returned {type(result).__name__}, expected ClassifyResult")
+        result = classify_views(views, classifier_fn)
 
         # 3. Persist result.
         record.final_tier = ClassificationTier(result.final_tier.value)
@@ -155,6 +153,7 @@ def run_classification(
         record.categories_triggered = result.categories_triggered
         record.presidio_entities = result.presidio_entities
         record.classifier_version = CLASSIFIER_VERSION
+        record.classifier_config = result.config
         record.status = ClassificationStatus.COMPLETED
         record.classified_at = datetime.now(UTC)
         db.session.commit()
@@ -169,9 +168,18 @@ def run_classification(
                 "presidio_tier": record.presidio_tier.value,
                 "categories_triggered": result.categories_triggered,
                 "classifier_version": CLASSIFIER_VERSION,
+                "classifier_config": result.config,
             },
             severity=AuditSeverity.INFO,
         )
+        if result.needs_review:
+            audit.record(
+                "classification.needs_review",
+                target_type="file",
+                target_id=file_record.id,
+                metadata={"reason": "injection detector flagged the document"} | result.config,
+                severity=AuditSeverity.WARNING,
+            )
         log.info(
             "classify.completed",
             file_id=str(file_id),
@@ -210,6 +218,7 @@ def to_payload(record: Classification) -> dict:
         "raw_scores": record.raw_scores,
         "presidio_entities": record.presidio_entities,
         "classifier_version": record.classifier_version,
+        "classifier_config": record.classifier_config,
         "error_message": record.error_message,
         "created_at": record.created_at.isoformat() if record.created_at else None,
         "classified_at": record.classified_at.isoformat() if record.classified_at else None,

@@ -107,6 +107,7 @@ export default function ClassificationDetailsDrawer({
   const finalTier = classification.final_tier || "public";
   const rawScores = classification.raw_scores || {};
   const presidioEntities = classification.presidio_entities || {};
+  const config = classification.classifier_config;
 
   return (
     <Drawer
@@ -123,6 +124,23 @@ export default function ClassificationDetailsDrawer({
           </span>
           <span className={TIER_CLASS[finalTier]}>{TIER_LABEL[finalTier]}</span>
         </div>
+
+        {config?.needs_review && (
+          <div
+            role="status"
+            style={{
+              padding: "var(--space-3)",
+              borderRadius: "4px",
+              background: "var(--tier-restricted-bg)",
+              color: "var(--tier-restricted-fg)",
+              fontSize: "0.8125rem",
+            }}
+          >
+            Flagged by the prompt-injection detector
+            {config.detector_score !== undefined && ` (score ${config.detector_score.toFixed(2)})`}.
+            The tier was set to Restricted; an administrator should review the document.
+          </div>
+        )}
 
         {/* Zero-Shot Progress Bars Card */}
         <div className="zero-shot-card">
@@ -347,8 +365,17 @@ export default function ClassificationDetailsDrawer({
             Classifier Engine:{" "}
             <code style={{ fontFamily: "var(--font-mono)" }}>
               {classification.classifier_version || "unknown"}
+              {config && ` · ${config.engine} ${config.model}`}
             </code>
           </div>
+          {config && (
+            <div>
+              Injection defenses:{" "}
+              <code style={{ fontFamily: "var(--font-mono)" }}>
+                {config.defenses.length ? config.defenses.join(", ") : "none"}
+              </code>
+            </div>
+          )}
           {classification.classified_at && (
             <div>
               Scanned at:{" "}

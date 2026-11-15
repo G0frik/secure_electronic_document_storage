@@ -80,6 +80,8 @@ class Classification(Base):
 
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     classifier_version: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Engine, model, prompt, defenses and the D4 needs_review flag behind this result.
+    classifier_config: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
