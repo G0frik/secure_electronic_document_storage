@@ -118,6 +118,38 @@ def test_run_classification_handles_classifier_exception(
     assert "model exploded" in (record.error_message or "")
 
 
+def test_run_classification_keeps_plaintext_off_the_disk(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    import docx
+
+    doc = docx.Document()
+    doc.add_paragraph("Salary report: alice $90k bob $110k")
+    body = io.BytesIO()
+    doc.save(body)
+    docx_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    with patch("app.tasks.classification.classify_file.delay"):
+        response = _upload(client, csrf_token, "memo.docx", body.getvalue(), docx_mime)
+    file_id = uuid.UUID(response.json["id"])
+
+    seen: list[str] = []
+
+    def spy(text: str) -> ClassifyResult:
+        seen.append(text)
+        return _fake_classify(text)
+
+    no_disk = AssertionError("decrypted file written to disk")
+    with (
+        patch("tempfile.NamedTemporaryFile", side_effect=no_disk),
+        patch("tempfile.mkstemp", side_effect=no_disk),
+        patch("tempfile.TemporaryFile", side_effect=no_disk),
+    ):
+        record = classification_service.run_classification(file_id, classifier_fn=spy)
+
+    assert record.status == ClassificationStatus.COMPLETED, record.error_message
+    assert "Salary report" in seen[0]
+
+
 # --- API endpoint ---
 
 

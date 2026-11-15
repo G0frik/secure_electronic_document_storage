@@ -12,12 +12,9 @@ loading transformers.
 
 from __future__ import annotations
 
-import os
-import tempfile
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
-from pathlib import Path
 
 from sqlalchemy import func, select
 
@@ -97,16 +94,17 @@ def run_classification(
     PENDING/RUNNING; a decided latest row (e.g. a duplicate task, or an
     approved manual override) is returned untouched.
 
-    Steps: load file row → fetch ciphertext → decrypt → write temp file →
-    extract text → classify → update Classification row → audit → cleanup.
+    Steps: load file row → fetch ciphertext → decrypt → extract text in
+    memory (plaintext never touches the disk) → classify → update
+    Classification row → audit.
 
     On any failure the row is marked FAILED with the error message captured
     and an audit event written. Exceptions are NOT re-raised — Celery would
     otherwise retry and we don't want infinite retry loops for bad files.
     """
     # Lazy import — keeps `transformers` out of the web process unless used.
-    from app.classifier_core import CLASSIFIER_VERSION, ClassifyResult, classify, get_text
-    from app.classifier_core.extract import UnsupportedExtensionError
+    from app.classifier_core import CLASSIFIER_VERSION, ClassifyResult, classify
+    from app.classifier_core.extract import UnsupportedExtensionError, get_text_bytes
 
     file_record = db.session.get(File, file_id)
     if file_record is None:
@@ -123,7 +121,6 @@ def run_classification(
     db.session.commit()
 
     fn = classifier_fn or classify
-    temp_path: Path | None = None
     try:
         # 1. Pull ciphertext from MinIO and decrypt.
         response = storage.get(str(file_record.storage_key))
@@ -141,14 +138,8 @@ def run_classification(
             kek_version=file_record.kek_version,
         )
 
-        # 2. Write to a named temp file so format-specific extractors can open it by path.
-        suffix = Path(file_record.original_filename).suffix or ".bin"
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as buf:
-            buf.write(plaintext)
-            temp_path = Path(buf.name)
-
-        # 3. Extract text + classify.
-        text = get_text(temp_path)
+        # 2. Extract text in memory + classify.
+        text = get_text_bytes(plaintext, file_record.original_filename)
         if not text.strip():
             raise ValueError("No text extracted (file may be empty or scanned PDF without OCR).")
 
@@ -156,7 +147,7 @@ def run_classification(
         if not isinstance(result, ClassifyResult):
             raise TypeError(f"classifier returned {type(result).__name__}, expected ClassifyResult")
 
-        # 4. Persist result.
+        # 3. Persist result.
         record.final_tier = ClassificationTier(result.final_tier.value)
         record.zero_shot_tier = ClassificationTier(result.zero_shot_tier.value)
         record.presidio_tier = ClassificationTier(result.presidio_tier.value)
@@ -204,13 +195,6 @@ def run_classification(
             severity=AuditSeverity.WARNING,
         )
         return record
-
-    finally:
-        if temp_path is not None and temp_path.exists():
-            try:
-                os.unlink(temp_path)
-            except OSError as exc:
-                log.warning("classify.tempfile_cleanup_failed", path=str(temp_path), error=str(exc))
 
 
 def to_payload(record: Classification) -> dict:
