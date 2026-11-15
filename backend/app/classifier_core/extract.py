@@ -8,6 +8,7 @@ pulling every dependency on every call.
 
 from __future__ import annotations
 
+import io
 from collections.abc import Callable
 from pathlib import Path
 from typing import IO
@@ -146,7 +147,7 @@ def extract_yaml(path: Path) -> str:
 
 
 # Extension → extractor. Plain-text variants (logs, source) reuse extract_text.
-EXTRACTORS: dict[str, Callable[[Path], str]] = {
+EXTRACTORS: dict[str, Callable[..., str]] = {
     # Documents
     ".pdf": extract_pdf,
     ".docx": extract_docx,
@@ -203,6 +204,23 @@ def get_text(path: Path) -> str:
     if extractor is None:
         raise UnsupportedExtensionError(f"unsupported extension: {ext}")
     return extractor(path)
+
+
+class _InMemoryFile(io.BytesIO):
+    """Decrypted bytes for the extractors: binary formats read it as a file object, text
+    formats call read_text() on it as on a Path. Keeps plaintext off the disk."""
+
+    def read_text(self, encoding: str = "utf-8", errors: str = "strict") -> str:
+        return self.getvalue().decode(encoding, errors)
+
+
+def get_text_bytes(data: bytes, filename: str) -> str:
+    """get_text for in-memory content; the extension of `filename` picks the extractor."""
+    ext = Path(filename).suffix.lower()
+    extractor = EXTRACTORS.get(ext)
+    if extractor is None:
+        raise UnsupportedExtensionError(f"unsupported extension: {ext}")
+    return extractor(_InMemoryFile(data))
 
 
 def get_views(path: Path) -> TextViews:

@@ -9,7 +9,13 @@ import pytest
 from lxml import etree
 
 from app.classifier_core.docx_text import docx_views
-from app.classifier_core.extract import get_text, get_views
+from app.classifier_core.extract import (
+    EXTRACTORS,
+    UnsupportedExtensionError,
+    get_text,
+    get_text_bytes,
+    get_views,
+)
 from app.classifier_core.pdf_text import pdf_views
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -203,3 +209,52 @@ def test_broken_embedded_file_does_not_hide_the_rest(tmp_path: Path) -> None:
     path = tmp_path / "bad.docx"
     d.save(path)
     assert "OUTER_TEXT" in docx_views(path).full
+
+
+def _make_sample(path: Path) -> None:
+    """A small file of the extension's format with a little text in it."""
+    ext = path.suffix
+    if ext == ".pdf":
+        _make_pdf(path)
+    elif ext in (".docx", ".doc"):
+        _make_docx(path)
+    elif ext == ".pptx":
+        from pptx import Presentation
+        from pptx.util import Inches
+
+        prs = Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.shapes.add_textbox(Inches(1), Inches(1), Inches(4), Inches(1)).text = "SLIDE_TEXT"
+        prs.save(str(path))
+    elif ext == ".xlsx":
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        wb.active.append(["CELL_TEXT", 42])
+        wb.save(path)
+    else:
+        content = {
+            ".rtf": r"{\rtf1\ansi RTF_TEXT \par}",
+            ".csv": "name,salary\nAlice,100\n",
+            ".tsv": "name\tsalary\nAlice\t100\n",
+            ".html": "<html><head><title>t</title></head><body><p>HTML_TEXT</p></body></html>",
+            ".htm": "<p>HTML_TEXT</p>",
+            ".json": '{"key": ["JSON_TEXT", 1]}',
+            ".yaml": "key:\n  - YAML_TEXT\n",
+            ".yml": "key: YAML_TEXT\n",
+        }.get(ext, "plain text, Ukrainian: Привіт\n")
+        path.write_text(content, encoding="utf-8")
+
+
+@pytest.mark.parametrize("ext", sorted(EXTRACTORS))
+def test_in_memory_extraction_matches_extraction_from_disk(tmp_path: Path, ext: str) -> None:
+    path = tmp_path / f"sample{ext}"
+    _make_sample(path)
+    text = get_text_bytes(path.read_bytes(), path.name)
+    assert text.strip()
+    assert text == get_text(path)
+
+
+def test_in_memory_extraction_rejects_unknown_extension() -> None:
+    with pytest.raises(UnsupportedExtensionError):
+        get_text_bytes(b"MZ", "setup.exe")
