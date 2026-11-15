@@ -389,3 +389,125 @@ def test_create_with_past_expiry_is_400(
         headers={"X-CSRF-Token": csrf_token, "Content-Type": "application/json"},
     )
     assert resp.status_code == 400
+
+
+# --- Tier re-check at download time (content can change after minting) ---
+
+
+def _run_worker(file_id, tier):
+    """Drive the real worker with a fake model that returns *tier*."""
+    from app.classifier_core import ClassifyResult
+    from app.classifier_core.tiers import Tier
+    from app.services import classification as classification_service
+
+    t = Tier(tier.value)
+    result = ClassifyResult(final_tier=t, zero_shot_tier=t, presidio_tier=Tier.PUBLIC)
+    return classification_service.run_classification(file_id, classifier_fn=lambda _text: result)
+
+
+def _upload_version(client, csrf_token, file_id, filename, content):
+    return client.post(
+        f"/api/files/{file_id}/versions",
+        data={"file": (io.BytesIO(content), filename, "text/plain")},
+        headers={"X-CSRF-Token": csrf_token},
+        content_type="multipart/form-data",
+    )
+
+
+def _mint(client, csrf_token, file_id, **extra):
+    resp = client.post(
+        "/api/share-links",
+        json={"file_id": str(file_id), **extra},
+        headers={"X-CSRF-Token": csrf_token, "Content-Type": "application/json"},
+    )
+    assert resp.status_code == 201, resp.data
+    return resp.json
+
+
+def _denials(db_session) -> list[str]:
+    rows = db_session.scalars(
+        select(AuditLog).where(AuditLog.action_type == "share_link.use_denied")
+    ).all()
+    return [r.event_metadata["reason"] for r in rows]
+
+
+def test_link_rechecks_tier_after_new_version(
+    client, db_session, logged_in_user, seeded_admin, csrf_token
+) -> None:
+    from app.services import tier_overrides
+
+    up = _upload(client, csrf_token, "notes.txt", b"public meeting notes")
+    file_id = uuid.UUID(up.json["id"])
+    _run_worker(file_id, ClassificationTier.PUBLIC)
+    minted = _mint(client, csrf_token, file_id)
+    url = f"/api/public/share-links/{minted['token']}"
+    assert client.get(f"{url}/download").status_code == 200
+
+    # New version, classification still PENDING → refused, landing too.
+    secret = b"salaries and passport numbers"
+    assert _upload_version(client, csrf_token, file_id, "notes.txt", secret).status_code == 201
+    resp = client.get(f"{url}/download")
+    assert resp.status_code == 409
+    assert resp.json["reason"] == "classification_pending"
+    assert client.get(url).status_code == 409
+
+    # Classification FAILED → still refused.
+    def boom(_text):
+        raise RuntimeError("model exploded")
+
+    from app.services import classification as classification_service
+
+    classification_service.run_classification(file_id, classifier_fn=boom)
+    assert client.get(f"{url}/download").status_code == 409
+
+    # Re-upload, classified RESTRICTED, no admin override → refused.
+    _upload_version(client, csrf_token, file_id, "notes.txt", secret)
+    _run_worker(file_id, ClassificationTier.RESTRICTED)
+    resp = client.get(f"{url}/download")
+    assert resp.status_code == 403
+    assert resp.json["reason"] == "tier_blocked"
+    assert secret not in resp.data
+
+    # Denials don't consume uses and are audited.
+    link = db_session.scalar(select(ShareLink).where(ShareLink.id == uuid.UUID(minted["id"])))
+    db_session.refresh(link)
+    assert link.use_count == 1
+    assert _denials(db_session).count("tier_blocked") >= 1
+    assert "classification_pending" in _denials(db_session)
+
+    # Approved tier override down from RESTRICTED → allowed again.
+    req = tier_overrides.create_request(
+        file=link.file,
+        requested_tier=ClassificationTier.INTERNAL,
+        justification="mis-classified",
+        actor=logged_in_user,
+    )
+    tier_overrides.approve(req, reviewer=seeded_admin)
+    resp = client.get(f"{url}/download")
+    assert resp.status_code == 200
+    assert resp.data == secret
+
+    # Next version classified PUBLIC → allowed, serves the new bytes.
+    _upload_version(client, csrf_token, file_id, "notes.txt", b"public again")
+    _run_worker(file_id, ClassificationTier.PUBLIC)
+    resp = client.get(f"{url}/download")
+    assert resp.status_code == 200
+    assert resp.data == b"public again"
+
+
+def test_admin_forced_link_does_not_cover_later_versions(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    up = _upload(client, csrf_token, "hr.txt", b"restricted v1")
+    file_id = uuid.UUID(up.json["id"])
+    _run_worker(file_id, ClassificationTier.RESTRICTED)
+    minted = _mint(client, csrf_token, file_id, force_for_restricted=True)
+    url = f"/api/public/share-links/{minted['token']}/download"
+    # The admin opted in for this exact classification → still downloadable.
+    assert client.get(url).status_code == 200
+
+    _upload_version(client, csrf_token, file_id, "hr.txt", b"restricted v2")
+    _run_worker(file_id, ClassificationTier.RESTRICTED)
+    resp = client.get(url)
+    assert resp.status_code == 403
+    assert resp.json["reason"] == "tier_blocked"

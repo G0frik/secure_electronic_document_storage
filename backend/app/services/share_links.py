@@ -13,7 +13,8 @@ Tier policy: by default, files classified RESTRICTED cannot get external
 links. Admins can override per-link via `force_for_restricted=True`.
 This catches the obvious "marketing user emails the salary spreadsheet
 to their personal address" misuse case without needing a separate
-DLP layer.
+DLP layer. The rule is re-applied on every use, because uploading a new
+version can change the file's tier after the link was minted.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ from sqlalchemy import select
 from app.extensions import db
 from app.logging_config import get_logger
 from app.models.audit import AuditSeverity
-from app.models.classification import ClassificationStatus, ClassificationTier
+from app.models.classification import Classification, ClassificationStatus, ClassificationTier
 from app.models.file import File
 from app.models.share_link import ShareLink
 from app.models.user import User
@@ -140,6 +141,39 @@ def _validate_active(link: ShareLink) -> None:
         raise ShareLinkInvalidError("file_removed")
 
 
+# --- Tier policy ---
+
+
+def _check_tier(current: Classification | None, *, allow_restricted: bool) -> Classification:
+    """The external-link tier rule. Returns *current* when it allows a link."""
+    if current is None or current.status != ClassificationStatus.COMPLETED:
+        raise ShareLinkClassificationPendingError(
+            "File hasn't finished classification yet."
+        )
+    if current.final_tier == ClassificationTier.RESTRICTED and not allow_restricted:
+        raise ShareLinkTierBlockedError(
+            "External links are not allowed for RESTRICTED files."
+        )
+    return current
+
+
+def ensure_tier_allows(link: ShareLink) -> None:
+    """Re-apply the tier rule to the file's current classification. Raises
+    ShareLinkClassificationPendingError / ShareLinkTierBlockedError.
+    """
+    current = classification.get_latest(link.file_id)
+    creator = link.created_by
+    # An admin's force_for_restricted opt-in covers the classification that was
+    # in force when the link was minted, not one produced by a later version.
+    forced = (
+        creator is not None
+        and creator.is_admin
+        and current is not None
+        and current.created_at <= link.created_at
+    )
+    _check_tier(current, allow_restricted=forced)
+
+
 # --- Mutations ---
 
 
@@ -162,29 +196,25 @@ def create_link(
         raise ShareLinkError("You can only mint links for files you own.")
 
     # Tier policy — block RESTRICTED unless admin opts in.
-    current = classification.get_latest(file_id)
-    if current is None or current.status != ClassificationStatus.COMPLETED:
-        raise ShareLinkClassificationPendingError(
-            "File hasn't finished classification yet."
+    try:
+        current = _check_tier(
+            classification.get_latest(file_id),
+            allow_restricted=creator.is_admin and force_for_restricted,
         )
-    if current.final_tier == ClassificationTier.RESTRICTED and not (
-        creator.is_admin and force_for_restricted
-    ):
+    except ShareLinkTierBlockedError:
         audit.record(
             "share_link.tier_blocked",
             actor=creator,
             target_type="file",
             target_id=file_id,
             metadata={
-                "tier": current.final_tier.value,
+                "tier": ClassificationTier.RESTRICTED.value,
                 "filename": file_record.original_filename,
                 "is_admin": creator.is_admin,
             },
             severity=AuditSeverity.WARNING,
         )
-        raise ShareLinkTierBlockedError(
-            "External links are not allowed for RESTRICTED files."
-        )
+        raise
 
     if max_uses is not None and max_uses < 1:
         raise ShareLinkError("max_uses must be 1 or more.")
@@ -275,8 +305,10 @@ def consume_and_stream(
 
     Must be called inside a request context where the response immediately
     consumes the iterator. The use-count bump is committed BEFORE streaming
-    so concurrent requests see the updated counter.
+    so concurrent requests see the updated counter. Raises the tier errors
+    from `ensure_tier_allows` before consuming a use.
     """
+    ensure_tier_allows(link)
     link.use_count += 1
     audit.record(
         "share_link.downloaded",
@@ -297,7 +329,9 @@ def consume_and_stream(
     return link.file, chunks
 
 
-def record_use_denied(reason: str, *, requester_ip: str | None) -> None:
+def record_use_denied(
+    reason: str, *, requester_ip: str | None, link: ShareLink | None = None
+) -> None:
     """Public-endpoint denial (404/410). Emitted for forensics — surfaces
     'someone tried an expired link from this IP' in audit reports.
     """
@@ -305,6 +339,7 @@ def record_use_denied(reason: str, *, requester_ip: str | None) -> None:
         "share_link.use_denied",
         actor_ip=requester_ip,
         target_type="share_link",
+        target_id=link.id if link is not None else None,
         metadata={"reason": reason},
         severity=AuditSeverity.WARNING,
     )
