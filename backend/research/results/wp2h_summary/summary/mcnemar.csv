@@ -1,0 +1,98 @@
+family,comparison,lang,n,acc_a,acc_b,b_only_a_right,c_only_b_right,p,p_holm
+nli_vs_llm:exploratory,nli_en vs llm:gemma3-12b,en,17,0.2353,0.3529,2,4,0.6875,1.0
+nli_vs_llm:exploratory,nli_en vs llm:gemma3-12b,uk,17,0.1765,0.2941,2,4,0.6875,1.0
+nli_vs_llm:exploratory,nli_en vs llm:gemma4-e2b,en,17,0.2353,0.3529,1,3,0.625,1.0
+nli_vs_llm:exploratory,nli_en vs llm:gemma4-e2b,uk,17,0.1765,0.2353,2,3,1.0,1.0
+nli_vs_llm:exploratory,nli_en vs llm:gpt-oss-20b-low,en,17,0.2353,0.6471,1,8,0.0391,1.0
+nli_vs_llm:exploratory,nli_en vs llm:gpt-oss-20b-low,uk,17,0.1765,0.5294,0,6,0.0312,0.875
+nli_vs_llm:exploratory,nli_en vs llm:lapa-12b,en,17,0.2353,0.3529,2,4,0.6875,1.0
+nli_vs_llm:exploratory,nli_en vs llm:lapa-12b,uk,17,0.1765,0.2941,1,3,0.625,1.0
+nli_vs_llm:exploratory,nli_en vs llm:ministral3-14b,en,17,0.2353,0.5294,2,7,0.1797,1.0
+nli_vs_llm:exploratory,nli_en vs llm:ministral3-14b,uk,17,0.1765,0.3529,1,4,0.375,1.0
+nli_vs_llm:exploratory,nli_en vs llm:ministral3-3b,en,17,0.2353,0.1176,2,0,0.5,1.0
+nli_vs_llm:exploratory,nli_en vs llm:ministral3-3b,uk,17,0.1765,0.0588,2,0,0.5,1.0
+nli_vs_llm:exploratory,nli_en vs llm:qwen35-4b,en,17,0.2353,0.5882,2,8,0.1094,1.0
+nli_vs_llm:exploratory,nli_en vs llm:qwen35-4b,uk,17,0.1765,0.5294,1,7,0.0703,1.0
+nli_vs_llm:exploratory,nli_en vs llm:qwen35-9b-think1k,en,17,0.2353,0.8235,1,11,0.0063,0.1904
+nli_vs_llm:exploratory,nli_en vs llm:qwen35-9b-think1k,uk,17,0.1765,0.8235,1,12,0.0034,0.1094
+nli_vs_llm:exploratory,nli_ml vs llm:gemma3-12b,en,17,0.2353,0.3529,1,3,0.625,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:gemma3-12b,uk,17,0.1765,0.2941,2,4,0.6875,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:gemma4-e2b,en,17,0.2353,0.3529,2,4,0.6875,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:gemma4-e2b,uk,17,0.1765,0.2353,2,3,1.0,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:gpt-oss-20b-low,en,17,0.2353,0.6471,2,9,0.0654,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:gpt-oss-20b-low,uk,17,0.1765,0.5294,1,7,0.0703,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:lapa-12b,en,17,0.2353,0.3529,0,2,0.5,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:lapa-12b,uk,17,0.1765,0.2941,0,2,0.5,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:ministral3-14b,en,17,0.2353,0.5294,0,5,0.0625,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:ministral3-14b,uk,17,0.1765,0.3529,1,4,0.375,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:ministral3-3b,en,17,0.2353,0.1176,2,0,0.5,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:ministral3-3b,uk,17,0.1765,0.0588,2,0,0.5,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:qwen35-4b,en,17,0.2353,0.5882,1,7,0.0703,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:qwen35-4b,uk,17,0.1765,0.5294,1,7,0.0703,1.0
+nli_vs_llm:exploratory,nli_ml vs llm:qwen35-9b-think1k,en,17,0.2353,0.8235,1,11,0.0063,0.1904
+nli_vs_llm:exploratory,nli_ml vs llm:qwen35-9b-think1k,uk,17,0.1765,0.8235,1,12,0.0034,0.1094
+nli_vs_llm:confirmatory,nli_en vs llm:gemma4-12b,en,17,0.2353,0.8824,1,12,0.0034,0.0684
+nli_vs_llm:confirmatory,nli_en vs llm:gemma4-12b,uk,17,0.1765,0.7647,1,11,0.0063,0.1143
+nli_vs_llm:confirmatory,nli_en vs llm:gemma4-e4b,en,17,0.2353,0.4118,2,5,0.4531,1.0
+nli_vs_llm:confirmatory,nli_en vs llm:gemma4-e4b,uk,17,0.1765,0.2941,0,2,0.5,1.0
+nli_vs_llm:confirmatory,nli_en vs llm:mamaylm-12b,en,17,0.2353,0.3529,2,4,0.6875,1.0
+nli_vs_llm:confirmatory,nli_en vs llm:mamaylm-12b,uk,17,0.1765,0.1765,2,2,1.0,1.0
+nli_vs_llm:confirmatory,nli_en vs llm:qwen35-2b,en,17,0.2353,0.1765,3,2,1.0,1.0
+nli_vs_llm:confirmatory,nli_en vs llm:qwen35-2b,uk,17,0.1765,0.1176,2,1,1.0,1.0
+nli_vs_llm:confirmatory,nli_en vs llm:qwen35-9b,en,17,0.2353,0.7647,1,10,0.0117,0.1875
+nli_vs_llm:confirmatory,nli_en vs llm:qwen35-9b,uk,17,0.1765,0.7059,1,10,0.0117,0.1875
+nli_vs_llm:confirmatory,nli_ml vs llm:gemma4-12b,en,17,0.2353,0.8824,1,12,0.0034,0.0684
+nli_vs_llm:confirmatory,nli_ml vs llm:gemma4-12b,uk,17,0.1765,0.7647,1,11,0.0063,0.1143
+nli_vs_llm:confirmatory,nli_ml vs llm:gemma4-e4b,en,17,0.2353,0.4118,2,5,0.4531,1.0
+nli_vs_llm:confirmatory,nli_ml vs llm:gemma4-e4b,uk,17,0.1765,0.2941,1,3,0.625,1.0
+nli_vs_llm:confirmatory,nli_ml vs llm:mamaylm-12b,en,17,0.2353,0.3529,0,2,0.5,1.0
+nli_vs_llm:confirmatory,nli_ml vs llm:mamaylm-12b,uk,17,0.1765,0.1765,2,2,1.0,1.0
+nli_vs_llm:confirmatory,nli_ml vs llm:qwen35-2b,en,17,0.2353,0.1765,3,2,1.0,1.0
+nli_vs_llm:confirmatory,nli_ml vs llm:qwen35-2b,uk,17,0.1765,0.1176,2,1,1.0,1.0
+nli_vs_llm:confirmatory,nli_ml vs llm:qwen35-9b,en,17,0.2353,0.7647,2,11,0.0225,0.292
+nli_vs_llm:confirmatory,nli_ml vs llm:qwen35-9b,uk,17,0.1765,0.7059,1,10,0.0117,0.1875
+en_vs_uk:confirmatory,nli_en: en vs uk,paired,17,0.2353,0.1765,1,0,1.0,1.0
+en_vs_uk:confirmatory,nli_ml: en vs uk,paired,17,0.2353,0.1765,1,0,1.0,1.0
+en_vs_uk:confirmatory,llm:gemma4-12b: en vs uk,paired,17,0.8824,0.7647,2,0,0.5,1.0
+en_vs_uk:confirmatory,llm:gemma4-e4b: en vs uk,paired,17,0.4118,0.2941,3,1,0.625,1.0
+en_vs_uk:confirmatory,llm:mamaylm-12b: en vs uk,paired,17,0.3529,0.1765,3,0,0.25,1.0
+en_vs_uk:confirmatory,llm:qwen35-2b: en vs uk,paired,17,0.1765,0.1176,1,0,1.0,1.0
+en_vs_uk:confirmatory,llm:qwen35-9b: en vs uk,paired,17,0.7647,0.7059,2,1,1.0,1.0
+en_vs_uk_hybrid,nli_en+presidio: en vs uk,paired,17,0.4706,0.3529,2,0,0.5,1.0
+en_vs_uk_hybrid,nli_ml+presidio: en vs uk,paired,17,0.4706,0.3529,2,0,0.5,1.0
+en_vs_uk_hybrid,llm:gemma3-12b+presidio: en vs uk,paired,17,0.4706,0.3529,2,0,0.5,1.0
+en_vs_uk_hybrid,llm:gemma4-12b+presidio: en vs uk,paired,17,0.8824,0.7647,2,0,0.5,1.0
+en_vs_uk_hybrid,llm:gemma4-e2b+presidio: en vs uk,paired,17,0.4706,0.3529,3,1,0.625,1.0
+en_vs_uk_hybrid,llm:gemma4-e4b+presidio: en vs uk,paired,17,0.4706,0.4118,2,1,1.0,1.0
+en_vs_uk_hybrid,llm:gpt-oss-20b-low+presidio: en vs uk,paired,17,0.6471,0.5882,1,0,1.0,1.0
+en_vs_uk_hybrid,llm:lapa-12b+presidio: en vs uk,paired,17,0.5294,0.4706,1,0,1.0,1.0
+en_vs_uk_hybrid,llm:mamaylm-12b+presidio: en vs uk,paired,17,0.5294,0.3529,3,0,0.25,1.0
+en_vs_uk_hybrid,llm:ministral3-14b+presidio: en vs uk,paired,17,0.6471,0.4118,5,1,0.2188,1.0
+en_vs_uk_hybrid,llm:ministral3-3b+presidio: en vs uk,paired,17,0.3529,0.2353,2,0,0.5,1.0
+en_vs_uk_hybrid,llm:qwen35-2b+presidio: en vs uk,paired,17,0.3529,0.2941,1,0,1.0,1.0
+en_vs_uk_hybrid,llm:qwen35-4b+presidio: en vs uk,paired,17,0.6471,0.5882,3,2,1.0,1.0
+en_vs_uk_hybrid,llm:qwen35-9b-think1k+presidio: en vs uk,paired,17,0.8235,0.8235,1,1,1.0,1.0
+en_vs_uk_hybrid,llm:qwen35-9b+presidio: en vs uk,paired,17,0.7647,0.7059,2,1,1.0,1.0
+en_vs_uk:exploratory,llm:gemma3-12b: en vs uk,paired,17,0.3529,0.2941,2,1,1.0,1.0
+en_vs_uk:exploratory,llm:gemma4-e2b: en vs uk,paired,17,0.3529,0.2353,3,1,0.625,1.0
+en_vs_uk:exploratory,llm:gpt-oss-20b-low: en vs uk,paired,17,0.6471,0.5294,2,0,0.5,1.0
+en_vs_uk:exploratory,llm:lapa-12b: en vs uk,paired,17,0.3529,0.2941,1,0,1.0,1.0
+en_vs_uk:exploratory,llm:ministral3-14b: en vs uk,paired,17,0.5294,0.3529,5,2,0.4531,1.0
+en_vs_uk:exploratory,llm:ministral3-3b: en vs uk,paired,17,0.1176,0.0588,1,0,1.0,1.0
+en_vs_uk:exploratory,llm:qwen35-4b: en vs uk,paired,17,0.5882,0.5294,4,3,1.0,1.0
+en_vs_uk:exploratory,llm:qwen35-9b-think1k: en vs uk,paired,17,0.8235,0.8235,1,1,1.0,1.0
+semantic_vs_hybrid,nli_en vs nli_en+presidio,all,34,0.2059,0.4118,0,7,0.0156,0.2344
+semantic_vs_hybrid,nli_ml vs nli_ml+presidio,all,34,0.2059,0.4118,0,7,0.0156,0.2344
+semantic_vs_hybrid,llm:gemma3-12b vs llm:gemma3-12b+presidio,all,34,0.3235,0.4118,0,3,0.25,1.0
+semantic_vs_hybrid,llm:gemma4-12b vs llm:gemma4-12b+presidio,all,34,0.8235,0.8235,0,0,1.0,1.0
+semantic_vs_hybrid,llm:gemma4-e2b vs llm:gemma4-e2b+presidio,all,34,0.2941,0.4118,0,4,0.125,1.0
+semantic_vs_hybrid,llm:gemma4-e4b vs llm:gemma4-e4b+presidio,all,34,0.3529,0.4412,0,3,0.25,1.0
+semantic_vs_hybrid,llm:gpt-oss-20b-low vs llm:gpt-oss-20b-low+presidio,all,34,0.5882,0.6176,0,1,1.0,1.0
+semantic_vs_hybrid,llm:lapa-12b vs llm:lapa-12b+presidio,all,34,0.3235,0.5,0,6,0.0312,0.375
+semantic_vs_hybrid,llm:mamaylm-12b vs llm:mamaylm-12b+presidio,all,34,0.2647,0.4412,0,6,0.0312,0.375
+semantic_vs_hybrid,llm:ministral3-14b vs llm:ministral3-14b+presidio,all,34,0.4412,0.5294,0,3,0.25,1.0
+semantic_vs_hybrid,llm:ministral3-3b vs llm:ministral3-3b+presidio,all,34,0.0882,0.2941,0,7,0.0156,0.2344
+semantic_vs_hybrid,llm:qwen35-2b vs llm:qwen35-2b+presidio,all,34,0.1471,0.3235,0,6,0.0312,0.375
+semantic_vs_hybrid,llm:qwen35-4b vs llm:qwen35-4b+presidio,all,34,0.5588,0.6176,0,2,0.5,1.0
+semantic_vs_hybrid,llm:qwen35-9b-think1k vs llm:qwen35-9b-think1k+presidio,all,34,0.8235,0.8235,0,0,1.0,1.0
+semantic_vs_hybrid,llm:qwen35-9b vs llm:qwen35-9b+presidio,all,34,0.7353,0.7353,0,0,1.0,1.0
