@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -99,6 +100,28 @@ class Settings(BaseSettings):
     classifier_multilingual: bool = Field(default=False, alias="CLASSIFIER_MULTILINGUAL")
     classifier_model: str = Field(default="base", alias="CLASSIFIER_MODEL")
     classifier_disable_presidio: bool = Field(default=False, alias="CLASSIFIER_DISABLE_PRESIDIO")
+    # Semantic layer: "nli" (zero-shot model above) or "llm" (llama-server at LLM_BASE_URL).
+    classifier_engine: Literal["nli", "llm"] = Field(default="nli", alias="CLASSIFIER_ENGINE")
+    # Prompt-injection defenses, comma-separated: D1 hardened LLM prompt, D2 classify the
+    # visible text too and keep the higher tier, D4 injection detector (flag -> RESTRICTED).
+    classifier_defenses: str = Field(default="", alias="CLASSIFIER_DEFENSES")
+    classifier_detector: Literal["pg2", "protectai"] = Field(
+        default="pg2", alias="CLASSIFIER_DETECTOR"
+    )
+    llm_base_url: str = Field(default="http://host.docker.internal:18080", alias="LLM_BASE_URL")
+    llm_model: str = Field(default="gemma4-12b", alias="LLM_MODEL")
+    llm_prompt: str = Field(default="classify_v1", alias="LLM_PROMPT")
+    llm_timeout: int = Field(default=120, alias="LLM_TIMEOUT")
+
+    @property
+    def defenses(self) -> frozenset[str]:
+        return frozenset(d.strip().upper() for d in self.classifier_defenses.split(",") if d.strip())
+
+    @model_validator(mode="after")
+    def _check_defenses(self) -> Settings:
+        if unknown := self.defenses - {"D1", "D2", "D4"}:
+            raise ValueError(f"CLASSIFIER_DEFENSES: unknown {sorted(unknown)}; known: D1, D2, D4")
+        return self
 
     # Vault (optional — infrastructure hardening)
     vault_addr: str = Field(default="", alias="VAULT_ADDR")

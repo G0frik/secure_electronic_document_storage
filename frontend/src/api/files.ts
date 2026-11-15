@@ -67,6 +67,16 @@ export interface ClassificationResult {
   raw_scores: Record<string, number> | null;
   presidio_entities: Record<string, { count: number; max_score: number; samples: string[] }> | null;
   classifier_version: string | null;
+  /** Engine, model and prompt-injection defenses behind this result (null on older rows). */
+  classifier_config: {
+    engine: "nli" | "llm";
+    model: string;
+    prompt?: string;
+    defenses: string[];
+    needs_review: boolean;
+    detector?: string;
+    detector_score?: number;
+  } | null;
   error_message: string | null;
   created_at: string | null;
   classified_at: string | null;
