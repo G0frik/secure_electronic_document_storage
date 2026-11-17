@@ -108,6 +108,9 @@ export default function ClassificationDetailsDrawer({
   const rawScores = classification.raw_scores || {};
   const presidioEntities = classification.presidio_entities || {};
   const config = classification.classifier_config;
+  // The LLM engine returns categories, not per-category scores, so the NLI bars would all read 0%.
+  const isLlm = config?.engine === "llm";
+  const llmCategories = classification.categories_triggered || [];
 
   return (
     <Drawer
@@ -142,94 +145,113 @@ export default function ClassificationDetailsDrawer({
           </div>
         )}
 
-        {/* Zero-Shot Progress Bars Card */}
-        <div className="zero-shot-card">
-          <div className="zero-shot-title">Zero-Shot Categories (NLI v6)</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {Object.entries(CATEGORY_METADATA).map(([key, meta]) => {
-              const score = rawScores[key] ?? 0;
-              const triggered = score >= meta.threshold;
-              let barColor = "var(--color-muted-soft)";
-              if (triggered) {
-                if (meta.tier === "restricted") barColor = "var(--tier-restricted-fg)";
-                else if (meta.tier === "confidential") barColor = "var(--tier-confidential-fg)";
-                else if (meta.tier === "internal") barColor = "var(--tier-internal-fg)";
-                else if (meta.tier === "public") barColor = "var(--tier-public-fg)";
-              }
-              const pctScore = Math.round(score * 100);
-              const pctThreshold = Math.round(meta.threshold * 100);
-
-              return (
-                <div
-                  key={key}
-                  style={{
-                    fontSize: "0.75rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "3px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: 500,
-                        color: triggered ? "var(--color-ink)" : "var(--color-muted)",
-                      }}
-                    >
-                      {meta.name}
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.7rem",
-                        fontWeight: 600,
-                        color: barColor,
-                      }}
-                    >
-                      {pctScore}% (thresh {pctThreshold}%)
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: "6px",
-                      background: "var(--color-line)",
-                      borderRadius: "3px",
-                      position: "relative",
-                      overflow: "visible",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${pctScore}%`,
-                        height: "100%",
-                        borderRadius: "3px",
-                        background: barColor,
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: `${pctThreshold}%`,
-                        top: "-2px",
-                        height: "10px",
-                        width: "2px",
-                        background: "var(--color-ink)",
-                        zIndex: 2,
-                      }}
-                      title="Threshold"
-                    />
-                  </div>
-                </div>
-              );
-            })}
+        {isLlm && (
+          <div className="zero-shot-card">
+            <div className="zero-shot-title">Categories named by the LLM ({config.model})</div>
+            {llmCategories.length === 0 ? (
+              <div style={{ fontSize: "0.8125rem", color: "var(--color-muted)" }}>
+                No category named.
+              </div>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.8125rem" }}>
+                {llmCategories.map((c) => (
+                  <li key={c}>{CATEGORY_METADATA[c]?.name ?? c}</li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Zero-Shot Progress Bars Card */}
+        {!isLlm && (
+          <div className="zero-shot-card">
+            <div className="zero-shot-title">Zero-Shot Categories (NLI v6)</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {Object.entries(CATEGORY_METADATA).map(([key, meta]) => {
+                const score = rawScores[key] ?? 0;
+                const triggered = score >= meta.threshold;
+                let barColor = "var(--color-muted-soft)";
+                if (triggered) {
+                  if (meta.tier === "restricted") barColor = "var(--tier-restricted-fg)";
+                  else if (meta.tier === "confidential") barColor = "var(--tier-confidential-fg)";
+                  else if (meta.tier === "internal") barColor = "var(--tier-internal-fg)";
+                  else if (meta.tier === "public") barColor = "var(--tier-public-fg)";
+                }
+                const pctScore = Math.round(score * 100);
+                const pctThreshold = Math.round(meta.threshold * 100);
+
+                return (
+                  <div
+                    key={key}
+                    style={{
+                      fontSize: "0.75rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "3px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 500,
+                          color: triggered ? "var(--color-ink)" : "var(--color-muted)",
+                        }}
+                      >
+                        {meta.name}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.7rem",
+                          fontWeight: 600,
+                          color: barColor,
+                        }}
+                      >
+                        {pctScore}% (thresh {pctThreshold}%)
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        height: "6px",
+                        background: "var(--color-line)",
+                        borderRadius: "3px",
+                        position: "relative",
+                        overflow: "visible",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${pctScore}%`,
+                          height: "100%",
+                          borderRadius: "3px",
+                          background: barColor,
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: `${pctThreshold}%`,
+                          top: "-2px",
+                          height: "10px",
+                          width: "2px",
+                          background: "var(--color-ink)",
+                          zIndex: 2,
+                        }}
+                        title="Threshold"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Presidio Detected Entities Card */}
         <div className="zero-shot-card">
