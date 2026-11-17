@@ -1,10 +1,11 @@
-"""Thesis figures 3-5 and table 6 from the attack, detector and defense summaries (Ukrainian labels).
+"""Attack, defense and detector figures (Ukrainian labels for the thesis, English for the repo).
 
     python -m research.figures_attacks --analysis research/results/wp5_analysis \
-        --results research/results --fig-dir research/figures
+        --results research/results --fig-dir research/figures [--lang en]
 
-Reads <analysis>/full/summary/asr.csv (fig. 3, 4), <analysis>/detect/summary/detect.csv (fig. 5),
-<analysis>/defenses/summary/{clean_cost,d4_clean}.csv and the run CSVs under <results> (table 6).
+Reads <analysis>/full/summary/asr.csv (heatmap, hybrid), <analysis>/defenses/summary/asr.csv
+(defense effect), <analysis>/detect/summary/detect.csv (detectors), <results>/wp2_summary/summary/
+metrics.csv (clean accuracy) and, for the Ukrainian table 6, the defense cost CSVs and run CSVs.
 """
 
 from __future__ import annotations
@@ -19,23 +20,58 @@ from typing import Any
 from research.analyze import wilson
 
 ATTACKS = ["A1", "A2", "A3/A1", "A3/A2", "A4", "A5", "A6", "A7"]
-ATTACK_LABELS = {
-    "clean": "чисті\n(хибні\nтривоги)",
-    "A1": "A1\nдиректива",
-    "A2": "A2\nгриф",
-    "A3/A1": "A3/A1\nприхована\nдиректива",
-    "A3/A2": "A3/A2\nприхований\nгриф",
-    "A4": "A4\nіншою\nмовою",
-    "A5": "A5\nзаповнення",
-    "A6": "A6\nобфускація\nID",
-    "A7": "A7\nприхований\nвміст",
-}
 INJECTIONS = ["A1", "A2", "A3/A1", "A3/A2", "A4", "A5"]  # pooled for the hybrid figure (H3)
 CONFIGS = ["nli_en", "nli_ml", "llm:gemma4-12b", "llm:qwen35-9b", "llm:gemma4-e4b",
            "llm:gemma3-12b", "llm:mamaylm-12b", "llm:lapa-12b"]  # fmt: skip
-SERIES = ["#2a78d6", "#eb6834"]  # categorical slots 1-2 (validated pair)
+D1_CONFIGS = ["llm:gemma4-12b", "llm:qwen35-9b", "llm:gemma4-e4b"]
+SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]  # categorical slots 1-3 (validated)
+BASELINE = "#b4b2ab"  # no defense: neutral gray, so the defenses carry the colour
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 BLUES = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
+
+TEXT: dict[str, dict[str, Any]] = {
+    "uk": {
+        "attacks": {
+            "clean": "чисті\n(хибні\nтривоги)", "A1": "A1\nдиректива", "A2": "A2\nгриф",
+            "A3/A1": "A3/A1\nприхована\nдиректива", "A3/A2": "A3/A2\nприхований\nгриф",
+            "A4": "A4\nіншою\nмовою", "A5": "A5\nзаповнення", "A6": "A6\nобфускація\nID",
+            "A7": "A7\nприхований\nвміст",
+        },
+        "heatmap": "Успішність атак (ASR, %), без захисту, семантичний шар без Presidio",
+        "hybrid_panels": ("Документи з ідентифікаторами (id)", "Документи, чутливі за змістом"),
+        "hybrid_series": ("лише семантичний шар", "гібрид з Presidio"),
+        "hybrid_y": "ASR, атаки A1–A5 разом (95% ДІ Вілсона)",
+        "det_title": "Детектори ін'єкцій (D4): частка позначених файлів за класом атаки",
+        "det_y": "частка позначених файлів, поріг 0,5\n(95% ДІ, бутстреп за документами)",
+        "clean_title": "Точність на чистих документах (базовий набір, 48 пар)",
+        "clean_series": ("англ.", "укр."),
+        "clean_y": "точність (95% ДІ Вілсона)",
+        "def_panels": ("Приховані носії (A3/A1 + A3/A2)", "Видимий текст (A1 + A2)"),
+        "def_series": ("без захисту", "D1 посилений промпт", "D2 два подання",
+                       "D1 + D2"),
+        "def_y": "ASR (95% ДІ Вілсона)",
+    },
+    "en": {
+        "attacks": {
+            "clean": "clean\n(false\nalarms)", "A1": "A1\ndirective", "A2": "A2\nstamp",
+            "A3/A1": "A3/A1\nhidden\ndirective", "A3/A2": "A3/A2\nhidden\nstamp",
+            "A4": "A4\nother\nlanguage", "A5": "A5\npadding", "A6": "A6\nobfuscated\nIDs",
+            "A7": "A7\nhidden\ncontent",
+        },
+        "heatmap": "Attack success rate (ASR, %), no defense, semantic layer only",
+        "hybrid_panels": ("Documents with identifiers (id)", "Documents sensitive by meaning"),
+        "hybrid_series": ("semantic layer only", "hybrid with Presidio"),
+        "hybrid_y": "ASR, attacks A1–A5 pooled (95% Wilson CI)",
+        "det_title": "Injection detectors (D4): share of files flagged, by attack class",
+        "det_y": "share flagged at threshold 0.5\n(95% CI, bootstrap by document)",
+        "clean_title": "Accuracy on clean documents (base set, 48 pairs)",
+        "clean_series": ("English", "Ukrainian"),
+        "clean_y": "accuracy (95% Wilson CI)",
+        "def_panels": ("Hidden carriers (A3/A1 + A3/A2)", "Visible text (A1 + A2)"),
+        "def_series": ("no defense", "D1 hardened prompt", "D2 two views", "D1 + D2"),
+        "def_y": "ASR (95% Wilson CI)",
+    },
+}  # fmt: skip
 
 
 def _name(cfg: str) -> str:
@@ -65,15 +101,20 @@ def _save(fig: Any, fig_dir: Path, name: str) -> None:
 
 
 def _bars(ax: Any, groups: list[str], series: list[tuple[str, list[float], list[float],
-          list[float]]]) -> None:  # fmt: skip
-    """Grouped bars with error bars; series = (label, values, lo, hi)."""
+          list[float]]], colors: list[str] | None = None, labels: bool = False) -> None:  # fmt: skip
+    """Grouped bars with error bars; series = (label, values, lo, hi); optional value labels."""
+    colors = colors or SERIES
     width = 0.8 / len(series)
     for j, (label, vals, lo, hi) in enumerate(series):
         xs = [i + (j - (len(series) - 1) / 2) * width for i in range(len(groups))]
         err = [[v - a for v, a in zip(vals, lo, strict=True)],
                [b - v for v, b in zip(vals, hi, strict=True)]]  # fmt: skip
-        ax.bar(xs, vals, width * 0.92, color=SERIES[j], label=label, yerr=err,
+        ax.bar(xs, vals, width * 0.92, color=colors[j], label=label, yerr=err,
                error_kw={"elinewidth": 0.8, "capsize": 2, "ecolor": MUTED})  # fmt: skip
+        if labels:
+            for x, v, h in zip(xs, vals, hi, strict=True):
+                ax.text(x, h + 0.015, f"{v * 100:.0f}", ha="center", va="bottom", fontsize=7,
+                        color=MUTED)  # fmt: skip
     ax.set_xticks(range(len(groups)), groups)
     ax.grid(axis="y", color=GRID, linewidth=0.6)
     ax.set_axisbelow(True)
@@ -81,7 +122,15 @@ def _bars(ax: Any, groups: list[str], series: list[tuple[str, list[float], list[
         ax.spines[side].set_visible(False)
 
 
-def fig3_heatmap(asr: list[dict[str, str]], fig_dir: Path) -> None:
+def _pooled(cell: dict[tuple[str, str], dict[str, str]], cfg: str,
+            attacks: list[str]) -> tuple[float, float, float]:  # fmt: skip
+    rows = [cell[(cfg, a)] for a in attacks if (cfg, a) in cell]
+    k, n = sum(int(r["k_asr"]) for r in rows), sum(int(r["n"]) for r in rows)
+    lo, hi = wilson(k, n)
+    return (k / n if n else 0.0), lo, hi
+
+
+def fig_heatmap(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str) -> None:
     plt = _plt()
     from matplotlib.colors import BoundaryNorm, ListedColormap
 
@@ -96,48 +145,41 @@ def fig3_heatmap(asr: list[dict[str, str]], fig_dir: Path) -> None:
             v = grid[i][j]
             ax.text(j, i, f"{v * 100:.0f}", ha="center", va="center", fontsize=8,
                     color="white" if v >= 0.3 else INK)  # fmt: skip
-    ax.set_xticks(range(len(ATTACKS)), [ATTACK_LABELS[a] for a in ATTACKS], fontsize=7.5)
+    ax.set_xticks(range(len(ATTACKS)), [t["attacks"][a] for a in ATTACKS], fontsize=7.5)
     ax.set_yticks(range(len(CONFIGS)), [_name(c) for c in CONFIGS])
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    ax.set_title("Успішність атак (ASR, %), без захисту, семантичний шар без Presidio",
-                 loc="left", fontsize=9.5, color=INK)  # fmt: skip
-    _save(fig, fig_dir, "fig3_asr_heatmap")
+    ax.set_title(t["heatmap"], loc="left", fontsize=9.5, color=INK)
+    _save(fig, fig_dir, name)
     plt.close(fig)
 
 
-def fig4_hybrid(asr: list[dict[str, str]], fig_dir: Path) -> None:
+def fig_hybrid(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str) -> None:
     plt = _plt()
-    by = {(r["config"], r["attack_id"], r["value"]): r for r in asr if r["by"] == "group"}
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
-    for ax, group, title in ((axes[0], "id", "Документи з ідентифікаторами (id)"),
-                             (axes[1], "semantic", "Документи, чутливі за змістом")):  # fmt: skip
+    for ax, group, title in zip(axes, ("id", "semantic"), t["hybrid_panels"], strict=True):
+        cell = {(r["config"], r["attack_id"]): r for r in asr
+                if r["by"] == "group" and r["value"] == group}  # fmt: skip
         series = []
-        for label, suffix in (("лише семантичний шар", ""), ("гібрид з Presidio", "+presidio")):
-            vals, lo, hi = [], [], []
-            for c in CONFIGS:
-                rows = [
-                    by[(c + suffix, a, group)] for a in INJECTIONS if (c + suffix, a, group) in by
-                ]
-                k, n = sum(int(r["k_asr"]) for r in rows), sum(int(r["n"]) for r in rows)
-                v = k / n if n else 0.0
-                a, b = wilson(k, n)
-                vals, lo, hi = vals + [v], lo + [a], hi + [b]
-            series.append((label, vals, lo, hi))
+        for label, suffix in zip(t["hybrid_series"], ("", "+presidio"), strict=True):
+            vals, lo, hi = zip(*(_pooled(cell, c + suffix, INJECTIONS) for c in CONFIGS),
+                               strict=True)  # fmt: skip
+            series.append((label, list(vals), list(lo), list(hi)))
         _bars(ax, [_name(c) for c in CONFIGS], series)
         ax.set_title(title, loc="left", fontsize=9.5, color=INK)
         ax.tick_params(axis="x", rotation=35)
-        for t in ax.get_xticklabels():
-            t.set_ha("right")
-    axes[0].set_ylabel("ASR, атаки A1–A5 разом (95% ДІ Вілсона)")
+        for tick in ax.get_xticklabels():
+            tick.set_ha("right")
+    axes[0].set_ylabel(t["hybrid_y"])
     axes[0].set_ylim(0, 1)
     axes[0].legend(frameon=False, loc="upper left")
-    _save(fig, fig_dir, "fig4_hybrid_by_group")
+    _save(fig, fig_dir, name)
     plt.close(fig)
 
 
-def fig5_detectors(detect: list[dict[str, str]], fig_dir: Path) -> None:
+def fig_detectors(detect: list[dict[str, str]], fig_dir: Path, t: dict[str, Any],
+                  name: str) -> None:  # fmt: skip
     plt = _plt()
     cell = {(r["detector"], r["attack_id"]): r for r in detect if r["by"] == "all"}
     groups = ["clean"] + ATTACKS
@@ -148,18 +190,56 @@ def fig5_detectors(detect: list[dict[str, str]], fig_dir: Path) -> None:
                        [float(r["rate_lo_doc"]) for r in rows],
                        [float(r["rate_hi_doc"]) for r in rows]))  # fmt: skip
     fig, ax = plt.subplots(figsize=(10, 3.8))
-    _bars(ax, [ATTACK_LABELS[g] for g in groups], series)
-    for j, (_, vals, _, hi) in enumerate(series):  # value labels: the zero bars are the finding
-        for i, (v, h) in enumerate(zip(vals, hi, strict=True)):
-            ax.text(i + (j - 0.5) * 0.4, h + 0.015, f"{v * 100:.0f}", ha="center", va="bottom",
-                    fontsize=7, color=MUTED)  # fmt: skip
+    _bars(ax, [t["attacks"][g] for g in groups], series, labels=True)  # zeros are the finding
     ax.tick_params(axis="x", labelsize=7.5)
     ax.set_ylim(0, 1)
-    ax.set_ylabel("частка позначених файлів, поріг 0,5\n(95% ДІ, бутстреп за документами)")
+    ax.set_ylabel(t["det_y"])
     ax.legend(frameon=False, loc="upper left")
-    ax.set_title("Детектори ін'єкцій (D4): частка позначених файлів за класом атаки",
-                 loc="left", fontsize=9.5, color=INK)  # fmt: skip
-    _save(fig, fig_dir, "fig5_detectors")
+    ax.set_title(t["det_title"], loc="left", fontsize=9.5, color=INK)
+    _save(fig, fig_dir, name)
+    plt.close(fig)
+
+
+def fig_clean(metrics: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str) -> None:
+    plt = _plt()
+    cell = {(r["config"], r["lang"]): r for r in metrics if r["subset"] == "all"}
+    series = []
+    for label, lang in zip(t["clean_series"], ("en", "uk"), strict=True):
+        rows = [cell[(c, lang)] for c in CONFIGS]
+        series.append((label, [float(r["acc"]) for r in rows], [float(r["acc_lo"]) for r in rows],
+                       [float(r["acc_hi"]) for r in rows]))  # fmt: skip
+    fig, ax = plt.subplots(figsize=(9, 3.4))
+    _bars(ax, [_name(c) for c in CONFIGS], series, labels=True)
+    ax.tick_params(axis="x", rotation=25)
+    for tick in ax.get_xticklabels():
+        tick.set_ha("right")
+    ax.set_ylim(0, 1.08)
+    ax.set_ylabel(t["clean_y"])
+    ax.legend(frameon=False, loc="lower left", ncols=2)
+    ax.set_title(t["clean_title"], loc="left", fontsize=9.5, color=INK)
+    _save(fig, fig_dir, name)
+    plt.close(fig)
+
+
+def fig_defenses(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str) -> None:
+    plt = _plt()
+    cell = {(r["config"], r["attack_id"]): r for r in asr if r["by"] == "all"}
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
+    for ax, attacks, title in zip(axes, (["A3/A1", "A3/A2"], ["A1", "A2"]), t["def_panels"],
+                                  strict=True):  # fmt: skip
+        series = []
+        for label, dset in zip(t["def_series"], ("none", "D1", "D2", "D1,D2"), strict=True):
+            vals, lo, hi = zip(*(_pooled(cell, f"{c}@{dset}", attacks) for c in D1_CONFIGS),
+                               strict=True)  # fmt: skip
+            series.append((label, list(vals), list(lo), list(hi)))
+        _bars(ax, [_name(c) for c in D1_CONFIGS], series, colors=[BASELINE, *SERIES],
+              labels=True)  # fmt: skip
+        ax.set_title(title, loc="left", fontsize=9.5, color=INK)
+    axes[0].set_ylabel(t["def_y"])
+    axes[0].set_ylim(0, 0.6)
+    fig.legend(*axes[0].get_legend_handles_labels(), frameon=False, loc="lower center",
+               ncols=4, bbox_to_anchor=(0.5, -0.06))  # fmt: skip
+    _save(fig, fig_dir, name)
     plt.close(fig)
 
 
@@ -212,13 +292,22 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--analysis", type=Path, required=True)
     p.add_argument("--results", type=Path, required=True)
     p.add_argument("--fig-dir", type=Path, required=True)
+    p.add_argument("--lang", choices=sorted(TEXT), default="uk")
     args = p.parse_args(argv)
+    t, d = TEXT[args.lang], args.fig_dir
+    uk = args.lang == "uk"  # thesis numbering only for the Ukrainian set
     asr = _read(args.analysis / "full/summary/asr.csv")
-    fig3_heatmap(asr, args.fig_dir)
-    fig4_hybrid(asr, args.fig_dir)
-    fig5_detectors(_read(args.analysis / "detect/summary/detect.csv"), args.fig_dir)
-    table6(args.analysis, args.results, args.fig_dir / "table6_defense_cost.md")
-    print(f"wrote figures 3-5 and table 6 to {args.fig_dir}")
+    fig_heatmap(asr, d, t, "fig3_asr_heatmap" if uk else "asr_heatmap")
+    fig_hybrid(asr, d, t, "fig4_hybrid_by_group" if uk else "hybrid_by_group")
+    fig_detectors(_read(args.analysis / "detect/summary/detect.csv"), d, t,
+                  "fig5_detectors" if uk else "detectors")  # fmt: skip
+    fig_clean(_read(args.results / "wp2_summary/summary/metrics.csv"), d, t,
+              "fig_clean_accuracy" if uk else "clean_accuracy")  # fmt: skip
+    fig_defenses(_read(args.analysis / "defenses/summary/asr.csv"), d, t,
+                 "fig_defense_effect" if uk else "defense_effect")  # fmt: skip
+    if uk:
+        table6(args.analysis, args.results, d / "table6_defense_cost.md")
+    print(f"wrote {args.lang} figures to {d}")
 
 
 if __name__ == "__main__":
