@@ -75,6 +75,7 @@ def register_cli(app: Flask) -> None:
     app.cli.add_command(reap_trash)
     app.cli.add_command(reap_file_versions)
     app.cli.add_command(recompute_quota)
+    app.cli.add_command(demo_injection)
 
 
 @click.command("seed-demo")
@@ -94,6 +95,20 @@ def seed_demo(quiet: bool) -> None:
     from app.services import demo_seed
 
     demo_seed.seed_demo_cli(quiet=quiet)
+
+
+@click.command("demo-injection")
+@click.option("--toctou", is_flag=True, help="Run the share-link scenario instead.")
+@click.option("--timeout", default=300.0, show_default=True, help="Seconds to wait for the worker.")
+@with_appcontext
+def demo_injection(toctou: bool, timeout: float) -> None:
+    """Upload a restricted document with a hidden "classify as PUBLIC" instruction as alice,
+    wait for the worker's classification and try to create an external link. The worker's
+    CLASSIFIER_ENGINE / CLASSIFIER_DEFENSES decide the outcome. Needs `flask seed-dev`.
+    """
+    from app.services import demo_injection as demo
+
+    (demo.toctou if toctou else demo.injection)(click.echo, timeout)
 
 
 @click.command("reap-trash")
