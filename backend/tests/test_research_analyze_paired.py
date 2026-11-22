@@ -53,3 +53,17 @@ def test_hybrid_twins_get_their_own_en_uk_family() -> None:
         (t["family"], t["config"]) for t in paired_tests(rows, []) if t["comparison"] == "en vs uk"
     }
     assert fams == {("en_vs_uk:confirmatory", "nli_en"), ("en_vs_uk:hybrid", "nli_en+presidio")}
+
+
+def test_fine_tune_is_paired_with_its_base_on_the_same_variant() -> None:
+    rows = [
+        _r("llm:lapa-12b@none", "f1", "d1", "public"),
+        _r("llm:gemma3-12b@none", "f1", "d1", "restricted"),
+        _r("llm:lapa-12b@none", "f2", "d2", "restricted"),
+        _r("llm:gemma3-12b@none", "f2", "d2", "restricted"),
+    ]
+    tuned = [t for t in paired_tests(rows, []) if t["family"] == "tuned_vs_base:exploratory"]
+    assert len(tuned) == 1  # one attack class; mamaylm has no rows
+    t = tuned[0]
+    assert (t["config"], t["comparison"]) == ("llm:lapa-12b", "fine-tune vs llm:gemma3-12b")
+    assert (t["n_pairs"], t["b"], t["c"], t["m_family"]) == (2, 0, 1, 1)

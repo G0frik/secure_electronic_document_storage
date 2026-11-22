@@ -1,4 +1,5 @@
-"""Paired tests on attacked variants: defense on/off, EN vs UK, hybrid vs semantic, think vs not.
+"""Paired tests on attacked variants: defense on/off, EN vs UK, hybrid vs semantic, think vs not,
+Ukrainian fine-tune vs its base model.
 
     python -m research.analyze_paired research/results/wp5_defended/*.csv \
         --manifest research/results/attacks/manifest.csv \
@@ -28,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from app.classifier_core.tiers import tier_rank
-from research.analyze import _write, holm, mcnemar_exact
+from research.analyze import TUNED_BASE, _write, holm, mcnemar_exact
 from research.analyze_defenses import HYBRID, load_defended
 
 Row = dict[str, Any]
@@ -128,6 +129,12 @@ def paired_tests(rows: list[Row], think: list[Row]) -> list[dict[str, Any]]:
         for group in ("id", "semantic"):
             pairs = [p for a in ATTACKS for p in paired(cfg, sem, a) if p[0]["group"] == group]
             add(family, f"+presidio vs semantic ({group})", base, "all", pairs)
+
+    # Ukrainian fine-tune (A) vs its base model (B), no defense, same variants.
+    for tuned, base_model in TUNED_BASE.items():
+        for a in ATTACKS:
+            add("tuned_vs_base:exploratory", f"fine-tune vs {base_model}", tuned, a,
+                paired(f"{tuned}@none", f"{base_model}@none", a))  # fmt: skip
 
     # Thinking (A) vs not (B), same files.
     if think:

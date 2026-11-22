@@ -27,6 +27,8 @@ TIERS = [t.value for t in Tier]
 Z95 = 1.959964
 SYNTHETIC_SOURCES = {"synthetic", "synthetic-template"}
 LANGS = ["en", "uk"]
+# Ukrainian fine-tunes and the base model they were trained from (exploratory comparison)
+TUNED_BASE = {"llm:mamaylm-12b": "llm:gemma3-12b", "llm:lapa-12b": "llm:gemma3-12b"}
 
 Row = dict[str, str]
 
@@ -240,6 +242,13 @@ def mcnemar_table(
                 {"comparison": f"{cfg} vs {cfg}+presidio", "lang": "all"}
                 | _paired(per_lang(cfg), per_lang(f"{cfg}+presidio"))
             )
+    for tuned, base in TUNED_BASE.items():
+        if tuned in configs and base in configs:
+            for lang in LANGS:
+                families["tuned_vs_base:exploratory"].append(
+                    {"comparison": f"{tuned} vs {base}", "lang": lang}
+                    | _paired(by[(tuned, lang)], by[(base, lang)])
+                )
     out = []
     for family, comps in families.items():
         for comp, p_holm in zip(comps, holm([c["p"] for c in comps]), strict=True):
