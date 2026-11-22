@@ -244,16 +244,15 @@ def preview_file(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
     """Phase 14 — return a textual preview of the file (first ~100 KB).
 
     Supports text formats + PDF + DOCX. Anything else returns 415.
-    Same policy check as download — non-owner non-admin must pass tier
-    rules. The owner short-circuits as usual.
+    Same policy check as download, owners included, so every content read
+    leaves a `policy_evaluations` row.
     """
     user = current_user_or_none()
     record = _resolve_or_404(file_id)
 
-    if record.owner_id != user.id:
-        decision = policy.can_user_access(user, record)
-        if not decision.allowed:
-            return _deny_response(decision)
+    decision = policy.can_user_access(user, record)
+    if not decision.allowed:
+        return _deny_response(decision)
 
     try:
         payload = preview.build_preview(record, actor=user)
@@ -310,10 +309,9 @@ def preview_document(file_id: uuid.UUID):  # type: ignore[no-untyped-def]
     user = current_user_or_none()
     record = _resolve_or_404(file_id)
 
-    if record.owner_id != user.id:
-        decision = policy.can_user_access(user, record)
-        if not decision.allowed:
-            return _deny_response(decision)
+    decision = policy.can_user_access(user, record)
+    if not decision.allowed:
+        return _deny_response(decision)
 
     try:
         blob, mime = preview.document_bytes(record, actor=user)
