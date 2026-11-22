@@ -15,5 +15,9 @@ export default defineConfig({
         watch: {
             usePolling: true, // needed for Docker bind mounts on Windows
         },
+        hmr: {
+            clientPort: 443,
+            protocol: "wss",
+        },
     },
 });
