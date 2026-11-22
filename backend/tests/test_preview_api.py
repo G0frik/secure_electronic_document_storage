@@ -26,6 +26,7 @@ from app.models.classification import (
     ClassificationTier,
 )
 from app.models.file import File
+from app.models.policy import PolicyDecision, PolicyEvaluation
 from app.services import preview
 
 # Hand-crafted minimal PDF that pdfplumber can read. Built once so the
@@ -122,6 +123,23 @@ def test_preview_writes_audit_row(
         select(AuditLog).where(AuditLog.action_type == "file.downloaded")
     ).all()
     assert len(download_audits) == 0
+
+
+def test_owner_preview_records_policy_evaluation(
+    client, db_session, logged_in_admin, csrf_token
+) -> None:
+    """Owner previews go through the policy like downloads, so both preview
+    endpoints leave an allowed `owner` evaluation row."""
+    up = _upload(client, csrf_token, "own.pdf", _MINIMAL_PDF, "application/pdf")
+    file_id = uuid.UUID(up.json["id"])
+
+    assert client.get(f"/api/files/{file_id}/preview").status_code == 200
+    assert client.get(f"/api/files/{file_id}/preview/document").status_code == 200
+
+    rows = db_session.scalars(
+        select(PolicyEvaluation).where(PolicyEvaluation.file_id == file_id)
+    ).all()
+    assert [(r.decision, r.reason) for r in rows] == [(PolicyDecision.ALLOW, "owner")] * 2
 
 
 def test_preview_truncates_at_100kb(
