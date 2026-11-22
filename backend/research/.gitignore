@@ -1,3 +1,6 @@
 # Run outputs and the result cache stay local; per-run summary/ folders are committed.
 results/*/*
 !results/*/summary/
+# Superseded WP5 first-look summaries; the final ones are in results/wp5_summary/summary/.
+results/wp5/summary/
+results/wp5_sample/summary/
