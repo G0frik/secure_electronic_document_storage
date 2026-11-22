@@ -1,0 +1,17 @@
+family,comparison,config,attack_id,n_pairs,n_docs,robust_a,robust_b,b,c,p_exact,p_cluster,m_family,p_holm,significant
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A1,196,49,0.398,0.5663,9,42,0.0,0.0008,16,0.0064,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A2,196,49,0.4643,0.5918,11,36,0.0003,0.0067,16,0.0402,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A3/A1,1372,49,0.4242,0.6166,40,304,0.0,0.0002,16,0.002,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A3/A2,1372,49,0.5029,0.6487,59,259,0.0,0.0014,16,0.0101,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A4,196,49,0.398,0.6173,6,49,0.0,0.0002,16,0.0018,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A5,98,49,0.5816,0.6122,7,10,0.6291,0.4913,16,0.4913,0
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A6,108,18,0.6944,0.8333,0,15,0.0001,0.0628,16,0.2063,0
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:mamaylm-12b,A7,392,49,0.7041,0.7908,12,46,0.0,0.0173,16,0.0865,0
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A1,196,49,0.2449,0.5663,11,74,0.0,0.0,16,0.0,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A2,196,49,0.3878,0.5918,17,57,0.0,0.0005,16,0.0045,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A3/A1,1372,49,0.3331,0.6166,99,488,0.0,0.0,16,0.0,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A3/A2,1372,49,0.4257,0.6487,85,391,0.0,0.0001,16,0.001,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A4,196,49,0.2449,0.6173,7,80,0.0,0.0,16,0.0,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A5,98,49,0.4184,0.6122,2,21,0.0001,0.0006,16,0.0058,1
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A6,108,18,0.7222,0.8333,1,13,0.0018,0.0516,16,0.2063,0
+tuned_vs_base:exploratory,fine-tune vs llm:gemma3-12b,llm:lapa-12b,A7,392,49,0.7143,0.7908,16,46,0.0002,0.075,16,0.2063,0
