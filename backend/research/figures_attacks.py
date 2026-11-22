@@ -1,7 +1,8 @@
 """Attack, defense and detector figures (Ukrainian labels for the thesis, English for the repo).
 
     python -m research.figures_attacks --analysis research/results/wp5_analysis \
-        --results research/results --fig-dir research/figures [--lang en]
+        --results research/results --fig-dir research/figures [--lang en] \
+        [--pooled research/results/pooled]
 
 Reads <analysis>/full/summary/asr.csv (heatmap, hybrid), <analysis>/defenses/summary/asr.csv
 (defense effect), <analysis>/detect/summary/detect.csv (detectors), <results>/wp2_summary/summary/
@@ -50,6 +51,8 @@ TEXT: dict[str, dict[str, Any]] = {
         "def_series": ("без захисту", "D1 посилений промпт", "D2 два подання",
                        "D1 + D2"),
         "def_y": "ASR (95% ДІ Вілсона)",
+        "hybrid_y_doc": "ASR, атаки A1–A5 разом\n(95% ДІ, бутстреп за документами)",
+        "def_y_doc": "ASR (95% ДІ, бутстреп за документами)",
     },
     "en": {
         "attacks": {
@@ -70,6 +73,8 @@ TEXT: dict[str, dict[str, Any]] = {
         "def_panels": ("Hidden carriers (A3/A1 + A3/A2)", "Visible text (A1 + A2)"),
         "def_series": ("no defense", "D1 hardened prompt", "D2 two views", "D1 + D2"),
         "def_y": "ASR (95% Wilson CI)",
+        "hybrid_y_doc": "ASR, attacks A1–A5 pooled\n(95% CI, bootstrap by document)",
+        "def_y_doc": "ASR (95% CI, bootstrap by document)",
     },
 }  # fmt: skip
 
@@ -122,11 +127,26 @@ def _bars(ax: Any, groups: list[str], series: list[tuple[str, list[float], list[
         ax.spines[side].set_visible(False)
 
 
-def _pooled(cell: dict[tuple[str, str], dict[str, str]], cfg: str,
-            attacks: list[str]) -> tuple[float, float, float]:  # fmt: skip
+Doc = dict[tuple[str, str, str], dict[str, str]]  # (config, pool, group or "") -> pooled.csv row
+
+
+def _read_doc(path: Path | None) -> Doc | None:
+    """research.analyze_pooled output, or None (then the bars get Wilson CIs)."""
+    if path is None:
+        return None
+    return {(r["config"], r["pool"], r["value"]): r for r in _read(path)}
+
+
+def _pooled(cell: dict[tuple[str, str], dict[str, str]], cfg: str, attacks: list[str],
+            doc: Doc | None = None, group: str = "") -> tuple[float, float, float]:  # fmt: skip
     rows = [cell[(cfg, a)] for a in attacks if (cfg, a) in cell]
     k, n = sum(int(r["k_asr"]) for r in rows), sum(int(r["n"]) for r in rows)
     lo, hi = wilson(k, n)
+    if doc is not None:  # CI by source document; same rate, checked against the per-class table
+        d = doc[(cfg, "+".join(attacks), group)]
+        if (int(d["k_asr"]), int(d["n"])) != (k, n):
+            raise SystemExit(f"pooled.csv does not match asr.csv: {cfg} {attacks} {group}")
+        lo, hi = float(d["asr_lo_doc"]), float(d["asr_hi_doc"])
     return (k / n if n else 0.0), lo, hi
 
 
@@ -155,7 +175,8 @@ def fig_heatmap(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], nam
     plt.close(fig)
 
 
-def fig_hybrid(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str) -> None:
+def fig_hybrid(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str,
+               doc: Doc | None = None) -> None:  # fmt: skip
     plt = _plt()
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
     for ax, group, title in zip(axes, ("id", "semantic"), t["hybrid_panels"], strict=True):
@@ -163,15 +184,15 @@ def fig_hybrid(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name
                 if r["by"] == "group" and r["value"] == group}  # fmt: skip
         series = []
         for label, suffix in zip(t["hybrid_series"], ("", "+presidio"), strict=True):
-            vals, lo, hi = zip(*(_pooled(cell, c + suffix, INJECTIONS) for c in CONFIGS),
-                               strict=True)  # fmt: skip
+            vals, lo, hi = zip(*(_pooled(cell, c + suffix, INJECTIONS, doc, group)
+                                 for c in CONFIGS), strict=True)  # fmt: skip
             series.append((label, list(vals), list(lo), list(hi)))
         _bars(ax, [_name(c) for c in CONFIGS], series)
         ax.set_title(title, loc="left", fontsize=9.5, color=INK)
         ax.tick_params(axis="x", rotation=35)
         for tick in ax.get_xticklabels():
             tick.set_ha("right")
-    axes[0].set_ylabel(t["hybrid_y"])
+    axes[0].set_ylabel(t["hybrid_y_doc" if doc else "hybrid_y"])
     axes[0].set_ylim(0, 1)
     axes[0].legend(frameon=False, loc="upper left")
     _save(fig, fig_dir, name)
@@ -221,7 +242,8 @@ def fig_clean(metrics: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], n
     plt.close(fig)
 
 
-def fig_defenses(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str) -> None:
+def fig_defenses(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], name: str,
+                 doc: Doc | None = None) -> None:  # fmt: skip
     plt = _plt()
     cell = {(r["config"], r["attack_id"]): r for r in asr if r["by"] == "all"}
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
@@ -229,13 +251,13 @@ def fig_defenses(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], na
                                   strict=True):  # fmt: skip
         series = []
         for label, dset in zip(t["def_series"], ("none", "D1", "D2", "D1,D2"), strict=True):
-            vals, lo, hi = zip(*(_pooled(cell, f"{c}@{dset}", attacks) for c in D1_CONFIGS),
-                               strict=True)  # fmt: skip
+            vals, lo, hi = zip(*(_pooled(cell, f"{c}@{dset}", attacks, doc)
+                                 for c in D1_CONFIGS), strict=True)  # fmt: skip
             series.append((label, list(vals), list(lo), list(hi)))
         _bars(ax, [_name(c) for c in D1_CONFIGS], series, colors=[BASELINE, *SERIES],
               labels=True)  # fmt: skip
         ax.set_title(title, loc="left", fontsize=9.5, color=INK)
-    axes[0].set_ylabel(t["def_y"])
+    axes[0].set_ylabel(t["def_y_doc" if doc else "def_y"])
     axes[0].set_ylim(0, 0.6)
     fig.legend(*axes[0].get_legend_handles_labels(), frameon=False, loc="lower center",
                ncols=4, bbox_to_anchor=(0.5, -0.06))  # fmt: skip
@@ -293,18 +315,23 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--results", type=Path, required=True)
     p.add_argument("--fig-dir", type=Path, required=True)
     p.add_argument("--lang", choices=sorted(TEXT), default="uk")
+    p.add_argument("--pooled", type=Path, help="research.analyze_pooled outputs (<dir>/full, "
+                   "<dir>/defenses): bars get CIs by source document instead of Wilson")  # fmt: skip
     args = p.parse_args(argv)
     t, d = TEXT[args.lang], args.fig_dir
     uk = args.lang == "uk"  # thesis numbering only for the Ukrainian set
     asr = _read(args.analysis / "full/summary/asr.csv")
     fig_heatmap(asr, d, t, "fig3_asr_heatmap" if uk else "asr_heatmap")
-    fig_hybrid(asr, d, t, "fig4_hybrid_by_group" if uk else "hybrid_by_group")
+    pool = args.pooled
+    fig_hybrid(asr, d, t, "fig4_hybrid_by_group" if uk else "hybrid_by_group",
+               _read_doc(pool / "full/summary/pooled.csv" if pool else None))  # fmt: skip
     fig_detectors(_read(args.analysis / "detect/summary/detect.csv"), d, t,
                   "fig5_detectors" if uk else "detectors")  # fmt: skip
     fig_clean(_read(args.results / "wp2_summary/summary/metrics.csv"), d, t,
               "fig_clean_accuracy" if uk else "clean_accuracy")  # fmt: skip
     fig_defenses(_read(args.analysis / "defenses/summary/asr.csv"), d, t,
-                 "fig_defense_effect" if uk else "defense_effect")  # fmt: skip
+                 "fig_defense_effect" if uk else "defense_effect",
+                 _read_doc(pool / "defenses/summary/pooled.csv" if pool else None))  # fmt: skip
     if uk:
         table6(args.analysis, args.results, d / "table6_defense_cost.md")
     print(f"wrote {args.lang} figures to {d}")

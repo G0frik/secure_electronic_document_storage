@@ -78,3 +78,21 @@ def test_mcnemar_families_split_confirmatory_and_exploratory() -> None:
     # default: everything planned
     fam_all = Counter(r["family"] for r in mcnemar_table(rows, configs))
     assert fam_all["nli_vs_llm:confirmatory"] == 4 and "nli_vs_llm:exploratory" not in fam_all
+
+
+def test_tuned_vs_base_family_pairs_each_fine_tune_with_its_base_per_language() -> None:
+    from research.analyze import mcnemar_table
+
+    configs = ["llm:gemma3-12b", "llm:mamaylm-12b"]  # lapa absent: no lapa rows
+    rows = [
+        {"config_id": c, "lang": lang, "pair_id": f"p{i}", "true_tier": "internal",
+         "final_tier": "internal" if c == "llm:gemma3-12b" or lang == "en" else "public"}
+        for c in configs for lang in ("en", "uk") for i in range(8)
+    ]  # fmt: skip
+    tuned = [r for r in mcnemar_table(rows, configs) if r["family"] == "tuned_vs_base:exploratory"]
+    assert [(r["comparison"], r["lang"]) for r in tuned] == [
+        ("llm:mamaylm-12b vs llm:gemma3-12b", "en"),
+        ("llm:mamaylm-12b vs llm:gemma3-12b", "uk"),
+    ]
+    uk = tuned[1]  # only the base is right on all 8 Ukrainian documents
+    assert (uk["b_only_a_right"], uk["c_only_b_right"]) == (0, 8) and uk["p"] < 0.01
