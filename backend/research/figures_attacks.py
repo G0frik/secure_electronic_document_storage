@@ -258,7 +258,7 @@ def fig_defenses(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], na
               labels=True)  # fmt: skip
         ax.set_title(title, loc="left", fontsize=9.5, color=INK)
     axes[0].set_ylabel(t["def_y_doc" if doc else "def_y"])
-    axes[0].set_ylim(0, 0.6)
+    axes[0].set_ylim(0, 0.65 if doc else 0.6)  # document CIs reach higher
     fig.legend(*axes[0].get_legend_handles_labels(), frameon=False, loc="lower center",
                ncols=4, bbox_to_anchor=(0.5, -0.06))  # fmt: skip
     _save(fig, fig_dir, name)

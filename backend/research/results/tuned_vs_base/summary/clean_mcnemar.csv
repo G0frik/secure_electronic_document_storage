@@ -1,0 +1,5 @@
+family,comparison,lang,n,acc_a,acc_b,b_only_a_right,c_only_b_right,p,p_holm
+tuned_vs_base:exploratory,llm:mamaylm-12b vs llm:gemma3-12b,en,48,0.875,0.875,5,5,1.0,1.0
+tuned_vs_base:exploratory,llm:mamaylm-12b vs llm:gemma3-12b,uk,48,0.6667,0.7917,0,6,0.0312,0.125
+tuned_vs_base:exploratory,llm:lapa-12b vs llm:gemma3-12b,en,48,0.7083,0.875,3,11,0.0574,0.1721
+tuned_vs_base:exploratory,llm:lapa-12b vs llm:gemma3-12b,uk,48,0.75,0.7917,4,6,0.7539,1.0
