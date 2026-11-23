@@ -27,6 +27,8 @@ HYPOTHESIS_TEMPLATE = "This document contains {}."
 # we use 6000 words there. Set by `select_model`.
 MAX_WORDS_DEBERTA = 400
 MAX_WORDS_MULTILINGUAL = 6000
+# Overlap between NLI windows, so a sentence cut at a window edge is seen whole in one of them.
+WINDOW_OVERLAP_WORDS = 50
 
 # Per-tier zero-shot thresholds (v6).
 PER_TIER_THRESHOLDS: dict[Tier, float] = {
@@ -71,18 +73,42 @@ def load_classifier(model_id: str):  # type: ignore[no-untyped-def]
     return pipeline("zero-shot-classification", model=model_id)
 
 
-def zero_shot_classify(classifier, text: str, max_words: int) -> dict[str, float]:  # type: ignore[no-untyped-def]
-    """Run the zero-shot pipeline and return a {category: score} mapping."""
+def word_windows(text: str, max_words: int, overlap: int = WINDOW_OVERLAP_WORDS) -> list[str]:
+    """Windows of at most `max_words` words covering the whole text; a text that fits is returned as is."""
     words = text.split()
-    if len(words) > max_words:
-        text = " ".join(words[:max_words])
-    result = classifier(
-        text,
-        candidate_labels=CATEGORIES,
-        hypothesis_template=HYPOTHESIS_TEMPLATE,
-        multi_label=True,
-    )
-    return dict(zip(result["labels"], result["scores"], strict=False))
+    if len(words) <= max_words:
+        return [text]
+    step = max_words - overlap
+    return [" ".join(words[i : i + max_words]) for i in range(0, len(words) - overlap, step)]
+
+
+def max_scores(per_window: list[dict[str, float]]) -> dict[str, float]:
+    """Per-category maximum over windows: a category found in any window counts for the document."""
+    return {cat: max(s[cat] for s in per_window) for cat in per_window[0]}
+
+
+def zero_shot_classify(  # type: ignore[no-untyped-def]
+    classifier, text: str, max_words: int, windows: bool = True
+) -> dict[str, float]:
+    """Run the zero-shot pipeline and return a {category: score} mapping.
+
+    A text longer than `max_words` is scored window by window and each category keeps its highest
+    score, so content after the model's input limit is not lost (padding a document with public text
+    no longer hides the rest). `windows=False` keeps the old behaviour: score the first window only.
+    """
+    chunks = word_windows(text, max_words)
+    if not windows:
+        chunks = chunks[:1]
+    out = []
+    for chunk in chunks:
+        result = classifier(
+            chunk,
+            candidate_labels=CATEGORIES,
+            hypothesis_template=HYPOTHESIS_TEMPLATE,
+            multi_label=True,
+        )
+        out.append(dict(zip(result["labels"], result["scores"], strict=False)))
+    return max_scores(out)
 
 
 def zero_shot_tier(
