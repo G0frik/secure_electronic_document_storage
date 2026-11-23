@@ -83,12 +83,18 @@ def _IS_DIGIT(c: str) -> bool:  # noqa: N802 (kept from the original module)
 
 def _fold_digit_runs(tok: str) -> str:
     """Fold runs of digit-lookalikes only where the run directly touches a real digit.
-    '(7ІЗ)' -> '(713)', 'ОІ42' -> '0142', but '15/З' and 'з 2020' stay as they are."""
+    '(7ІЗ)' -> '(713)', 'ОІ42' -> '0142', but '15/З' and 'з 2020' stay as they are.
+    ASCII letters are never folded: 'O', 'l', 'I' next to digits are normal in URLs, keys and
+    passwords, and an attacker swapping digits for look-alikes uses other scripts (A6)."""
     out, i, n = list(tok), 0, len(tok)
+
+    def lookalike(c: str) -> bool:
+        return c in TO_DIGIT and not c.isascii()
+
     while i < n:
-        if tok[i] in TO_DIGIT and not _IS_DIGIT(tok[i]):
+        if lookalike(tok[i]):
             j = i
-            while j < n and tok[j] in TO_DIGIT and not _IS_DIGIT(tok[j]):
+            while j < n and lookalike(tok[j]):
                 j += 1
             if (i > 0 and _IS_DIGIT(tok[i - 1])) or (j < n and _IS_DIGIT(tok[j])):
                 for k in range(i, j):
@@ -110,15 +116,21 @@ def _fold_token(tok: str) -> tuple[str, str | None]:
     if "@" in tok or "://" in tok:
         new = "".join(TO_LATIN.get(c, c) for c in tok)
         return (new, "email") if new != tok else (tok, reason)
-    # 3) mixed Latin + Cyrillic/Greek: fold the minority script into the majority
-    scripts = [s for c in tok if (s := _script(c))]
-    if "LATIN" in scripts and len(set(scripts)) > 1:
-        n_lat = scripts.count("LATIN")
-        table = TO_LATIN if n_lat * 2 >= len(scripts) else TO_CYRILLIC
-        new = "".join(table.get(c, c) for c in tok)
-        if new != tok:
-            return new, reason or "mixed"
+    # 3) mixed Latin + Cyrillic/Greek inside one word: fold the minority script into the majority.
+    # Hyphenated parts are separate words ('ESG-факторів' is ordinary Ukrainian, not an attack).
+    parts = tok.split("-")
+    folded = [_fold_mixed(p) for p in parts]
+    if folded != parts:
+        return "-".join(folded), reason or "mixed"
     return tok, reason
+
+
+def _fold_mixed(word: str) -> str:
+    scripts = [s for c in word if (s := _script(c))]
+    if "LATIN" in scripts and len(set(scripts)) > 1:
+        table = TO_LATIN if scripts.count("LATIN") * 2 >= len(scripts) else TO_CYRILLIC
+        return "".join(table.get(c, c) for c in word)
+    return word
 
 
 def _is_dropped_separator(text: str, i: int) -> bool:

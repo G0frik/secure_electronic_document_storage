@@ -167,6 +167,10 @@ def presidio_scan(analyzer, text: str) -> dict[str, dict[str, Any]]:  # type: ig
     return _summarize(analyzer.analyze(text=text, language="en"), text)
 
 
+# Entities whose obfuscation D6 treats as a finding: identifiers, not names, places or URLs.
+_IDENTIFIERS = RESTRICTED_ENTITIES | {"PHONE_NUMBER", "UA_PHONE", "EMAIL_ADDRESS"}
+
+
 def presidio_scan_folded(analyzer, text: str) -> tuple[dict[str, dict[str, Any]], Tier, bool]:  # type: ignore[no-untyped-def]
     """D6: scan the text and a copy with look-alike characters and separators folded back.
 
@@ -188,7 +192,7 @@ def presidio_scan_folded(analyzer, text: str) -> tuple[dict[str, dict[str, Any]]
     evasion = any(
         f.reason in EVASION_REASONS
         for r in results
-        if r.score >= PER_ENTITY_MIN_SCORE.get(r.entity_type, 0.50)
+        if r.entity_type in _IDENTIFIERS and r.score >= PER_ENTITY_MIN_SCORE.get(r.entity_type, 0.50)
         for f in ct.folds_in(*ct.span_to_original(r.start, r.end))
     )
     tier = max_tier(tier, presidio_tier(folded))
