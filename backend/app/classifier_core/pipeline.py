@@ -165,8 +165,11 @@ def classify(text: str) -> ClassifyResult:
     analyzer = _ensure_presidio()
 
     if analyzer is not None:
-        entity_summary = presidio_layer.presidio_scan(analyzer, text)
-        p_tier = presidio_layer.presidio_tier(entity_summary)
+        if "D6" in settings.defenses:
+            entity_summary, p_tier, _ = presidio_layer.presidio_scan_folded(analyzer, text)
+        else:
+            entity_summary = presidio_layer.presidio_scan(analyzer, text)
+            p_tier = presidio_layer.presidio_tier(entity_summary)
     else:
         entity_summary = {}
         p_tier = Tier.PUBLIC

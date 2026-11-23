@@ -164,7 +164,40 @@ def build_analyzer():  # type: ignore[no-untyped-def]
 
 def presidio_scan(analyzer, text: str) -> dict[str, dict[str, Any]]:  # type: ignore[no-untyped-def]
     """Return {entity_type: {count, max_score, samples, raw_values}}."""
-    results = analyzer.analyze(text=text, language="en")
+    return _summarize(analyzer.analyze(text=text, language="en"), text)
+
+
+def presidio_scan_folded(analyzer, text: str) -> tuple[dict[str, dict[str, Any]], Tier, bool]:  # type: ignore[no-untyped-def]
+    """D6: scan the text and a copy with look-alike characters and separators folded back.
+
+    Returns (summary, tier, evasion). The tier is the higher of the two scans; an identifier found
+    only because obfuscation was undone (an evasive fold inside a kept PII span) is a finding in
+    itself and raises the tier to at least CONFIDENTIAL (fail closed). Text without folds is
+    scanned once.
+    """
+    from app.classifier_core.normalize import EVASION_REASONS, canonicalize
+    from app.classifier_core.tiers import max_tier
+
+    summary = presidio_scan(analyzer, text)
+    tier = presidio_tier(summary)
+    ct = canonicalize(text)
+    if ct.text == text:
+        return summary, tier, False
+    results = analyzer.analyze(text=ct.text, language="en")
+    folded = _summarize(results, ct.text)
+    evasion = any(
+        f.reason in EVASION_REASONS
+        for r in results
+        if r.score >= PER_ENTITY_MIN_SCORE.get(r.entity_type, 0.50)
+        for f in ct.folds_in(*ct.span_to_original(r.start, r.end))
+    )
+    tier = max_tier(tier, presidio_tier(folded))
+    if evasion:
+        tier = max_tier(tier, Tier.CONFIDENTIAL)
+    return folded | summary, tier, evasion
+
+
+def _summarize(results, text: str) -> dict[str, dict[str, Any]]:  # type: ignore[no-untyped-def]
     summary: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"count": 0, "max_score": 0.0, "samples": [], "raw_values": []}
     )
