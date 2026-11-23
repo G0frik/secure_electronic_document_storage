@@ -14,9 +14,13 @@ from app.classifier_core import presidio_layer, zero_shot
 from app.classifier_core.llm import SemanticResult, _truncate
 from app.classifier_core.tiers import Tier
 
-# config_id -> (HF model id, max words fed to the model)
+# config_id -> (HF model id, max words per model input)
+# Configs in WINDOWED score every window of the document (max per category, as the service does);
+# the others keep the first window only, as the runs before windowing did.
+WINDOWED = {"nli_en_w"}
 NLI_MODELS: dict[str, tuple[str, int]] = {
     "nli_en": (zero_shot.LARGE_MODEL, zero_shot.MAX_WORDS_DEBERTA),
+    "nli_en_w": (zero_shot.LARGE_MODEL, zero_shot.MAX_WORDS_DEBERTA),
     "nli_ml": (zero_shot.MULTILINGUAL_MODEL, zero_shot.MAX_WORDS_MULTILINGUAL),
     "nli_mdeberta": (
         "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7",
@@ -30,6 +34,7 @@ class NliEngine:
     (research/nli_server.py, ONNX Runtime + DirectML); truncation and the tier mapping stay here."""
 
     def __init__(self, config_id: str, remote_url: str = "") -> None:
+        self.config_id = config_id
         self.model_id, self.max_words = NLI_MODELS[config_id]
         self.remote_url = remote_url.rstrip("/")
         self._pipe: Any = None
@@ -47,13 +52,18 @@ class NliEngine:
         return body["scores"]
 
     def classify(self, text: str) -> SemanticResult:
-        clipped, truncated = _truncate(text, self.max_words)
+        windowed = self.config_id in WINDOWED
+        _, truncated = _truncate(text, self.max_words)
         if self.remote_url:
-            scores = self._remote_scores(clipped)
+            chunks = zero_shot.word_windows(text, self.max_words)
+            if not windowed:
+                chunks = [_truncate(text, self.max_words)[0]]
+            scores = zero_shot.max_scores([self._remote_scores(c) for c in chunks])
         else:
             if self._pipe is None:
                 self._pipe = zero_shot.load_classifier(self.model_id)
-            scores = zero_shot.zero_shot_classify(self._pipe, text, self.max_words)
+            scores = zero_shot.zero_shot_classify(self._pipe, text, self.max_words, windowed)
+        truncated = truncated and not windowed
         tier, triggered = zero_shot.zero_shot_tier(scores)
         return SemanticResult(
             tier=tier,
