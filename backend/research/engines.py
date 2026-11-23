@@ -17,11 +17,13 @@ from app.classifier_core.tiers import Tier
 # config_id -> (HF model id, max words per model input)
 # Configs in WINDOWED score every window of the document (max per category, as the service does);
 # the others keep the first window only, as the runs before windowing did.
-WINDOWED = {"nli_en_w"}
+WINDOWED = {"nli_en_w", "nli_ml_w"}
 NLI_MODELS: dict[str, tuple[str, int]] = {
     "nli_en": (zero_shot.LARGE_MODEL, zero_shot.MAX_WORDS_DEBERTA),
     "nli_en_w": (zero_shot.LARGE_MODEL, zero_shot.MAX_WORDS_DEBERTA),
     "nli_ml": (zero_shot.MULTILINGUAL_MODEL, zero_shot.MAX_WORDS_MULTILINGUAL),
+    # bge-m3 fits whole documents; windows of the same size as nli_en test them against dilution
+    "nli_ml_w": (zero_shot.MULTILINGUAL_MODEL, zero_shot.MAX_WORDS_DEBERTA),
     "nli_mdeberta": (
         "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7",
         zero_shot.MAX_WORDS_DEBERTA,
