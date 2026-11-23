@@ -138,3 +138,17 @@ def test_d6_escalates_a_lone_obfuscated_identifier() -> None:
     # one phone alone is not CONFIDENTIAL under presidio_tier; hiding it is the finding
     assert presidio_scan_folded(_FakeAnalyzer(), "Call (7ІЗ) 555-ОІ42.")[1:] == (Tier.CONFIDENTIAL, True)
     assert presidio_scan_folded(_FakeAnalyzer(), "Call (713) 555-0142.")[1:] == (Tier.PUBLIC, False)
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "https://lists.apache.org/thread/whg9own3v78qnkdggbw1xj481f5",  # ASCII o/l next to digits
+        "password = 1jy5d9%wo7&CSx#!bseo",
+        "FAKE92R1L0EF4CR2O2LBP0MQKJAFFY4C99SNYHL5",
+        "сприяє врахуванню ESG-факторів",  # hyphenated Latin abbreviation + Ukrainian word
+    ],
+)
+def test_clean_corpus_false_alarms_stay_untouched(src: str) -> None:
+    ct = canonicalize(src)
+    assert not [f for f in ct.folds if f.reason != "compat"], ct.folds
