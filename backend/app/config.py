@@ -103,7 +103,8 @@ class Settings(BaseSettings):
     # Semantic layer: "nli" (zero-shot model above) or "llm" (llama-server at LLM_BASE_URL).
     classifier_engine: Literal["nli", "llm"] = Field(default="nli", alias="CLASSIFIER_ENGINE")
     # Prompt-injection defenses, comma-separated: D1 hardened LLM prompt, D2 classify the
-    # visible text too and keep the higher tier, D4 injection detector (flag -> RESTRICTED).
+    # visible text too and keep the higher tier, D4 injection detector (flag -> RESTRICTED),
+    # D6 Presidio also scans a copy with look-alike characters / separators folded back.
     classifier_defenses: str = Field(default="", alias="CLASSIFIER_DEFENSES")
     classifier_detector: Literal["pg2", "protectai"] = Field(
         default="pg2", alias="CLASSIFIER_DETECTOR"
@@ -119,8 +120,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_defenses(self) -> Settings:
-        if unknown := self.defenses - {"D1", "D2", "D4"}:
-            raise ValueError(f"CLASSIFIER_DEFENSES: unknown {sorted(unknown)}; known: D1, D2, D4")
+        if unknown := self.defenses - {"D1", "D2", "D4", "D6"}:
+            raise ValueError(f"CLASSIFIER_DEFENSES: unknown {sorted(unknown)}; known: D1, D2, D4, D6")
         return self
 
     # Vault (optional — infrastructure hardening)
