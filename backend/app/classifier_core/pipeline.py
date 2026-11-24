@@ -74,7 +74,7 @@ DETECTOR_THRESHOLD = 0.5
 
 def _nli_model() -> tuple[str, int]:
     model_selection = settings.classifier_model
-    if settings.classifier_multilingual and model_selection == "base":
+    if settings.classifier_multilingual:
         model_selection = "multilingual"
     return zero_shot.select_model(model_selection)
 
