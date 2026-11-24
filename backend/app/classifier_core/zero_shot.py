@@ -23,10 +23,13 @@ CATEGORY_TO_TIER: dict[str, Tier] = {
 CATEGORIES = list(CATEGORY_TO_TIER.keys())
 HYPOTHESIS_TEMPLATE = "This document contains {}."
 
-# DeBERTa-v3 caps at 512 tokens → ~400 words. bge-m3 supports 8192 tokens,
-# we use 6000 words there. Set by `select_model`.
+# DeBERTa-v3 caps at 512 tokens → ~400 words. bge-m3 supports 8192 tokens (~6000 words), but one
+# long input lets a long public part outweigh a short sensitive one (dilution, thesis A5), so the
+# service scores bge-m3 in 400-word windows too. MAX_WORDS_MULTILINGUAL stays for research's
+# one-pass nli_ml config. Set by `select_model`.
 MAX_WORDS_DEBERTA = 400
 MAX_WORDS_MULTILINGUAL = 6000
+WINDOW_WORDS_MULTILINGUAL = 400
 # Overlap between NLI windows, so a sentence cut at a window edge is seen whole in one of them.
 WINDOW_OVERLAP_WORDS = 50
 
@@ -52,12 +55,12 @@ def select_model(model_name_or_multilingual: str | bool) -> tuple[str, int]:
     """Return (model_id, max_words) for the requested mode."""
     if isinstance(model_name_or_multilingual, bool):
         if model_name_or_multilingual:
-            return MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL
+            return MULTILINGUAL_MODEL, WINDOW_WORDS_MULTILINGUAL
         return DEFAULT_MODEL, MAX_WORDS_DEBERTA
 
     name = model_name_or_multilingual.lower().strip()
     if name in ("multilingual", MULTILINGUAL_MODEL.lower()):
-        return MULTILINGUAL_MODEL, MAX_WORDS_MULTILINGUAL
+        return MULTILINGUAL_MODEL, WINDOW_WORDS_MULTILINGUAL
     if name in ("large", LARGE_MODEL.lower()):
         return LARGE_MODEL, MAX_WORDS_DEBERTA
     if name in ("base", DEFAULT_MODEL.lower()):
