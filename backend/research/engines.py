@@ -23,7 +23,7 @@ NLI_MODELS: dict[str, tuple[str, int]] = {
     "nli_en_w": (zero_shot.LARGE_MODEL, zero_shot.MAX_WORDS_DEBERTA),
     "nli_ml": (zero_shot.MULTILINGUAL_MODEL, zero_shot.MAX_WORDS_MULTILINGUAL),
     # bge-m3 fits whole documents; windows of the same size as nli_en test them against dilution
-    "nli_ml_w": (zero_shot.MULTILINGUAL_MODEL, zero_shot.MAX_WORDS_DEBERTA),
+    "nli_ml_w": (zero_shot.MULTILINGUAL_MODEL, zero_shot.WINDOW_WORDS_MULTILINGUAL),
     "nli_mdeberta": (
         "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7",
         zero_shot.MAX_WORDS_DEBERTA,
