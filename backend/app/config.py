@@ -93,12 +93,11 @@ class Settings(BaseSettings):
     kek_version: int = Field(default=1, alias="KEK_VERSION")
 
     # Classifier (Phase 4)
-    # Default is the v6 English DeBERTa-v3 base. Set CLASSIFIER_MULTILINGUAL=true
-    # to switch to bge-m3 (XLM-RoBERTa) for Cyrillic / CJK / non-English content.
-    # Alternatively, specify CLASSIFIER_MODEL=large to use the large DeBERTa model,
-    # or set a custom Hugging Face model checkpoint.
+    # Default is English DeBERTa-v3 large (the model the experiments measured). Set
+    # CLASSIFIER_MULTILINGUAL=true to switch to bge-m3 for Cyrillic / CJK / non-English content.
+    # CLASSIFIER_MODEL=base picks the smaller DeBERTa; any other value is a Hugging Face checkpoint.
     classifier_multilingual: bool = Field(default=False, alias="CLASSIFIER_MULTILINGUAL")
-    classifier_model: str = Field(default="base", alias="CLASSIFIER_MODEL")
+    classifier_model: str = Field(default="large", alias="CLASSIFIER_MODEL")
     classifier_disable_presidio: bool = Field(default=False, alias="CLASSIFIER_DISABLE_PRESIDIO")
     # Semantic layer: "nli" (zero-shot model above) or "llm" (llama-server at LLM_BASE_URL).
     classifier_engine: Literal["nli", "llm"] = Field(default="nli", alias="CLASSIFIER_ENGINE")

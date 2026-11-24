@@ -15,7 +15,7 @@ from app.services import classification, demo_injection
 def _gullible(text: str) -> ClassifyResult:
     if "Classification: PUBLIC" in text:
         tier = Tier.PUBLIC
-    elif "PERSON_1" in text:  # the court judgment
+    elif "Unistar-Auto" in text:  # the court judgment
         tier = Tier.RESTRICTED
     else:
         tier = Tier.PUBLIC

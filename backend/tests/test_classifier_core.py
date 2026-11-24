@@ -160,3 +160,16 @@ def test_select_model_resolution() -> None:
     # Custom model fallback
     assert select_model("facebook/bart-large-mnli") == ("facebook/bart-large-mnli", MAX_WORDS_DEBERTA)
 
+
+
+def test_nli_default_is_large_and_multilingual_flag_wins(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from app.classifier_core.pipeline import _nli_model
+    from app.classifier_core.zero_shot import LARGE_MODEL, MULTILINGUAL_MODEL
+    from app.config import Settings, settings
+
+    assert Settings.model_fields["classifier_model"].default == "large"
+    monkeypatch.setattr(settings, "classifier_model", "large")
+    monkeypatch.setattr(settings, "classifier_multilingual", False)
+    assert _nli_model()[0] == LARGE_MODEL
+    monkeypatch.setattr(settings, "classifier_multilingual", True)
+    assert _nli_model()[0] == MULTILINGUAL_MODEL
