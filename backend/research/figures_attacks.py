@@ -22,6 +22,8 @@ from research.analyze import wilson
 
 ATTACKS = ["A1", "A2", "A3/A1", "A3/A2", "A4", "A5", "A6", "A7"]
 INJECTIONS = ["A1", "A2", "A3/A1", "A3/A2", "A4", "A5"]  # pooled for the hybrid figure (H3)
+# A3 is A1/A2 through a hidden carrier: whether it works is set by the extractor, not the model
+HEATMAP_ATTACKS = ["A1", "A2", "A4", "A5", "A6", "A7"]
 CONFIGS = ["nli_en", "nli_ml", "llm:gemma4-12b", "llm:qwen35-9b", "llm:gemma4-e4b",
            "llm:gemma3-12b", "llm:mamaylm-12b", "llm:lapa-12b"]  # fmt: skip
 D1_CONFIGS = ["llm:gemma4-12b", "llm:qwen35-9b", "llm:gemma4-e4b"]
@@ -33,12 +35,12 @@ BLUES = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d3
 TEXT: dict[str, dict[str, Any]] = {
     "uk": {
         "attacks": {
-            "clean": "чисті\n(хибні\nтривоги)", "A1": "A1\nдиректива", "A2": "A2\nгриф",
-            "A3/A1": "A3/A1\nприхована\nдиректива", "A3/A2": "A3/A2\nприхований\nгриф",
-            "A4": "A4\nіншою\nмовою", "A5": "A5\nзаповнення", "A6": "A6\nобфускація\nID",
-            "A7": "A7\nприхований\nвміст",
+            "clean": "чисті\n(хибні\nтривоги)", "A1": "A1\nвказівка\nкласу",
+            "A2": "A2\nімітація\nслужбових\nметаданих",
+            "A3/A1": "A3/A1\nприхований\nносій з A1", "A3/A2": "A3/A2\nприхований\nносій з A2",
+            "A4": "A4\nнавантаження\nіншою мовою", "A5": "A5\nрозбавлення",
+            "A6": "A6\nобфускація\nідентифікаторів", "A7": "A7\nприховування\nчутливого\nвмісту",
         },
-        "heatmap": "Успішність атак (ASR, %), без захисту, семантичний шар без Presidio",
         "hybrid_panels": ("Документи з ідентифікаторами (id)", "Документи, чутливі за змістом"),
         "hybrid_series": ("лише семантичний шар", "гібрид з Presidio"),
         "hybrid_y": "ASR, атаки A1–A5 разом (95% ДІ Вілсона)",
@@ -61,7 +63,6 @@ TEXT: dict[str, dict[str, Any]] = {
             "A4": "A4\nother\nlanguage", "A5": "A5\npadding", "A6": "A6\nobfuscated\nIDs",
             "A7": "A7\nhidden\ncontent",
         },
-        "heatmap": "Attack success rate (ASR, %), no defense, semantic layer only",
         "hybrid_panels": ("Documents with identifiers (id)", "Documents sensitive by meaning"),
         "hybrid_series": ("semantic layer only", "hybrid with Presidio"),
         "hybrid_y": "ASR, attacks A1–A5 pooled (95% Wilson CI)",
@@ -155,23 +156,24 @@ def fig_heatmap(asr: list[dict[str, str]], fig_dir: Path, t: dict[str, Any], nam
     from matplotlib.colors import BoundaryNorm, ListedColormap
 
     cell = {(r["config"], r["attack_id"]): r for r in asr if r["by"] == "all"}
-    grid = [[float(cell[(c, a)]["asr"]) for a in ATTACKS] for c in CONFIGS]
+    grid = [[float(cell[(c, a)]["asr"]) for a in HEATMAP_ATTACKS] for c in CONFIGS]
     bounds = [0, 0.05, 0.1, 0.2, 0.3, 0.45, 0.6, 1.0]
     fig, ax = plt.subplots(figsize=(8.2, 4.2))
     ax.imshow(grid, cmap=ListedColormap(BLUES), norm=BoundaryNorm(bounds, len(BLUES)),
               aspect="auto")  # fmt: skip
     for i in range(len(CONFIGS)):
-        for j in range(len(ATTACKS)):
+        for j in range(len(HEATMAP_ATTACKS)):
             v = grid[i][j]
-            ax.text(j, i, f"{v * 100:.0f}", ha="center", va="center", fontsize=8,
+            pct = int(v * 100 + 0.5)  # half up, as in the tables (f"{12.5:.0f}" gives 12)
+            ax.text(j, i, str(pct), ha="center", va="center", fontsize=8,
                     color="white" if v >= 0.3 else INK)  # fmt: skip
-    ax.set_xticks(range(len(ATTACKS)), [t["attacks"][a] for a in ATTACKS], fontsize=7.5)
+    ax.set_xticks(range(len(HEATMAP_ATTACKS)), [t["attacks"][a] for a in HEATMAP_ATTACKS],
+                  fontsize=7.5)  # fmt: skip
     ax.set_yticks(range(len(CONFIGS)), [_name(c) for c in CONFIGS])
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    ax.set_title(t["heatmap"], loc="left", fontsize=9.5, color=INK)
-    _save(fig, fig_dir, name)
+    _save(fig, fig_dir, name)  # no title: the caption in the text names the figure
     plt.close(fig)
 
 
