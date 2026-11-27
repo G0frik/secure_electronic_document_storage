@@ -599,6 +599,7 @@ function CorpusPicker({
             role="option"
             aria-selected={value === d.ref}
             className="pg-list-item"
+            ref={value === d.ref ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
             onClick={() => onChange(d.ref)}
           >
             <span className="text-mono">{d.pair_id}</span>

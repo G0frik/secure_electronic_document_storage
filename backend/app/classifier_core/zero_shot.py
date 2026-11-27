@@ -24,7 +24,7 @@ CATEGORIES = list(CATEGORY_TO_TIER.keys())
 HYPOTHESIS_TEMPLATE = "This document contains {}."
 
 # DeBERTa-v3 caps at 512 tokens → ~400 words. bge-m3 supports 8192 tokens (~6000 words), but one
-# long input lets a long public part outweigh a short sensitive one (dilution, thesis A5), so the
+# long input lets a long public part outweigh a short sensitive one (dilution, attack A5), so the
 # service scores bge-m3 in 400-word windows too. MAX_WORDS_MULTILINGUAL stays for research's
 # one-pass nli_ml config. Set by `select_model`.
 MAX_WORDS_DEBERTA = 400
