@@ -32,7 +32,7 @@ export default function ResultsGrid({ rows }: { rows: Row[] }) {
             <th>#</th>
             <th>Setup</th>
             <th>Final tier</th>
-            {expected && <th>Thesis result</th>}
+            {expected && <th>Recorded result</th>}
             <th>Semantic</th>
             <th>Presidio</th>
             <th>D2 views</th>
@@ -94,7 +94,13 @@ export default function ResultsGrid({ rows }: { rows: Row[] }) {
                     </td>
                   )}
                   <td>{res && <TierPill tier={res.zero_shot_tier} />}</td>
-                  <td>{res && <TierPill tier={res.presidio_tier} />}</td>
+                  <td>
+                    {res && r.setup.presidio === false ? (
+                      <span className="text-small text-muted">off</span>
+                    ) : (
+                      res && <TierPill tier={res.presidio_tier} />
+                    )}
+                  </td>
                   <td className="text-small">
                     {views ? (
                       <>
