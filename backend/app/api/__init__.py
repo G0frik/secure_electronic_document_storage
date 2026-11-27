@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from flask import Flask
 
+from app.config import settings
+
 from app.api.admin_departments import bp as admin_departments_bp
 from app.api.admin_events import bp as admin_events_bp
 from app.api.admin_files import bp as admin_files_bp
@@ -44,3 +46,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(admin_departments_bp)
     app.register_blueprint(admin_groups_bp)
     app.register_blueprint(admin_files_bp)
+    if settings.playground:  # admin playground exists only in playground mode
+        from app.api.admin_playground import bp as admin_playground_bp
+
+        app.register_blueprint(admin_playground_bp)

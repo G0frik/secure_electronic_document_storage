@@ -1,0 +1,21 @@
+# Admin playground mode: `make playground` (adds this file to docker-compose.yml).
+# The backend registers the playground API; a second worker consumes only the playground queue,
+# so playground runs never wait behind (or delay) the service's own classification jobs.
+services:
+  backend:
+    environment:
+      PLAYGROUND: "1"
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:18080}
+      PLAYGROUND_NLI_URL: ${PLAYGROUND_NLI_URL:-http://host.docker.internal:18081}
+
+  playground-worker:
+    extends:
+      file: docker-compose.yml
+      service: worker
+    command: celery -A app.tasks.celery_app.celery worker --loglevel=info --concurrency=1 -Q playground -n playground@%h
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app.celery inspect ping -d playground@$$HOSTNAME --timeout 10"]
+    environment:
+      PLAYGROUND: "1"
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:18080}
+      PLAYGROUND_NLI_URL: ${PLAYGROUND_NLI_URL:-http://host.docker.internal:18081}

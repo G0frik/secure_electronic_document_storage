@@ -7,6 +7,7 @@ from app.models.file_version import FileVersion
 from app.models.folder import Folder
 from app.models.group import Group, UserGroup
 from app.models.notification import Notification
+from app.models.playground import PlaygroundDocument, PlaygroundRow, PlaygroundRun, PlaygroundSetup
 from app.models.policy import AccessPolicy, PolicyDecision, PolicyEvaluation
 from app.models.share import Share, SharePermission, ShareTargetType
 from app.models.share_link import ShareLink
@@ -30,6 +31,10 @@ __all__ = [
     "Group",
     "Notification",
     "OverrideStatus",
+    "PlaygroundDocument",
+    "PlaygroundRow",
+    "PlaygroundRun",
+    "PlaygroundSetup",
     "PolicyDecision",
     "PolicyEvaluation",
     "Role",

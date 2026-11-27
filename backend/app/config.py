@@ -112,6 +112,12 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="gemma4-12b", alias="LLM_MODEL")
     llm_prompt: str = Field(default="classify_v1", alias="LLM_PROMPT")
     llm_timeout: int = Field(default=120, alias="LLM_TIMEOUT")
+    # Admin playground (compare classifier setups on one document). Off unless PLAYGROUND=1;
+    # its NLI forward pass runs on the host NLI server (research/nli_server.py, GPU).
+    playground: bool = Field(default=False, alias="PLAYGROUND")
+    playground_nli_url: str = Field(
+        default="http://host.docker.internal:18081", alias="PLAYGROUND_NLI_URL"
+    )
 
     @property
     def defenses(self) -> frozenset[str]:
