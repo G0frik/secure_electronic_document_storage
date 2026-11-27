@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { playgroundEnabled } from "@/api/playground";
 import { useAuth } from "@/state/auth";
 import QuotaBar from "@/components/QuotaBar";
-import { Files, ShieldCheck, Trash2, Lock, HardDrive } from "@/components/icons";
+import { Files, FlaskConical, ShieldCheck, Trash2, Lock, HardDrive } from "@/components/icons";
 
 /**
  * Left navigation for the authenticated app shell.
@@ -15,6 +17,10 @@ import { Files, ShieldCheck, Trash2, Lock, HardDrive } from "@/components/icons"
 export default function Sidebar() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [playground, setPlayground] = useState(false);
+  useEffect(() => {
+    if (isAdmin) void playgroundEnabled().then(setPlayground);
+  }, [isAdmin]);
 
   return (
     <nav className="sidebar" aria-label="Primary">
@@ -62,6 +68,15 @@ export default function Sidebar() {
           >
             <ShieldCheck size={16} />
             <span>Admin</span>
+          </NavLink>
+        )}
+        {isAdmin && playground && (
+          <NavLink
+            to="/admin/playground"
+            className={({ isActive }) => (isActive ? "sidebar-item active" : "sidebar-item")}
+          >
+            <FlaskConical size={16} />
+            <span>Playground</span>
           </NavLink>
         )}
       </div>

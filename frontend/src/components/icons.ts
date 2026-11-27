@@ -56,4 +56,10 @@ export {
   AlertTriangle,
   XCircle,
   Info,
+
+  // Admin playground
+  FlaskConical,
+  Play,
+  Save,
+  Copy,
 } from "lucide-react";

@@ -49,6 +49,13 @@ def _doc_payload(doc: attacks.Doc) -> dict[str, Any]:
             "data_b64": base64.b64encode(doc.data).decode(), "views": playground.views(doc)}  # fmt: skip
 
 
+@bp.get("/status")
+@admin_required
+def status():  # type: ignore[no-untyped-def]
+    """Cheap check for the SPA: the route exists only in playground mode."""
+    return jsonify({"enabled": True}), 200
+
+
 @bp.get("/catalog")
 @admin_required
 def catalog():  # type: ignore[no-untyped-def]
