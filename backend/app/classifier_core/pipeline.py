@@ -14,6 +14,7 @@ Cached instances are module-level singletons. Tests can reset via
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Literal
@@ -85,6 +86,10 @@ class ClassifierConfig:
     presidio: bool = True
     defenses: frozenset[str] = frozenset()
     detector: str = "pg2"
+
+    def __post_init__(self) -> None:
+        if self.engine not in ("nli", "llm"):
+            raise ValueError(f"unknown engine {self.engine!r}")
 
     @classmethod
     def from_settings(cls) -> ClassifierConfig:
@@ -267,6 +272,8 @@ def classifier_config(cfg: ClassifierConfig | None = None) -> dict[str, Any]:
     engine: dict[str, Any]
     if cfg.engine == "llm":
         engine = {"engine": "llm", "model": cfg.llm_model, "prompt": cfg.prompt_name()}
+        if engine["prompt"] == "custom" and cfg.llm_prompt_text is not None:
+            engine["prompt_sha256"] = hashlib.sha256(cfg.llm_prompt_text.encode()).hexdigest()[:12]
         defaults = ClassifierConfig()
         for name in ("seed", "temperature", "top_p", "max_tokens", "thinking"):
             if getattr(cfg, name) != getattr(defaults, name):  # stored only when changed
@@ -275,6 +282,10 @@ def classifier_config(cfg: ClassifierConfig | None = None) -> dict[str, Any]:
         engine = {"engine": "nli", "model": cfg.nli_model}
         if not cfg.nli_windows:
             engine["windows"] = False
+        if cfg.nli_max_words != zero_shot.MAX_WORDS_DEBERTA:
+            engine["max_words"] = cfg.nli_max_words
+        if cfg.nli_url:
+            engine["remote"] = True  # forward pass on the NLI server (ONNX), not local PyTorch
     return engine | {"presidio": cfg.presidio, "defenses": sorted(cfg.defenses)}
 
 
