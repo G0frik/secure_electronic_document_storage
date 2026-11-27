@@ -84,21 +84,33 @@ class LlmEngine:
         timeout: int = 600,
         template_kwargs: dict[str, Any] | None = None,
         max_tokens: int = LLM_MAX_TOKENS,
+        temperature: float = 0.0,
+        top_p: float | None = None,
+        prompt_text: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.prompt_version = prompt_version
-        self.prompt = (PROMPTS_DIR / f"{prompt_version}.txt").read_text(encoding="utf-8")
+        # prompt_text: an edited prompt (admin playground); it must contain {document}
+        if prompt_text is None:
+            prompt_text = (PROMPTS_DIR / f"{prompt_version}.txt").read_text(encoding="utf-8")
+        self.prompt = prompt_text
+        if "{document}" not in self.prompt:
+            raise ValueError("prompt has no {document} placeholder")
         self.seed = seed
         self.timeout = timeout
         # Qwen3.5 thinks by default in some builds; other templates ignore this.
         self.template_kwargs = template_kwargs or {"enable_thinking": False}
         self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.top_p = top_p
         # Part of the cache key: changing the request must not reuse old answers. Non-default
-        # template kwargs / token caps are appended only, so default runs keep their old keys.
+        # template kwargs / token caps / sampling are appended only, so default runs keep their keys.
         parts: list[Any] = [LLM_SCHEMA, max_tokens]
         if self.template_kwargs != {"enable_thinking": False}:
             parts.append(self.template_kwargs)
+        if temperature != 0.0 or top_p is not None:
+            parts.append({"temperature": temperature, "top_p": top_p})
         self.request_version = hashlib.sha256(
             json.dumps(parts, sort_keys=True).encode()
         ).hexdigest()[:8]
@@ -120,7 +132,7 @@ class LlmEngine:
         body = {
             "model": self.model,
             "messages": [{"role": "user", "content": self.prompt.replace("{document}", doc)}],
-            "temperature": 0,
+            "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "seed": self.seed,
             "response_format": {
@@ -129,6 +141,8 @@ class LlmEngine:
             },
             "chat_template_kwargs": self.template_kwargs,
         }
+        if self.top_p is not None:
+            body["top_p"] = self.top_p
         resp = requests.post(
             f"{self.base_url}/v1/chat/completions", json=body, timeout=self.timeout
         )

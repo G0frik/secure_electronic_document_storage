@@ -114,6 +114,27 @@ def zero_shot_classify(  # type: ignore[no-untyped-def]
     return max_scores(out)
 
 
+def remote_zero_shot(
+    url: str, model_id: str, text: str, max_words: int, windows: bool = True, timeout: int = 600
+) -> dict[str, float]:
+    """Same as `zero_shot_classify`, but each window's forward pass runs on a remote NLI server
+    (`research/nli_server.py`: ONNX Runtime on the host GPU). Windowing and max stay here."""
+    import requests
+
+    chunks = word_windows(text, max_words)
+    if not windows:
+        chunks = chunks[:1]
+    out = []
+    for chunk in chunks:
+        payload = {"model": model_id, "text": chunk, "labels": CATEGORIES,
+                   "template": HYPOTHESIS_TEMPLATE, "multi_label": True}  # fmt: skip
+        r = requests.post(f"{url.rstrip('/')}/zero-shot", json=payload, timeout=timeout)
+        if r.status_code != 200:
+            raise RuntimeError(f"NLI server: {r.text[:300]}")
+        out.append(r.json()["scores"])
+    return max_scores(out)
+
+
 def zero_shot_tier(
     scores_by_category: dict[str, float], threshold: float | None = None
 ) -> tuple[Tier, list[tuple[str, float, Tier]]]:
