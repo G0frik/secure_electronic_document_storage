@@ -423,3 +423,13 @@ def test_presets_are_offered_only_when_their_files_exist(monkeypatch) -> None:
     assert [p["id"] for p in offered] == ["a5-nli-ml"]
     assert offered[0]["corpus_ref"] == "shareable/res_sem_mts_01.en.md"
     assert offered[0]["setups"][1]["model"] == "nli_ml_w"
+
+
+def test_a_broken_preset_is_skipped_not_fatal(monkeypatch, tmp_path) -> None:
+    bad = [{"id": "x", "attack": {"attack": "A1", "placement": "top"}}]
+    path = tmp_path / "presets.json"
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    monkeypatch.setattr(playground, "PRESETS_FILE", path)
+    assert playground.presets() == []
+    path.write_text("{not json", encoding="utf-8")
+    assert playground.presets() == []
