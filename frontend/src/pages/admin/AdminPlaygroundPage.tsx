@@ -111,40 +111,60 @@ export default function AdminPlaygroundPage() {
     return file ? { kind: "file", file_id: file.id, lang } : null;
   }, [tab, text, textFormat, lang, file, corpusRef]);
 
+  const buildSeq = useRef(0);
   const refreshDocument = useCallback(async () => {
     if (!input) return;
+    const seq = ++buildSeq.current; // only the latest request may update the preview
     setDocBusy(true);
     setDocError("");
     try {
-      setDoc(await buildDocument(input, attack));
+      const built = await buildDocument(input, attack);
+      if (seq !== buildSeq.current) return;
+      setDoc(built);
       setRun(null);
+      setRunDocs({});
     } catch (e) {
+      if (seq !== buildSeq.current) return;
       setDoc(null);
       setDocError(apiMessage(e, "Could not build the document."));
     } finally {
-      setDocBusy(false);
+      if (seq === buildSeq.current) setDocBusy(false);
     }
   }, [input, attack]);
 
   // rebuild the preview when a file / corpus document or the attack changes (typed text: on demand)
   const auto = useRef(refreshDocument);
   auto.current = refreshDocument;
+  const skipAuto = useRef(false); // set when a stored run is opened: show it, do not rebuild
   useEffect(() => {
+    if (skipAuto.current) {
+      skipAuto.current = false;
+      return;
+    }
     if (tab === "text" || !input) return;
     const t = setTimeout(() => void auto.current(), 300);
     return () => clearTimeout(t);
   }, [tab, input, attack]);
 
-  // poll the run until every row is finished
+  // poll the run until every row is finished; a failed poll retries, a stale answer is dropped
+  const [pollRetry, setPollRetry] = useState(0);
   useEffect(() => {
     if (!run || run.status === "done" || run.status === "failed") return;
+    let cancelled = false;
     const t = setTimeout(() => {
       fetchRun(run.id)
-        .then(setRun)
-        .catch(() => undefined);
+        .then((r) => {
+          if (!cancelled) setRun(r);
+        })
+        .catch(() => {
+          if (!cancelled) setPollRetry((n) => n + 1);
+        });
     }, 2000);
-    return () => clearTimeout(t);
-  }, [run]);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [run, pollRetry]);
 
   async function start() {
     if (!input) return;
@@ -169,6 +189,7 @@ export default function AdminPlaygroundPage() {
         fetchRunDocument(id, "input"),
         fetchRunDocument(id, "attacked"),
       ]);
+      skipAuto.current = true;
       setRun(r);
       setRunDocs({ input: inp, attacked: att });
       setSetups(r.rows.map((row) => row.setup));
@@ -341,7 +362,13 @@ export default function AdminPlaygroundPage() {
           <div className="card-body">
             {docBusy && <p className="text-muted">Building the document…</p>}
             {docError && <p className="field-error">{docError}</p>}
-            {!docBusy && !docError && shownDoc && <DocPreview doc={shownDoc} note={sourceNote} />}
+            {!docBusy && !docError && shownDoc && (
+              <DocPreview
+                key={`${shownDoc.filename}:${shownDoc.data_b64.length}`}
+                doc={shownDoc}
+                note={sourceNote}
+              />
+            )}
             {!docBusy && !docError && !shownDoc && (
               <div className="empty">
                 <div className="empty-title">No document yet</div>
@@ -386,6 +413,8 @@ export default function AdminPlaygroundPage() {
                     setups.map((s) => ({
                       ...defaultSetup(catalog, s.engine, s.model),
                       defenses: s.defenses,
+                      label: s.label,
+                      expected_tier: s.expected_tier,
                     })),
                   )
                 }
@@ -805,7 +834,11 @@ function SavedSetups({ setups, onLoad }: { setups: Setup[]; onLoad: (s: Setup[])
           onChange={async (e) => {
             const s = items.find((x) => x.id === e.target.value);
             if (s && window.confirm(`Delete saved setups “${s.name}”?`)) {
-              await deleteSetup(s.id);
+              try {
+                await deleteSetup(s.id);
+              } catch (err) {
+                toast.error("Could not delete", apiMessage(err, "Unknown error."));
+              }
               void reload();
             }
           }}
@@ -871,7 +904,11 @@ function HistoryList({
               aria-label={`Delete run ${r.title}`}
               onClick={async () => {
                 if (!window.confirm("Delete this run and its stored documents?")) return;
-                await deleteRun(r.id);
+                try {
+                  await deleteRun(r.id);
+                } catch (e) {
+                  toast.error("Could not delete the run", apiMessage(e, "Unknown error."));
+                }
                 void reload();
               }}
             >
