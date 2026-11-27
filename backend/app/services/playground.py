@@ -9,9 +9,11 @@ host NLI server (GPU). Only one of them holds the GPU at a time: the task frees 
 from __future__ import annotations
 
 import io
+import json
 import time
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -95,7 +97,32 @@ def catalog() -> dict[str, Any]:
         "defaults": RESEARCH_DEFAULTS,
         "attacks": attacks.catalog(),
         "corpus": bool(attacks.corpus_dirs()),
+        "presets": presets(),
     }
+
+
+PRESETS_FILE = Path(__file__).with_name("playground_presets.json")
+
+
+def presets() -> list[dict[str, Any]]:
+    """Ready-made runs (case examples): only those whose corpus document and research file exist."""
+    from app.schemas.playground import AttackIn
+
+    out = []
+    for p in json.loads(PRESETS_FILE.read_text(encoding="utf-8")):
+        entry = next((e for e in attacks.corpus_index()
+                      if e["pair_id"] == p["pair_id"] and e["lang"] == p["lang"]), None)  # fmt: skip
+        attack = AttackIn.model_validate(p["attack"])
+        spec = _spec(DocumentRequest(input=InputIn(kind="corpus", corpus_ref="x"), attack=attack),
+                     p["lang"])  # fmt: skip
+        if entry is None or attacks.research_variant(p["pair_id"], p["lang"], spec) is None:
+            continue
+        out.append({
+            "id": p["id"], "title": p["title"], "summary": p["summary"], "explain": p["explain"],
+            "corpus_ref": entry["ref"], "attack": attack.model_dump(),
+            "setups": [SetupSpec.model_validate(s).model_dump() for s in p["setups"]],
+        })  # fmt: skip
+    return out
 
 
 # ---------- documents ----------
@@ -371,8 +398,6 @@ def explain(s: SetupSpec, text: str) -> dict[str, str]:
     r = requests.post(f"{settings.llm_base_url.rstrip('/')}/v1/chat/completions", json=body,
                       timeout=LLM_TIMEOUT)  # fmt: skip
     r.raise_for_status()
-    import json
-
     out = json.loads(r.json()["choices"][0]["message"]["content"])
     return {"tier": out["tier"], "reason": out["reason"]}
 

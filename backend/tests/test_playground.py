@@ -397,3 +397,29 @@ def test_deleting_a_saved_setup_is_audited(pg_client, admin, db_session) -> None
     assert db_session.scalars(
         select(AuditLog).where(AuditLog.action_type == "playground.setup_deleted")
     ).all()
+
+
+# --- presets ---
+
+
+def test_presets_file_is_valid_and_uses_known_configs() -> None:
+    from app.schemas.playground import AttackIn, SetupSpec
+
+    raw = json.loads(playground.PRESETS_FILE.read_text(encoding="utf-8"))
+    assert {p["attack"]["attack"] for p in raw} == {f"A{i}" for i in range(1, 8)}
+    for p in raw:
+        AttackIn.model_validate(p["attack"])
+        for s in p["setups"]:
+            setup = SetupSpec.model_validate(s)
+            playground.check_setup(setup)
+            assert setup.expected_tier in ("public", "internal", "confidential", "restricted")
+
+
+def test_presets_are_offered_only_when_their_files_exist(monkeypatch) -> None:
+    monkeypatch.setattr(attacks, "corpus_index", lambda: [
+        {"ref": "shareable/res_sem_mts_01.en.md", "pair_id": "res_sem_mts_01", "lang": "en"}])  # fmt: skip
+    monkeypatch.setattr(attacks, "research_variant", lambda pair, lang, spec: Path("x.md"))
+    offered = playground.presets()
+    assert [p["id"] for p in offered] == ["a5-nli-ml"]
+    assert offered[0]["corpus_ref"] == "shareable/res_sem_mts_01.en.md"
+    assert offered[0]["setups"][1]["model"] == "nli_ml_w"

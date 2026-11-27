@@ -81,8 +81,10 @@ PLAYGROUND_COMPOSE = docker compose -f docker-compose.yml -f docker-compose.play
 playground:
 	python backend/research/playground_host.py start
 	$(PLAYGROUND_COMPOSE) up -d
+	docker compose restart nginx  # the backend was recreated; nginx must resolve its new address
 
 playground-down:
 	$(PLAYGROUND_COMPOSE) rm -sf playground-worker
 	docker compose up -d backend
+	docker compose restart nginx
 	python backend/research/playground_host.py stop

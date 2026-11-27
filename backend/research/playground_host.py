@@ -43,7 +43,11 @@ PRESETS: dict[str, tuple[str, dict[str, str]]] = {
     "lapa-12b": ("lapa-v0.1.2-instruct-Q4_K_M.gguf", {}),
     "ministral3-14b": ("Ministral-3-14B-Instruct-2512-Q4_K_M.gguf", {}),
     "ministral3-3b": ("Ministral-3-3B-Instruct-2512-Q4_K_M.gguf", {}),
-    "gpt-oss-20b-low": ("gpt-oss-20b-MXFP4.gguf", {"n-cpu-moe": "8"}),
+    # as in the research runs: -c 16384 --n-cpu-moe 8 --reasoning-effort low
+    "gpt-oss-20b-low": (
+        "gpt-oss-20b-MXFP4.gguf",
+        {"ctx-size": "16384", "n-cpu-moe": "8", "reasoning-effort": "low"},
+    ),
 }
 
 

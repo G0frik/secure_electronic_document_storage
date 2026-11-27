@@ -67,6 +67,18 @@ export interface Catalog {
     obfuscations: string[];
   };
   corpus: boolean;
+  presets: Preset[];
+}
+
+/** A ready-made run: a research file, an attack and setups with the research results. */
+export interface Preset {
+  id: string;
+  title: string;
+  summary: string;
+  explain: boolean;
+  corpus_ref: string;
+  attack: Attack;
+  setups: Setup[];
 }
 
 export interface CorpusDoc {
