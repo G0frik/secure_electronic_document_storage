@@ -189,6 +189,9 @@ def delete_setup(setup_id: uuid.UUID):  # type: ignore[no-untyped-def]
     row = db.session.get(PlaygroundSetup, setup_id)
     if row is None:
         abort(404, description="Saved setup not found.")
+    name = row.name
     db.session.delete(row)
     db.session.commit()
+    audit.record("playground.setup_deleted", actor=_actor(), target_type="playground_setup",
+                 target_id=setup_id, metadata={"name": name})  # fmt: skip
     return "", 204
