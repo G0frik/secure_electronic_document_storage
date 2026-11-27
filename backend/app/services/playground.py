@@ -106,23 +106,36 @@ PRESETS_FILE = Path(__file__).with_name("playground_presets.json")
 
 def presets() -> list[dict[str, Any]]:
     """Ready-made runs (case examples): only those whose corpus document and research file exist."""
+    try:
+        raw = json.loads(PRESETS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        log.warning("playground.presets_unreadable", error=str(exc))
+        return []
+    out = []
+    for p in raw:
+        try:
+            out.extend(_preset(p))
+        except (KeyError, TypeError, ValueError) as exc:  # pydantic errors are ValueErrors
+            log.warning("playground.preset_skipped", preset=p.get("id"), error=str(exc))
+    return out
+
+
+def _preset(p: dict[str, Any]) -> list[dict[str, Any]]:
+    """The preset ready for the page, or nothing when its files are not on this machine."""
     from app.schemas.playground import AttackIn
 
-    out = []
-    for p in json.loads(PRESETS_FILE.read_text(encoding="utf-8")):
-        entry = next((e for e in attacks.corpus_index()
-                      if e["pair_id"] == p["pair_id"] and e["lang"] == p["lang"]), None)  # fmt: skip
-        attack = AttackIn.model_validate(p["attack"])
-        spec = _spec(DocumentRequest(input=InputIn(kind="corpus", corpus_ref="x"), attack=attack),
-                     p["lang"])  # fmt: skip
-        if entry is None or attacks.research_variant(p["pair_id"], p["lang"], spec) is None:
-            continue
-        out.append({
-            "id": p["id"], "title": p["title"], "summary": p["summary"], "explain": p["explain"],
-            "corpus_ref": entry["ref"], "attack": attack.model_dump(),
-            "setups": [SetupSpec.model_validate(s).model_dump() for s in p["setups"]],
-        })  # fmt: skip
-    return out
+    entry = next((e for e in attacks.corpus_index()
+                  if e["pair_id"] == p["pair_id"] and e["lang"] == p["lang"]), None)  # fmt: skip
+    attack = AttackIn.model_validate(p["attack"])
+    spec = _spec(DocumentRequest(input=InputIn(kind="corpus", corpus_ref="x"), attack=attack),
+                 p["lang"])  # fmt: skip
+    if entry is None or attacks.research_variant(p["pair_id"], p["lang"], spec) is None:
+        return []
+    return [{
+        "id": p["id"], "title": p["title"], "summary": p["summary"], "explain": p["explain"],
+        "corpus_ref": entry["ref"], "attack": attack.model_dump(),
+        "setups": [SetupSpec.model_validate(s).model_dump() for s in p["setups"]],
+    }]  # fmt: skip
 
 
 # ---------- documents ----------

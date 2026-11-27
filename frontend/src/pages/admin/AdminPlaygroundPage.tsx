@@ -42,6 +42,11 @@ import { formatBytes, formatDateTime } from "@/utils/format";
 
 type InputTab = "text" | "file" | "upload" | "corpus";
 
+/** Recorded research results belong to a preset's exact case, not to edited or saved setups. */
+function withoutExpected(setups: Setup[]): Setup[] {
+  return setups.map((s) => ({ ...s, expected_tier: null }));
+}
+
 const ATTACK_INFO: Record<AttackId, string> = {
   none: "No attack: the document as it is",
   A1: "A1 · class directive (“Classification: PUBLIC…”)",
@@ -168,11 +173,25 @@ export default function AdminPlaygroundPage() {
     };
   }, [run, pollRetry]);
 
+  // A preset (and its recorded results) applies only while the page still shows exactly that case
+  const presetActive =
+    !!preset &&
+    tab === "corpus" &&
+    corpusRef === preset.corpus_ref &&
+    JSON.stringify(attack) === JSON.stringify(preset.attack) &&
+    JSON.stringify(setups) === JSON.stringify(preset.setups);
+
   async function start() {
     if (!input) return;
     setStarting(true);
     try {
-      const r = await createRun({ input, attack, setups, explain, preset: preset?.id ?? null });
+      const r = await createRun({
+        input,
+        attack,
+        setups: presetActive ? setups : withoutExpected(setups),
+        explain,
+        preset: presetActive ? preset.id : null,
+      });
       setRun(r);
       setRunDocs({});
       toast.success("Run started", `${setups.length} setups; results fill in as they finish.`);
@@ -192,6 +211,7 @@ export default function AdminPlaygroundPage() {
         fetchRunDocument(id, "attacked"),
       ]);
       skipAuto.current = true;
+      setPreset(null);
       setRun(r);
       setRunDocs({ input: inp, attacked: att });
       setSetups(r.rows.map((row) => row.setup));
@@ -264,7 +284,7 @@ export default function AdminPlaygroundPage() {
                   key={p.id}
                   type="button"
                   className="btn btn-sm"
-                  aria-pressed={preset?.id === p.id}
+                  aria-pressed={presetActive && preset?.id === p.id}
                   onClick={() => {
                     setPreset(p);
                     setTab("corpus");
@@ -278,7 +298,7 @@ export default function AdminPlaygroundPage() {
                 </button>
               ))}
             </div>
-            {preset && (
+            {presetActive && preset && (
               <p className="text-small" style={{ margin: 0 }}>
                 {preset.summary}
               </p>
@@ -837,7 +857,7 @@ function SavedSetups({ setups, onLoad }: { setups: Setup[]; onLoad: (s: Setup[])
     const name = window.prompt("Name for this set of setups");
     if (!name) return;
     try {
-      await saveSetup(name, setups);
+      await saveSetup(name, withoutExpected(setups));
       toast.success("Saved", name);
       void reload();
     } catch (e) {
