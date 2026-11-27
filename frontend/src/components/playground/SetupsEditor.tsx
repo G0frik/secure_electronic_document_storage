@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, Copy, Trash2 } from "@/components/icons";
 import type { Catalog, Defense, Setup } from "@/api/playground";
 import { defaultSetup, setupName } from "@/components/playground/setups";
@@ -101,9 +101,10 @@ export default function SetupsEditor({ catalog, setups, onChange }: Props) {
                 className="btn btn-sm btn-ghost btn-icon"
                 title="Duplicate"
                 aria-label={`Duplicate setup ${i + 1}`}
-                onClick={() =>
-                  onChange([...setups.slice(0, i + 1), { ...s }, ...setups.slice(i + 1)])
-                }
+                onClick={() => {
+                  setOpen(null);
+                  onChange([...setups.slice(0, i + 1), { ...s }, ...setups.slice(i + 1)]);
+                }}
               >
                 <Copy size={14} />
               </button>
@@ -113,7 +114,10 @@ export default function SetupsEditor({ catalog, setups, onChange }: Props) {
                 title="Remove"
                 aria-label={`Remove setup ${i + 1}`}
                 disabled={setups.length === 1}
-                onClick={() => onChange(setups.filter((_, j) => j !== i))}
+                onClick={() => {
+                  setOpen(null);
+                  onChange(setups.filter((_, j) => j !== i));
+                }}
               >
                 <Trash2 size={14} />
               </button>
@@ -262,6 +266,13 @@ function NumberField({
   min?: number;
   max?: number;
 }) {
+  // keep the typed text while editing; the setup gets a number (or null when left empty)
+  const [raw, setRaw] = useState(value == null ? "" : String(value));
+  useEffect(() => {
+    setRaw((cur) =>
+      cur !== "" && Number(cur) === value ? cur : value == null ? "" : String(value),
+    );
+  }, [value]);
   return (
     <label className="field">
       <span className="field-label">{label}</span>
@@ -271,8 +282,16 @@ function NumberField({
         step={step}
         min={min}
         max={max}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        value={raw}
+        onChange={(e) => {
+          setRaw(e.target.value);
+          if (e.target.value !== "" && !Number.isNaN(Number(e.target.value))) {
+            onChange(Number(e.target.value));
+          }
+        }}
+        onBlur={() => {
+          if (raw === "") onChange(null);
+        }}
       />
     </label>
   );
