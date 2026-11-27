@@ -59,3 +59,8 @@ def test_llm_request_version_default_unchanged_and_thinking_separate() -> None:
     assert rv(temperature=0.0, top_p=None) == old
     assert rv(temperature=0.7) != old
     assert rv(top_p=0.9) != old
+    assert (
+        rv(temperature=0.7)
+        != LlmEngine("http://x", "m", "classify_v1", 7, temperature=0.7).request_version
+    )
+    assert rv(prompt_text="A {document}") != rv(prompt_text="B {document}")

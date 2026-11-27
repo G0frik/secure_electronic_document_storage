@@ -92,9 +92,12 @@ class LlmEngine:
         self.model = model
         self.prompt_version = prompt_version
         # prompt_text: an edited prompt (admin playground); it must contain {document}
-        if prompt_text is None:
-            prompt_text = (PROMPTS_DIR / f"{prompt_version}.txt").read_text(encoding="utf-8")
-        self.prompt = prompt_text
+        edited = prompt_text is not None
+        self.prompt = (
+            prompt_text
+            if prompt_text is not None
+            else (PROMPTS_DIR / f"{prompt_version}.txt").read_text(encoding="utf-8")
+        )
         if "{document}" not in self.prompt:
             raise ValueError("prompt has no {document} placeholder")
         self.seed = seed
@@ -109,8 +112,10 @@ class LlmEngine:
         parts: list[Any] = [LLM_SCHEMA, max_tokens]
         if self.template_kwargs != {"enable_thinking": False}:
             parts.append(self.template_kwargs)
-        if temperature != 0.0 or top_p is not None:
-            parts.append({"temperature": temperature, "top_p": top_p})
+        if temperature != 0.0 or top_p is not None:  # sampling: the seed changes the answer too
+            parts.append({"temperature": temperature, "top_p": top_p, "seed": seed})
+        if edited:
+            parts.append(hashlib.sha256(self.prompt.encode()).hexdigest()[:12])
         self.request_version = hashlib.sha256(
             json.dumps(parts, sort_keys=True).encode()
         ).hexdigest()[:8]

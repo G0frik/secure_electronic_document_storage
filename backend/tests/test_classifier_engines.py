@@ -238,6 +238,12 @@ def test_llm_settings_reach_the_request() -> None:
     assert result.final_tier == Tier.INTERNAL
     stored = pipeline.classifier_config(cfg)
     assert stored["prompt"] == "custom" and stored["temperature"] == 0.7 and "seed" in stored
+    assert len(stored["prompt_sha256"]) == 12
+
+
+def test_unknown_engine_is_rejected() -> None:
+    with pytest.raises(ValueError, match="engine"):
+        pipeline.ClassifierConfig(engine="LLM")  # type: ignore[arg-type]
 
 
 def test_custom_prompt_needs_the_document_placeholder() -> None:
@@ -272,7 +278,8 @@ def test_remote_nli_without_windows_reads_the_first_window_only() -> None:
     cfg = pipeline.ClassifierConfig(nli_url=NLI_URL, nli_windows=False, presidio=False)
     result = pipeline.classify("word " * 900, cfg)
     assert len(responses.calls) == 1 and result.final_tier == Tier.PUBLIC
-    assert pipeline.classifier_config(cfg)["windows"] is False
+    stored = pipeline.classifier_config(cfg)
+    assert stored["windows"] is False and stored["remote"] is True
 
 
 def test_another_detector_does_not_replace_the_service_one(monkeypatch) -> None:
