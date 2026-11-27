@@ -1554,3 +1554,13 @@ code,
 .pg-history-open:hover .text-strong {
   text-decoration: underline;
 }
+.pg-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.pg-presets [aria-pressed="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}

@@ -72,6 +72,19 @@ Other local endpoints (bound to 127.0.0.1):
 | Vault UI      | https://localhost:8200  |
 | Postgres      | localhost:5432          |
 
+### Admin classifier playground
+
+A sandbox for comparing classifiers on one document. It exists only when the stack is started in playground mode:
+
+```bash
+make playground        # host: llama-server router (:18080) + GPU NLI server (:18081); stack with PLAYGROUND=1
+make playground-down   # back to the normal stack, host servers stopped
+```
+
+Admins then get **Playground** in the sidebar (`/admin/playground`): pick a corpus document, any stored file (audited) or typed text, apply an attack (A1–A7, payloads editable), see the original and attacked document as a reader sees it and as the classifier reads it, and run a grid of setups side by side (NLI or any local LLM, prompt and sampling settings, defenses D1/D2/D4/D6, Presidio on/off, optional one-sentence explanations). Runs are kept with encrypted copies of their documents and can be reopened or rerun; *Case examples* load ready-made runs with their recorded results. Runs never change a real file's tier, classification or access.
+
+Needs the local models and llama.cpp build described in `backend/research/README.md`; without them the page still opens and reports which server is missing.
+
 ## Development
 
 The `Makefile` wraps the common commands:

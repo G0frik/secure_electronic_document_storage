@@ -31,6 +31,7 @@ import {
   type Input,
   type Lang,
   type PickFile,
+  type Preset,
   type RunDetail,
   type RunSummary,
   type SavedSetup,
@@ -85,6 +86,7 @@ export default function AdminPlaygroundPage() {
   // setups and run
   const [setups, setSetups] = useState<Setup[]>([]);
   const [explain, setExplain] = useState(false);
+  const [preset, setPreset] = useState<Preset | null>(null);
   const [run, setRun] = useState<RunDetail | null>(null);
   const [runDocs, setRunDocs] = useState<{ input?: DocPayload; attacked?: DocPayload }>({});
   const [starting, setStarting] = useState(false);
@@ -170,7 +172,7 @@ export default function AdminPlaygroundPage() {
     if (!input) return;
     setStarting(true);
     try {
-      const r = await createRun({ input, attack, setups, explain });
+      const r = await createRun({ input, attack, setups, explain, preset: preset?.id ?? null });
       setRun(r);
       setRunDocs({});
       toast.success("Run started", `${setups.length} setups; results fill in as they finish.`);
@@ -245,6 +247,45 @@ export default function AdminPlaygroundPage() {
       </div>
 
       <ServerStatus catalog={catalog} />
+
+      {catalog.presets.length > 0 && (
+        <div className="card" style={{ marginBottom: "var(--space-4)" }}>
+          <div className="card-header row row-between">
+            <span>Case examples</span>
+            <span className="text-small text-muted">
+              One click loads the research file, the attack and the setups with their recorded
+              results
+            </span>
+          </div>
+          <div className="card-body stack stack-3">
+            <div className="pg-presets">
+              {catalog.presets.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="btn btn-sm"
+                  aria-pressed={preset?.id === p.id}
+                  onClick={() => {
+                    setPreset(p);
+                    setTab("corpus");
+                    setCorpusRef(p.corpus_ref);
+                    setAttack(p.attack);
+                    setSetups(p.setups);
+                    setExplain(p.explain);
+                  }}
+                >
+                  {p.title}
+                </button>
+              ))}
+            </div>
+            {preset && (
+              <p className="text-small" style={{ margin: 0 }}>
+                {preset.summary}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="pg-grid">
         <div className="stack stack-4">
