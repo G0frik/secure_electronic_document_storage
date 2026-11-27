@@ -43,7 +43,7 @@ celery.conf.update(
         Queue("cleanup"),
         Queue("notify"),
         Queue("default"),
-        Queue("playground"),  # consumed only by the playground worker
+        Queue("playground"),  # type: ignore[no-untyped-call]  # playground worker only
     ),
     task_default_queue="default",
 )

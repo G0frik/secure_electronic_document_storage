@@ -8,7 +8,7 @@ from app.app_factory import create_app
 from app.tasks.celery_app import celery
 
 
-@celery.task(name="playground.run", queue="playground")
+@celery.task(name="playground.run", queue="playground")  # type: ignore[misc]
 def run_playground(run_id: str) -> str:
     app = create_app()
     with app.app_context():

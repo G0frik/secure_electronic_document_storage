@@ -182,7 +182,9 @@ def test_any_users_file_can_be_used_and_is_audited(pg_client, admin, db_session,
 
     from app.services import files
 
-    upload = FileStorage(io.BytesIO(SECRET.encode()), filename="note.txt", content_type="text/plain")
+    upload = FileStorage(
+        io.BytesIO(SECRET.encode()), filename="note.txt", content_type="text/plain"
+    )
     record = files.create_from_upload(owner=seeded_user, uploaded=upload)
     listed = pg_client.get("/api/admin/playground/files?q=note").json["items"]
     assert [f["owner"] for f in listed] == [seeded_user.email]
@@ -275,7 +277,9 @@ def test_a7_pdf_hides_everything_but_a_harmless_line() -> None:
 
 def test_a6_obfuscates_identifiers() -> None:
     text = "Client IBAN UA213223130000026007233566001, phone +380 44 123 45 67."
-    out = attacks.apply(_text_doc(text), text, attacks.AttackSpec(attack="A6", carrier="separators"))
+    out = attacks.apply(
+        _text_doc(text), text, attacks.AttackSpec(attack="A6", carrier="separators")
+    )
     assert "UA213223130000026007233566001" not in out.data.decode()
 
 

@@ -7,7 +7,7 @@ import uuid
 from typing import Any
 
 from flask import Blueprint, Response, abort, jsonify, request
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -28,7 +28,7 @@ def _actor() -> Any:
     return actor
 
 
-def _parse(model: type, body: Any) -> Any:
+def _parse(model: type[BaseModel], body: Any) -> Any:
     try:
         return model.model_validate(body or {})
     except ValidationError as exc:
@@ -153,7 +153,9 @@ def delete_run(run_id: uuid.UUID):  # type: ignore[no-untyped-def]
 @admin_required
 def list_setups():  # type: ignore[no-untyped-def]
     rows = db.session.scalars(select(PlaygroundSetup).order_by(PlaygroundSetup.name))
-    return jsonify({"items": [{"id": str(s.id), "name": s.name, "rows": s.rows} for s in rows]}), 200
+    return jsonify(
+        {"items": [{"id": str(s.id), "name": s.name, "rows": s.rows} for s in rows]}
+    ), 200
 
 
 @bp.post("/setups")

@@ -174,7 +174,9 @@ def _spec(req: DocumentRequest, lang: str) -> attacks.AttackSpec:
     )  # fmt: skip
 
 
-def build(req: DocumentRequest, actor: User) -> tuple[attacks.Doc, attacks.Doc, str, dict[str, Any]]:
+def build(
+    req: DocumentRequest, actor: User
+) -> tuple[attacks.Doc, attacks.Doc, str, dict[str, Any]]:
     """(input, attacked, how the attacked one was made, input info)."""
     doc, info = resolve_input(req.input, actor)
     spec = _spec(req, info["lang"])
@@ -256,7 +258,9 @@ def get_run(run_id: uuid.UUID) -> PlaygroundRun | None:
 
 
 def list_runs(limit: int = 50, offset: int = 0) -> list[PlaygroundRun]:
-    stmt = select(PlaygroundRun).order_by(PlaygroundRun.created_at.desc()).limit(limit).offset(offset)
+    stmt = (
+        select(PlaygroundRun).order_by(PlaygroundRun.created_at.desc()).limit(limit).offset(offset)
+    )
     return list(db.session.scalars(stmt))
 
 
@@ -398,7 +402,7 @@ def execute(run_id: uuid.UUID) -> str:
             row.latency_ms = int((time.perf_counter() - t0) * 1000)
             if run.explain and setup.engine == "llm":
                 try:
-                    ex = explain(setup, text_views.full)
+                    ex: dict[str, Any] = dict(explain(setup, text_views.full))
                     ex["same_tier"] = ex["tier"] == res.zero_shot_tier.value
                     row.explanation = ex
                 except Exception as exc:  # noqa: BLE001 — the tier stands without an explanation

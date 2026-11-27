@@ -132,6 +132,11 @@ ignore_missing_imports = true
 module = ["tests.*", "migrations.*"]
 disallow_untyped_defs = false
 
+# The admin playground imports research code lazily; `mypy app/` checks the app, not research.
+[[tool.mypy.overrides]]
+module = ["research.*"]
+follow_imports = "skip"
+
 # --- Pytest ---
 [tool.pytest.ini_options]
 testpaths = ["tests"]
