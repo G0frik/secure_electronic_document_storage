@@ -1,4 +1,4 @@
-.PHONY: up down logs build migrate revision shell-backend shell-db test coverage seed-dev seed-demo ensure-test-db lint format clean certs research
+.PHONY: up down logs build migrate revision shell-backend shell-db test coverage seed-dev seed-demo ensure-test-db lint format clean certs research playground playground-down
 
 # `docker compose up` runs this automatically; the target is kept for
 # regenerating after deleting docker/nginx/certs/selfsigned.*.
@@ -74,3 +74,15 @@ LLM_MODELS_DIR ?= $(HOME)/llm/models
 research:
 	docker compose run --rm --no-deps -e GIT_COMMIT=$$(git describe --always --dirty) \
 	  -v "$(LLM_MODELS_DIR):/models:ro" worker python -m research.$(MOD) $(ARGS)
+
+# Admin playground: LLM router + GPU NLI server on the host, stack with the playground API and worker.
+# `make up` / `docker compose up` start the stack without it.
+PLAYGROUND_COMPOSE = docker compose -f docker-compose.yml -f docker-compose.playground.yml
+playground:
+	python backend/research/playground_host.py start
+	$(PLAYGROUND_COMPOSE) up -d
+
+playground-down:
+	$(PLAYGROUND_COMPOSE) rm -sf playground-worker
+	docker compose up -d backend
+	python backend/research/playground_host.py stop

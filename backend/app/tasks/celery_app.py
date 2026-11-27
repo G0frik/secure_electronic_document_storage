@@ -24,6 +24,7 @@ celery = Celery(
         "app.tasks.classification",
         "app.tasks.cleanup",
         "app.tasks.notifications",
+        "app.tasks.playground",
     ],
 )
 
@@ -42,6 +43,7 @@ celery.conf.update(
         Queue("cleanup"),
         Queue("notify"),
         Queue("default"),
+        Queue("playground"),  # consumed only by the playground worker
     ),
     task_default_queue="default",
 )

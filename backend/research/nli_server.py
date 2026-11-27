@@ -6,6 +6,7 @@ Needs a host venv with `optimum`, `onnxruntime-directml` and `transformers`; it 
     python backend/research/nli_server.py [--port 8081] [--onnx-dir ~/.cache/doc_classifier_onnx]
 
 POST /zero-shot {"model", "text", "labels", "template", "multi_label"} -> {"scores": {label: score}}
+POST /unload -> drop every loaded model (frees VRAM for an LLM; the admin playground calls it)
 GET  /health -> onnxruntime version, providers, loaded models
 
 The container side (research.engines.NliEngine with --nli-url) truncates the text and maps scores to a tier
@@ -59,6 +60,12 @@ class Handler(BaseHTTPRequestHandler):
                          "onnx_dir": str(ONNX_DIR), "loaded": sorted(_pipes)})  # fmt: skip
 
     def do_POST(self) -> None:  # noqa: N802 - http.server API
+        if self.path.rstrip("/") == "/unload":
+            with _lock:
+                dropped = sorted(_pipes)
+                _pipes.clear()
+            self._send(200, {"unloaded": dropped})
+            return
         try:
             req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             with _lock:
