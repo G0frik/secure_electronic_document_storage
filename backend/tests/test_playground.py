@@ -92,6 +92,10 @@ def test_no_playground_routes_in_normal_mode(monkeypatch, seeded_admin) -> None:
     assert client.get("/api/admin/playground/catalog").status_code == 404
 
 
+def test_status_tells_the_spa_the_playground_exists(pg_client, admin) -> None:
+    assert pg_client.get("/api/admin/playground/status").json == {"enabled": True}
+
+
 def test_playground_is_admin_only(pg_client, seeded_user) -> None:
     _login(pg_client, seeded_user.email, "AlicePassword123!")
     assert pg_client.get("/api/admin/playground/runs").status_code == 403

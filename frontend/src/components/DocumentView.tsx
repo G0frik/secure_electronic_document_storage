@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { fetchPreviewDocument } from "@/api/files";
 
 interface Props {
-  fileId: string;
+  /** A stored file (fetched from the preview endpoint), or ... */
+  fileId?: string;
+  /** ... bytes the caller already has (the admin playground). */
+  data?: ArrayBuffer;
   kind: "pdf" | "docx";
 }
 
@@ -51,7 +54,7 @@ async function renderDocx(data: ArrayBuffer, host: HTMLElement): Promise<void> {
 }
 
 /** The file rendered the way a reader sees it (pages, tables, fonts), not as extracted text. */
-export default function DocumentView({ fileId, kind }: Props) {
+export default function DocumentView({ fileId, data, kind }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [note, setNote] = useState("");
@@ -63,16 +66,18 @@ export default function DocumentView({ fileId, kind }: Props) {
     el.replaceChildren();
     setStatus("loading");
     setNote("");
-    fetchPreviewDocument(fileId)
-      .then(async (data) => {
+    // pdf.js detaches the buffer it is given, so render from a copy of caller-owned bytes
+    const load = data ? Promise.resolve(data.slice(0)) : fetchPreviewDocument(fileId ?? "");
+    load
+      .then(async (bytes) => {
         if (cancelled) return;
         if (kind === "pdf") {
-          const total = await renderPdf(data, el);
+          const total = await renderPdf(bytes, el);
           if (total > MAX_PDF_PAGES) {
             setNote(`Showing the first ${MAX_PDF_PAGES} of ${total} pages. Download to see all.`);
           }
         } else {
-          await renderDocx(data, el);
+          await renderDocx(bytes, el);
         }
         if (!cancelled) setStatus("ready");
       })
@@ -85,12 +90,14 @@ export default function DocumentView({ fileId, kind }: Props) {
       cancelled = true;
       el.replaceChildren();
     };
-  }, [fileId, kind]);
+  }, [fileId, data, kind]);
 
   return (
     <div>
       {status === "loading" && <p className="text-muted">Rendering document…</p>}
-      {note && <p className={status === "error" ? "field-error" : "text-small text-muted"}>{note}</p>}
+      {note && (
+        <p className={status === "error" ? "field-error" : "text-small text-muted"}>{note}</p>
+      )}
       <div ref={host} className="document-view" />
     </div>
   );

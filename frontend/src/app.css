@@ -1375,3 +1375,182 @@ code,
   margin-bottom: var(--space-4);
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
 }
+
+/* ============================================================
+ * Admin playground
+ * ============================================================ */
+
+.pg-page {
+  max-width: 1400px;
+}
+.pg-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .pg-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.pg-warning {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.875rem;
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+  border-radius: var(--radius-md);
+}
+.pg-preview-card {
+  position: sticky;
+  top: var(--space-4);
+}
+.pg-preview {
+  max-height: 70vh;
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+.pg-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-ink);
+}
+.pg-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+.pg-list-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-line);
+  cursor: pointer;
+}
+.pg-list-item:last-child {
+  border-bottom: none;
+}
+.pg-list-item:hover {
+  background: var(--color-row-hover);
+}
+.pg-list-item[aria-selected="true"] {
+  background: var(--color-accent-soft);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+.pg-setup {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.pg-setup-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+}
+.pg-setup-main > .select {
+  width: auto;
+  min-width: 7rem;
+}
+.pg-setup-index {
+  width: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+.pg-defenses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.pg-chip {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  padding: 2px var(--space-2);
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+.pg-chip:has(input:checked) {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+.pg-chip[data-off="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pg-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface-2);
+}
+.card-body > .stack > .pg-settings,
+.card-body .stack > .pg-settings {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+.pg-prompt {
+  min-height: 160px;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+.pg-result-row {
+  cursor: pointer;
+}
+.pg-result-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+.pg-results td .badge + .text-small {
+  white-space: nowrap;
+}
+.pg-detail td {
+  background: var(--color-surface-2);
+}
+.pg-history-item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+.pg-history-open {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  font: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pg-history-open:hover .text-strong {
+  text-decoration: underline;
+}

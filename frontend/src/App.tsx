@@ -4,6 +4,7 @@ import AdminDepartmentsPage from "@/pages/admin/AdminDepartmentsPage";
 import AdminEventsPage from "@/pages/admin/AdminEventsPage";
 import AdminGroupsPage from "@/pages/admin/AdminGroupsPage";
 import AdminHomePage from "@/pages/admin/AdminHomePage";
+import AdminPlaygroundPage from "@/pages/admin/AdminPlaygroundPage";
 import AdminPoliciesPage from "@/pages/admin/AdminPoliciesPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import FoldersPage from "@/pages/FoldersPage";
@@ -121,6 +122,16 @@ export default function App() {
           <AdminRoute>
             <AppShell>
               <AdminPoliciesPage />
+            </AppShell>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/playground"
+        element={
+          <AdminRoute>
+            <AppShell>
+              <AdminPlaygroundPage />
             </AppShell>
           </AdminRoute>
         }
