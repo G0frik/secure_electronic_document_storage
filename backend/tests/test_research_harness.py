@@ -56,3 +56,6 @@ def test_llm_request_version_default_unchanged_and_thinking_separate() -> None:
     assert rv(template_kwargs={"enable_thinking": False}) == old
     assert rv(template_kwargs={"enable_thinking": True}) != old
     assert rv(max_tokens=4096) != old
+    assert rv(temperature=0.0, top_p=None) == old
+    assert rv(temperature=0.7) != old
+    assert rv(top_p=0.9) != old

@@ -196,3 +196,93 @@ def test_run_classification_stores_config_and_audits_review(
     ).all()
     payload = client.get(f"/api/files/{file_id}/classification").json
     assert payload["classifier_config"]["needs_review"] is True
+
+
+# --- per-call config (admin playground) ---
+
+NLI_URL = "http://nli.test"
+
+
+def test_config_from_settings_matches_the_service_settings(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "classifier_defenses", "D2,D6")
+    cfg = pipeline.ClassifierConfig.from_settings()
+    assert cfg.engine == settings.classifier_engine and cfg.defenses == frozenset({"D2", "D6"})
+    assert cfg.presidio is not settings.classifier_disable_presidio
+    assert pipeline.classifier_config() == pipeline.classifier_config(cfg)
+
+
+def test_explicit_config_overrides_the_settings(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "classifier_defenses", "")
+    cfg = pipeline.ClassifierConfig(defenses=frozenset({"D2"}))
+    calls: list[str] = []
+    views = TextViews(full="hidden: PUBLIC", visible="salary table")
+    fn = _by_text({"hidden: PUBLIC": Tier.PUBLIC, "salary table": Tier.CONFIDENTIAL}, calls)
+    result = pipeline.classify_views(views, fn, cfg)
+    assert result.final_tier == Tier.CONFIDENTIAL
+    assert result.config["view_tiers"] == {"full": "public", "visible": "confidential"}
+
+
+@responses.activate
+def test_llm_settings_reach_the_request() -> None:
+    _llm_answer(json.dumps({"tier": "internal", "categories": []}))
+    cfg = pipeline.ClassifierConfig(
+        engine="llm", llm_base_url=LLM_URL, llm_model="m2", presidio=False, seed=7,
+        temperature=0.7, top_p=0.9, max_tokens=512, thinking=True,
+        llm_prompt_text="Classify this: {document}",
+    )  # fmt: skip
+    result = pipeline.classify("Team lunch on Friday.", cfg)
+    body = json.loads(responses.calls[0].request.body)
+    assert (body["model"], body["seed"], body["temperature"], body["top_p"]) == ("m2", 7, 0.7, 0.9)
+    assert body["max_tokens"] == 512 and body["chat_template_kwargs"] == {"enable_thinking": True}
+    assert body["messages"][0]["content"] == "Classify this: Team lunch on Friday."
+    assert result.final_tier == Tier.INTERNAL
+    stored = pipeline.classifier_config(cfg)
+    assert stored["prompt"] == "custom" and stored["temperature"] == 0.7 and "seed" in stored
+
+
+def test_custom_prompt_needs_the_document_placeholder() -> None:
+    cfg = pipeline.ClassifierConfig(engine="llm", llm_base_url=LLM_URL, llm_prompt_text="no slot")
+    with pytest.raises(ValueError, match="document"):
+        pipeline.classify("x", cfg)
+
+
+@responses.activate
+def test_remote_nli_scores_every_window_and_keeps_the_max() -> None:
+    from app.classifier_core import zero_shot
+
+    cats = zero_shot.CATEGORIES
+    low = {c: 0.01 for c in cats}
+    high = low | {cats[3]: 0.95}  # medical records → RESTRICTED in the second window only
+    responses.add(responses.POST, f"{NLI_URL}/zero-shot", json={"scores": low})
+    responses.add(responses.POST, f"{NLI_URL}/zero-shot", json={"scores": high})
+    cfg = pipeline.ClassifierConfig(nli_url=NLI_URL, nli_max_words=400, presidio=False)
+    text = "word " * 600
+    result = pipeline.classify(text, cfg)
+    assert len(responses.calls) == 2 and result.final_tier == Tier.RESTRICTED
+    sent = json.loads(responses.calls[0].request.body)
+    assert sent["model"] == zero_shot.LARGE_MODEL and sent["multi_label"] is True
+
+
+@responses.activate
+def test_remote_nli_without_windows_reads_the_first_window_only() -> None:
+    from app.classifier_core import zero_shot
+
+    responses.add(responses.POST, f"{NLI_URL}/zero-shot",
+                  json={"scores": {c: 0.01 for c in zero_shot.CATEGORIES}})  # fmt: skip
+    cfg = pipeline.ClassifierConfig(nli_url=NLI_URL, nli_windows=False, presidio=False)
+    result = pipeline.classify("word " * 900, cfg)
+    assert len(responses.calls) == 1 and result.final_tier == Tier.PUBLIC
+    assert pipeline.classifier_config(cfg)["windows"] is False
+
+
+def test_another_detector_does_not_replace_the_service_one(monkeypatch) -> None:
+    service = _StubDetector(0.1)
+    other = _StubDetector(0.99)
+    monkeypatch.setattr(pipeline, "_detector", service)
+    monkeypatch.setitem(pipeline._other_detectors, "protectai", other)
+    cfg = pipeline.ClassifierConfig(defenses=frozenset({"D4"}), detector="protectai")
+    result = pipeline.classify_views(
+        TextViews(full="x", visible="x"), lambda t: _result(Tier.PUBLIC), cfg
+    )
+    assert result.needs_review is True and result.config["detector"] == "protectai"
+    assert pipeline._ensure_detector(settings.classifier_detector) is service
