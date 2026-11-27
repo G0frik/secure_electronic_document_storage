@@ -109,4 +109,6 @@ def status() -> None:
 
 
 if __name__ == "__main__":
-    {"start": start, "stop": stop, "status": status}[sys.argv[1] if len(sys.argv) > 1 else "status"]()
+    {"start": start, "stop": stop, "status": status}[
+        sys.argv[1] if len(sys.argv) > 1 else "status"
+    ]()

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from flask import Flask
 
-from app.config import settings
-
 from app.api.admin_departments import bp as admin_departments_bp
 from app.api.admin_events import bp as admin_events_bp
 from app.api.admin_files import bp as admin_files_bp
@@ -24,6 +22,7 @@ from app.api.tags import bp as tags_bp
 from app.api.tier_overrides import admin_bp as tier_overrides_admin_bp
 from app.api.tier_overrides import user_bp as tier_overrides_user_bp
 from app.api.trash import bp as trash_bp
+from app.config import settings
 
 
 def register_blueprints(app: Flask) -> None:

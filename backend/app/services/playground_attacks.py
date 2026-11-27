@@ -236,7 +236,9 @@ def apply(doc: Doc, text: str, spec: AttackSpec, *, form: bool = False) -> Doc:
                 from research.corpus.render import to_pdf
 
                 path = tmp / f"{stem}.pdf"
-                to_pdf(_blocks(text, form), path, extra=a.pdf_carrier(spec.carrier, payload_text(spec)))
+                to_pdf(
+                    _blocks(text, form), path, extra=a.pdf_carrier(spec.carrier, payload_text(spec))
+                )
                 if spec.carrier == "cropbox":
                     a.crop_top(path)
                 return _doc(path)
