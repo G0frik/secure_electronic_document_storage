@@ -99,7 +99,9 @@ def corpus_index() -> list[dict[str, str]]:
     """Source documents: pair_id, lang, tier, group, words, ref (relative path of the .md)."""
     out = []
     for d in corpus_dirs():
-        for r in csv.DictReader((d / "labels.csv").open(encoding="utf-8")):
+        with (d / "labels.csv").open(encoding="utf-8") as f:
+            labels = list(csv.DictReader(f))
+        for r in labels:
             path = d / r["folder"] / f"{r['pair_id']}.{r['lang']}.md"
             if path.exists():
                 out.append({
@@ -125,7 +127,8 @@ def _variants() -> list[dict[str, str]]:
     manifest = VARIANTS_DIR / "manifest.csv"
     if not manifest.exists():
         return []
-    return list(csv.DictReader(manifest.open(encoding="utf-8")))
+    with manifest.open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
 
 
 def research_variant(pair_id: str, lang: str, spec: AttackSpec) -> Path | None:

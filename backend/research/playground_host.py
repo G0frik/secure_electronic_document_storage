@@ -73,7 +73,10 @@ def spawn(cmd: list[str], log: Path) -> int:
 
 def start() -> None:
     STATE.mkdir(parents=True, exist_ok=True)
-    pids: dict[str, int] = {}
+    pids_file = STATE / "pids.json"
+    pids: dict[str, int] = (
+        json.loads(pids_file.read_text(encoding="utf-8")) if pids_file.exists() else {}
+    )
     if not up(f"http://127.0.0.1:{LLM_PORT}/models"):
         ini = STATE / "presets.ini"
         ini.write_text(presets_ini(), encoding="utf-8")
@@ -83,8 +86,8 @@ def start() -> None:
     if not up(f"http://127.0.0.1:{NLI_PORT}/"):
         pids["nli"] = spawn([str(VENV_PY), str(HERE / "nli_server.py"), "--port", str(NLI_PORT)],
                             STATE / "nli_server.log")  # fmt: skip
-    if pids:
-        (STATE / "pids.json").write_text(json.dumps(pids), encoding="utf-8")
+    if pids:  # keeps the PIDs of servers started earlier, so stop() kills both
+        pids_file.write_text(json.dumps(pids), encoding="utf-8")
     for _ in range(60):
         if up(f"http://127.0.0.1:{LLM_PORT}/models") and up(f"http://127.0.0.1:{NLI_PORT}/"):
             print(f"playground host ready: LLM router :{LLM_PORT}, NLI server :{NLI_PORT}")

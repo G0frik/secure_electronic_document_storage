@@ -83,8 +83,12 @@ def _stub_classifier(monkeypatch, tier: Tier = Tier.PUBLIC) -> list[str]:  # typ
 # --- launch mode and access ---
 
 
-def test_no_playground_routes_in_normal_mode(client, logged_in_admin) -> None:
-    assert settings.playground is False
+def test_no_playground_routes_in_normal_mode(monkeypatch, seeded_admin) -> None:
+    monkeypatch.setattr(settings, "playground", False)
+    app = create_app()
+    app.config.update(TESTING=True, RATELIMIT_ENABLED=False)
+    client = app.test_client()
+    _login(client, seeded_admin.email, "AdminPassword123!")
     assert client.get("/api/admin/playground/catalog").status_code == 404
 
 
@@ -309,3 +313,83 @@ def test_research_variant_is_used_for_a_matching_corpus_attack(tmp_path, monkeyp
         assert attacks.research_variant("res_x", "en", edited) is None
     finally:
         attacks._variants.cache_clear()
+
+
+# --- review fixes ---
+
+
+def _upload(owner, name: str, data: bytes, ctype: str):  # type: ignore[no-untyped-def]
+    from werkzeug.datastructures import FileStorage
+
+    from app.services import files
+
+    return files.create_from_upload(
+        owner=owner, uploaded=FileStorage(io.BytesIO(data), filename=name, content_type=ctype)
+    )
+
+
+def test_file_list_filters_types_in_sql_and_escapes_the_query(pg_client, admin, seeded_user,
+                                                              monkeypatch) -> None:  # fmt: skip
+    _upload(seeded_user, "my_report.txt", b"one", "text/plain")
+    _upload(seeded_user, "myXreport.txt", b"two", "text/plain")
+    _upload(seeded_user, "photo.csv", b"a,b", "text/csv")
+    names = [f["filename"] for f in pg_client.get("/api/admin/playground/files").json["items"]]
+    assert "photo.csv" not in names and len(names) == 2
+    hits = pg_client.get("/api/admin/playground/files?q=my_report").json["items"]
+    assert [f["filename"] for f in hits] == ["my_report.txt"]
+
+
+def test_file_input_runs_the_policy_check_and_audits_the_download(pg_client, admin, db_session,
+                                                                  seeded_user, monkeypatch) -> None:  # fmt: skip
+    record = _upload(seeded_user, "n.txt", SECRET.encode(), "text/plain")
+    _stub_classifier(monkeypatch)
+    body = _run_body(input={"kind": "file", "file_id": str(record.id)})
+    assert pg_client.post("/api/admin/playground/runs", json=body,
+                          headers={"X-CSRF-Token": admin}).status_code == 202  # fmt: skip
+    actions = {a.action_type for a in db_session.scalars(select(AuditLog))}
+    assert {"file.downloaded", "playground.file_used"} <= actions
+
+
+def test_unreadable_document_is_a_400(pg_client, admin, seeded_user) -> None:
+    record = _upload(seeded_user, "broken.docx", b"not a zip at all", attacks.DOCX)
+    body = _run_body(input={"kind": "file", "file_id": str(record.id)})
+    r = pg_client.post("/api/admin/playground/runs", json=body, headers={"X-CSRF-Token": admin})
+    assert r.status_code == 400 and "Could not read" in r.json["message"]
+
+
+def test_an_aborted_run_is_marked_failed(pg_client, admin, db_session, monkeypatch) -> None:
+    _stub_classifier(monkeypatch)
+    r = pg_client.post("/api/admin/playground/runs", json=_run_body(),
+                       headers={"X-CSRF-Token": admin})  # fmt: skip
+
+    def boom(run, views):  # type: ignore[no-untyped-def]
+        raise RuntimeError("worker lost the database")
+
+    monkeypatch.setattr(playground, "_execute_rows", boom)
+    assert playground.execute(uuid.UUID(r.json["id"])) == "failed"
+    rows = db_session.scalars(select(PlaygroundRow)).all()
+    assert {row.status for row in rows} == {"failed"} and "run aborted" in rows[0].error
+
+
+def test_failed_commit_leaves_no_stored_documents(pg_client, admin, monkeypatch) -> None:
+    from app.extensions import db
+
+    def fail() -> None:
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(db.session, "commit", fail)
+    r = pg_client.post("/api/admin/playground/runs", json=_run_body(),
+                       headers={"X-CSRF-Token": admin})  # fmt: skip
+    assert r.status_code == 500
+    assert not any(k.startswith("playground/") for k in storage.list_keys())
+
+
+def test_deleting_a_saved_setup_is_audited(pg_client, admin, db_session) -> None:
+    body = {"name": "tmp", "rows": [_nli_row()]}
+    sid = pg_client.post("/api/admin/playground/setups", json=body,
+                         headers={"X-CSRF-Token": admin}).json["id"]  # fmt: skip
+    assert pg_client.delete(f"/api/admin/playground/setups/{sid}",
+                            headers={"X-CSRF-Token": admin}).status_code == 204  # fmt: skip
+    assert db_session.scalars(
+        select(AuditLog).where(AuditLog.action_type == "playground.setup_deleted")
+    ).all()

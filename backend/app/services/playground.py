@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import requests
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.classifier_core import zero_shot
 from app.classifier_core.llm import CATEGORY_NAMES, LLM_MAX_WORDS, PROMPTS_DIR, _truncate
@@ -26,7 +26,7 @@ from app.models.file import File
 from app.models.playground import PlaygroundDocument, PlaygroundRow, PlaygroundRun
 from app.models.user import User
 from app.schemas.playground import DocumentRequest, InputIn, RunCreateRequest, SetupSpec
-from app.services import audit, crypto, files, storage
+from app.services import audit, crypto, files, policy, storage
 from app.services import playground_attacks as attacks
 
 log = get_logger(__name__)
@@ -114,6 +114,20 @@ def _store(run: PlaygroundRun, kind: str, doc: attacks.Doc) -> PlaygroundDocumen
     return row
 
 
+def _commit_with_documents(run: PlaygroundRun, docs: list[tuple[str, attacks.Doc]]) -> None:
+    """Upload the run's documents and commit; on failure no object is left without its row."""
+    stored: list[str] = []
+    try:
+        for kind, doc in docs:
+            stored.append(_store(run, kind, doc).storage_key)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        for key in stored:
+            storage.delete(key)
+        raise
+
+
 def load(doc: PlaygroundDocument) -> attacks.Doc:
     response = storage.get(doc.storage_key)
     try:
@@ -131,7 +145,10 @@ def load(doc: PlaygroundDocument) -> attacks.Doc:
 def views(doc: attacks.Doc) -> dict[str, str]:
     from app.classifier_core.extract import get_views_bytes
 
-    v = get_views_bytes(doc.data, doc.filename)
+    try:
+        v = get_views_bytes(doc.data, doc.filename)
+    except Exception as exc:  # noqa: BLE001 — pdf/docx parsers raise varied types
+        raise PlaygroundError(f"Could not read {doc.filename}: {type(exc).__name__}") from exc
     return {"full": v.full, "visible": v.visible}
 
 
@@ -147,7 +164,10 @@ def resolve_input(spec: InputIn, actor: User) -> tuple[attacks.Doc, dict[str, An
         ext = "." + record.original_filename.rsplit(".", 1)[-1].lower()
         if ext not in DOC_TYPES:
             raise PlaygroundError("The playground takes PDF, DOCX, TXT and MD files.")
-        data = b"".join(files.stream_download(record, actor=actor, emit_audit=False))
+        decision = policy.can_user_access(actor, record)  # recorded like any download
+        if not decision.allowed:
+            raise PlaygroundError(f"Access denied by policy ({decision.reason}).")
+        data = b"".join(files.stream_download(record, actor=actor))
         audit.record(
             "playground.file_used", actor=actor, target_type="file", target_id=record.id,
             metadata={"filename": record.original_filename, "owner_id": str(record.owner_id)},
@@ -212,12 +232,10 @@ def create_run(req: RunCreateRequest, actor: User) -> PlaygroundRun:
         explain=req.explain, preset=req.preset, status="pending",
     )  # fmt: skip
     db.session.add(run)
-    _store(run, "input", doc)
-    _store(run, "attacked", attacked)
     for i, s in enumerate(req.setups):
         db.session.add(PlaygroundRow(run_id=run.id, position=i, setup=s.model_dump(),
                                      status="pending"))  # fmt: skip
-    db.session.commit()
+    _commit_with_documents(run, [("input", doc), ("attacked", attacked)])
     audit.record("playground.run_created", actor=actor, target_type="playground_run",
                  target_id=run.id, metadata={"title": run.title, "rows": len(req.setups)})  # fmt: skip
     return run
@@ -230,13 +248,12 @@ def rerun(run: PlaygroundRun, actor: User) -> PlaygroundRun:
         input_ref=run.input_ref, attack=run.attack, attack_source=run.attack_source,
         explain=run.explain, preset=run.preset, status="pending",
     )  # fmt: skip
+    docs = [(d.kind, load(d)) for d in run.documents]
     db.session.add(new)
-    for d in run.documents:
-        _store(new, d.kind, load(d))
     for r in run.rows:
         db.session.add(PlaygroundRow(run_id=new.id, position=r.position, setup=r.setup,
                                      status="pending"))  # fmt: skip
-    db.session.commit()
+    _commit_with_documents(new, docs)
     audit.record("playground.run_created", actor=actor, target_type="playground_run",
                  target_id=new.id, metadata={"title": new.title, "rerun_of": str(run.id)})  # fmt: skip
     return new
@@ -270,13 +287,14 @@ def list_files(query: str, limit: int = 50) -> list[tuple[File, str]]:
         select(File, User.email)
         .join(User, User.id == File.owner_id)
         .where(File.deleted_at.is_(None))
+        .where(or_(*(File.original_filename.ilike(f"%{ext}") for ext in DOC_TYPES)))
         .order_by(File.uploaded_at.desc())
         .limit(limit)
     )
     if query:
-        stmt = stmt.where(File.original_filename.ilike(f"%{query}%"))
-    return [(f, e) for f, e in db.session.execute(stmt).all()
-            if "." + f.original_filename.rsplit(".", 1)[-1].lower() in DOC_TYPES]  # fmt: skip
+        escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        stmt = stmt.where(File.original_filename.ilike(f"%{escaped}%", escape="\\"))
+    return [(f, e) for f, e in db.session.execute(stmt).all()]
 
 
 # ---------- classification (worker) ----------
@@ -367,7 +385,6 @@ def _order(rows: list[PlaygroundRow]) -> list[PlaygroundRow]:
 def execute(run_id: uuid.UUID) -> str:
     """Worker body: classify the attacked document with every pending row's setup."""
     from app.classifier_core.docx_text import TextViews
-    from app.classifier_core.pipeline import classify_views
 
     run = get_run(run_id)
     if run is None:
@@ -386,6 +403,28 @@ def execute(run_id: uuid.UUID) -> str:
         db.session.commit()
         return run.status
     text_views = TextViews(full=v["full"], visible=v["visible"])
+    try:
+        _execute_rows(run, text_views)
+    except Exception as exc:  # noqa: BLE001 — never leave a run "running" (e.g. deleted mid-run)
+        db.session.rollback()
+        log.warning("playground.run_aborted", run_id=str(run_id), error=str(exc))
+        run = get_run(run_id)
+        if run is None:
+            return "deleted"
+        for r in run.rows:
+            if r.status in ("pending", "running"):
+                r.status, r.error = "failed", f"run aborted: {type(exc).__name__}: {exc}"[:2000]
+        run.status = "failed"
+        db.session.commit()
+        return run.status
+    run.status = "failed" if all(r.status == "failed" for r in run.rows) else "done"
+    db.session.commit()
+    return run.status
+
+
+def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
+    from app.classifier_core.pipeline import classify_views
+
     current = ""
     for row in _order([r for r in run.rows if r.status == "pending"]):
         setup = SetupSpec.model_validate(row.setup)
@@ -413,9 +452,6 @@ def execute(run_id: uuid.UUID) -> str:
             row.latency_ms = int((time.perf_counter() - t0) * 1000)
         row.finished_at = datetime.now(UTC)
         db.session.commit()
-    run.status = "failed" if all(r.status == "failed" for r in run.rows) else "done"
-    db.session.commit()
-    return run.status
 
 
 # ---------- payloads ----------
