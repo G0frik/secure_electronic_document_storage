@@ -137,6 +137,16 @@ def run_document(run_id: uuid.UUID):  # type: ignore[no-untyped-def]
     return jsonify(_doc_payload(doc)), 200
 
 
+@bp.get("/runs/<uuid:run_id>/rows/<uuid:row_id>/llm-output")
+@admin_required
+def row_llm_output(run_id: uuid.UUID, row_id: uuid.UUID):  # type: ignore[no-untyped-def]
+    row = next((r for r in _run_or_404(run_id).rows if r.id == row_id), None)
+    items = playground.llm_output(row) if row is not None else None
+    if items is None:
+        abort(404, description="No model output for this row.")
+    return jsonify({"items": items}), 200
+
+
 @bp.post("/runs/<uuid:run_id>/rerun")
 @admin_required
 @csrf.csrf_protect

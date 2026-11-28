@@ -1,6 +1,6 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { Tier } from "@/api/files";
-import type { Row } from "@/api/playground";
+import { apiMessage, fetchLlmOutput, type LlmOutput, type Row } from "@/api/playground";
 import { setupName } from "@/components/playground/setups";
 
 const LABEL: Record<Tier, string> = {
@@ -20,7 +20,7 @@ function seconds(ms: number | null): string {
 }
 
 /** One row per setup: the tiers, what each defense did, time; click a row for the details. */
-export default function ResultsGrid({ rows }: { rows: Row[] }) {
+export default function ResultsGrid({ runId, rows }: { runId: string; rows: Row[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const expected = rows.some((r) => r.setup.expected_tier);
 
@@ -42,7 +42,7 @@ export default function ResultsGrid({ rows }: { rows: Row[] }) {
         </thead>
         <tbody>
           {rows.map((r) => {
-            const res = r.result?.final_tier ? r.result : null; // a failed LLM row keeps only llm_output
+            const res = r.result;
             const views = res?.config.view_tiers;
             const score = res?.config.detector_score;
             const isOpen = open === r.id;
@@ -126,7 +126,7 @@ export default function ResultsGrid({ rows }: { rows: Row[] }) {
                   <tr className="pg-detail">
                     <td />
                     <td colSpan={expected ? 8 : 7}>
-                      <RowDetail row={r} />
+                      <RowDetail runId={runId} row={r} />
                     </td>
                   </tr>
                 )}
@@ -139,7 +139,51 @@ export default function ResultsGrid({ rows }: { rows: Row[] }) {
   );
 }
 
-function RowDetail({ row }: { row: Row }) {
+/** The model's raw answer and reasoning, fetched when the row is opened (they can be long). */
+function LlmOutputs({ runId, rowId }: { runId: string; rowId: string }) {
+  const [items, setItems] = useState<LlmOutput[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchLlmOutput(runId, rowId).then(
+      (v) => !cancelled && setItems(v),
+      (e: unknown) => !cancelled && setError(apiMessage(e, "request failed")),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, rowId]);
+  if (error) return <p className="text-muted">Model's answer could not be loaded: {error}</p>;
+  if (!items) return <p className="text-muted">Loading the model's answer…</p>;
+  return (
+    <>
+      {items.map((o) => (
+        <details key={o.view}>
+          <summary>
+            <strong>Model's answer</strong>
+            {items.length > 1 && ` (${o.view === "full" ? "full text" : "visible text"})`}
+            {o.reasoning ? " and reasoning" : ""}
+            {o.truncated && <span className="text-muted"> · document cut to the word limit</span>}
+          </summary>
+          {o.reasoning && (
+            <>
+              <p className="text-muted" style={{ margin: "var(--space-2) 0 0" }}>
+                Reasoning
+              </p>
+              <pre className="pg-raw">{o.reasoning}</pre>
+            </>
+          )}
+          <p className="text-muted" style={{ margin: "var(--space-2) 0 0" }}>
+            Raw answer
+          </p>
+          <pre className="pg-raw">{o.raw || "(empty)"}</pre>
+        </details>
+      ))}
+    </>
+  );
+}
+
+function RowDetail({ runId, row }: { runId: string; row: Row }) {
   const res = row.result;
   const ex = row.explanation;
   const scores = Object.entries(res?.raw_scores ?? {}).sort((a, b) => b[1] - a[1]);
@@ -166,29 +210,8 @@ function RowDetail({ row }: { row: Row }) {
           Explanation failed: {ex.error}
         </p>
       )}
-      {res?.llm_output?.map((o) => (
-        <details key={o.view}>
-          <summary>
-            <strong>Model's answer</strong>
-            {res.llm_output!.length > 1 && ` (${o.view === "full" ? "full text" : "visible text"})`}
-            {o.reasoning ? " and reasoning" : ""}
-            {o.truncated && <span className="text-muted"> · document cut to the word limit</span>}
-          </summary>
-          {o.reasoning && (
-            <>
-              <p className="text-muted" style={{ margin: "var(--space-2) 0 0" }}>
-                Reasoning
-              </p>
-              <pre className="pg-raw">{o.reasoning}</pre>
-            </>
-          )}
-          <p className="text-muted" style={{ margin: "var(--space-2) 0 0" }}>
-            Raw answer
-          </p>
-          <pre className="pg-raw">{o.raw || "(empty)"}</pre>
-        </details>
-      ))}
-      {res?.final_tier && (
+      {row.has_llm_output && <LlmOutputs runId={runId} rowId={row.id} />}
+      {res && (
         <p style={{ margin: 0 }}>
           <strong>Categories:</strong>{" "}
           {res.categories_triggered.length ? res.categories_triggered.join(", ") : "none"}

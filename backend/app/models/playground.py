@@ -101,6 +101,8 @@ class PlaygroundRow(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     explanation: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # LLM rows: raw answer + reasoning per view, encrypted like the documents (they quote the text)
+    llm_output: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

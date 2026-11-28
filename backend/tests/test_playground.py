@@ -154,36 +154,49 @@ class _FakeLlm:
 def _llm_run(pg_client, admin, monkeypatch, *answers: str) -> dict:  # type: ignore[no-untyped-def]
     from app.classifier_core import pipeline
 
-    monkeypatch.setattr(pipeline, "_ensure_llm", lambda cfg: _FakeLlm(*answers))
+    fake = _FakeLlm(*answers)
+    monkeypatch.setattr(pipeline, "_ensure_llm", lambda cfg: fake)
     body = _run_body(setups=[{"engine": "llm", "model": "qwen35-9b", "presidio": False}])
     r = pg_client.post("/api/admin/playground/runs", json=body, headers={"X-CSRF-Token": admin})
     with patch.object(playground, "_free_gpu_for"):
         playground.execute(uuid.UUID(r.json["id"]))
-    return pg_client.get(f"/api/admin/playground/runs/{r.json['id']}").json["rows"][0]
+    row = pg_client.get(f"/api/admin/playground/runs/{r.json['id']}").json["rows"][0]
+    out = pg_client.get(f"/api/admin/playground/runs/{r.json['id']}/rows/{row['id']}/llm-output")
+    return row | {"llm_output": out.json["items"] if out.status_code == 200 else None}
 
 
-def test_an_llm_row_keeps_the_raw_answer_and_reasoning(pg_client, admin, monkeypatch) -> None:
+def test_an_llm_row_keeps_the_raw_answer_and_reasoning_encrypted(pg_client, admin, db_session,
+                                                                  monkeypatch) -> None:  # fmt: skip
     answer = json.dumps({"tier": "public", "categories": []})
     row = _llm_run(pg_client, admin, monkeypatch, answer)
     assert row["status"] == "done" and row["result"]["final_tier"] == "public"
-    assert row["result"]["llm_output"] == [
+    assert row["has_llm_output"] is True and "llm_output" not in row["result"]
+    assert row["llm_output"] == [
         {"view": "full", "raw": answer, "reasoning": "thinking...", "truncated": False}
     ]
+    stored = db_session.scalars(select(PlaygroundRow)).one().llm_output
+    assert "thinking" not in json.dumps(stored)  # only ciphertext in the database
 
 
 def test_an_unusable_llm_answer_fails_the_row_but_is_kept(pg_client, admin, monkeypatch) -> None:
-    row = _llm_run(pg_client, admin, monkeypatch, "I think this is public.")
-    assert row["status"] == "failed" and "unusable" in row["error"]
-    assert row["result"] == {
-        "llm_output": [
-            {
-                "view": "full",
-                "raw": "I think this is public.",
-                "reasoning": "thinking...",
-                "truncated": False,
-            }
-        ]
-    }
+    raw = "I think\x00 this is public."  # NUL: Postgres JSONB text would reject it
+    row = _llm_run(pg_client, admin, monkeypatch, raw)
+    assert row["status"] == "failed" and "unusable" in row["error"] and row["result"] is None
+    assert row["llm_output"] == [
+        {"view": "full", "raw": raw, "reasoning": "thinking...", "truncated": False}
+    ]
+
+
+def test_nli_rows_have_no_llm_output(pg_client, admin, monkeypatch) -> None:
+    _stub_classifier(monkeypatch)
+    r = pg_client.post("/api/admin/playground/runs", json=_run_body(),
+                       headers={"X-CSRF-Token": admin})  # fmt: skip
+    with patch.object(playground, "_free_gpu_for"):
+        playground.execute(uuid.UUID(r.json["id"]))
+    row = pg_client.get(f"/api/admin/playground/runs/{r.json['id']}").json["rows"][0]
+    assert row["has_llm_output"] is False
+    url = f"/api/admin/playground/runs/{r.json['id']}/rows/{row['id']}/llm-output"
+    assert pg_client.get(url).status_code == 404
 
 
 def test_label_names_both_d2_views() -> None:
