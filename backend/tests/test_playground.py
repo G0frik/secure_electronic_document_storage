@@ -134,6 +134,62 @@ def test_run_stores_documents_and_rows_and_the_worker_fills_them(pg_client, admi
     assert db_session.scalars(select(Classification)).all() == []  # service data untouched
 
 
+class _FakeLlm:
+    """Answers each call in turn; records nothing else."""
+
+    def __init__(self, *answers: str) -> None:
+        self.answers = list(answers)
+
+    def classify(self, text: str):  # type: ignore[no-untyped-def]
+        from app.classifier_core.llm import SemanticResult, parse_llm_output
+
+        raw = self.answers.pop(0)
+        try:
+            tier, cats = parse_llm_output(raw)
+        except ValueError as exc:
+            return SemanticResult(tier=None, raw=raw, reasoning="thinking...", error=str(exc))
+        return SemanticResult(tier=tier, categories=cats, raw=raw, reasoning="thinking...")
+
+
+def _llm_run(pg_client, admin, monkeypatch, *answers: str) -> dict:  # type: ignore[no-untyped-def]
+    from app.classifier_core import pipeline
+
+    monkeypatch.setattr(pipeline, "_ensure_llm", lambda cfg: _FakeLlm(*answers))
+    body = _run_body(setups=[{"engine": "llm", "model": "qwen35-9b", "presidio": False}])
+    r = pg_client.post("/api/admin/playground/runs", json=body, headers={"X-CSRF-Token": admin})
+    with patch.object(playground, "_free_gpu_for"):
+        playground.execute(uuid.UUID(r.json["id"]))
+    return pg_client.get(f"/api/admin/playground/runs/{r.json['id']}").json["rows"][0]
+
+
+def test_an_llm_row_keeps_the_raw_answer_and_reasoning(pg_client, admin, monkeypatch) -> None:
+    answer = json.dumps({"tier": "public", "categories": []})
+    row = _llm_run(pg_client, admin, monkeypatch, answer)
+    assert row["status"] == "done" and row["result"]["final_tier"] == "public"
+    assert row["result"]["llm_output"] == [
+        {"view": "full", "raw": answer, "reasoning": "thinking...", "truncated": False}
+    ]
+
+
+def test_an_unusable_llm_answer_fails_the_row_but_is_kept(pg_client, admin, monkeypatch) -> None:
+    row = _llm_run(pg_client, admin, monkeypatch, "I think this is public.")
+    assert row["status"] == "failed" and "unusable" in row["error"]
+    assert row["result"] == {
+        "llm_output": [
+            {
+                "view": "full",
+                "raw": "I think this is public.",
+                "reasoning": "thinking...",
+                "truncated": False,
+            }
+        ]
+    }
+
+
+def test_label_names_both_d2_views() -> None:
+    assert [t["view"] for t in playground._label([{}, {}])] == ["full", "visible"]
+
+
 def test_input_documents_are_stored_encrypted(pg_client, admin, db_session, monkeypatch) -> None:
     _stub_classifier(monkeypatch)
     r = pg_client.post("/api/admin/playground/runs", json=_run_body(),

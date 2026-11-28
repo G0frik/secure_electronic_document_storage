@@ -121,6 +121,8 @@ export interface RowResult {
   raw_scores: Record<string, number>;
   presidio_entities: Record<string, { count?: number }>;
   needs_review: boolean;
+  /** LLM rows: what the model returned for each classified view (D2 adds the visible text). */
+  llm_output?: { view: "full" | "visible"; raw: string; reasoning: string; truncated: boolean }[];
   config: {
     view_tiers?: { full: Tier; visible: Tier };
     detector_score?: number;
