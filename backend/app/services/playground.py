@@ -13,6 +13,7 @@ import json
 import time
 import uuid
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -461,7 +462,7 @@ def execute(run_id: uuid.UUID) -> str:
 
 
 def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
-    from app.classifier_core.pipeline import classify_views
+    from app.classifier_core.pipeline import classify, classify_views
 
     current = ""
     for row in _order([r for r in run.rows if r.status == "pending"]):
@@ -473,9 +474,12 @@ def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
         row.status, row.started_at = "running", datetime.now(UTC)
         db.session.commit()
         t0 = time.perf_counter()
+        cfg = config_for(setup)
+        trace: list[dict[str, Any]] = []  # LLM rows: raw answer + reasoning per classified view
         try:
-            res = classify_views(text_views, cfg=config_for(setup))
-            row.result = res.to_jsonable()
+            fn = partial(classify, cfg=cfg, trace=trace)
+            res = classify_views(text_views, classifier_fn=fn, cfg=cfg)
+            row.result = res.to_jsonable() | ({"llm_output": _label(trace)} if trace else {})
             row.latency_ms = int((time.perf_counter() - t0) * 1000)
             if run.explain and setup.engine == "llm":
                 try:
@@ -487,9 +491,16 @@ def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
             row.status = "done"
         except Exception as exc:  # noqa: BLE001 — one failed setup must not stop the others
             row.status, row.error = "failed", f"{type(exc).__name__}: {exc}"[:2000]
+            if trace:  # an unusable answer: keep what the model said, so the failure can be read
+                row.result = {"llm_output": _label(trace)}
             row.latency_ms = int((time.perf_counter() - t0) * 1000)
         row.finished_at = datetime.now(UTC)
         db.session.commit()
+
+
+def _label(trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """classify_views classifies the full text first, then (D2) the visible text."""
+    return [{"view": v} | t for v, t in zip(("full", "visible"), trace, strict=False)]
 
 
 # ---------- payloads ----------

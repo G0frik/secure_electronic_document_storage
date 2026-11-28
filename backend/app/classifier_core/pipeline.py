@@ -193,10 +193,18 @@ def reset_classifier_cache() -> None:
     _other_detectors.clear()
 
 
-def _semantic(text: str, cfg: ClassifierConfig) -> tuple[Tier, list[str], dict[str, float]]:
-    """(tier, triggered category short names, scores) from the configured engine."""
+def _semantic(
+    text: str, cfg: ClassifierConfig, trace: list[dict[str, Any]] | None = None
+) -> tuple[Tier, list[str], dict[str, float]]:
+    """(tier, triggered category short names, scores) from the configured engine.
+
+    `trace`, when given, gets the LLM's raw answer and reasoning text (the playground shows them).
+    """
     if cfg.engine == "llm":
         result = _ensure_llm(cfg).classify(text)
+        if trace is not None:
+            trace.append({"raw": result.raw, "reasoning": result.reasoning,
+                          "truncated": result.truncated})  # fmt: skip
         if result.tier is None:  # fail closed: the row becomes FAILED, never PUBLIC
             raise ValueError(f"LLM answer unusable: {result.error}")
         return result.tier, result.categories, {}
@@ -217,10 +225,12 @@ def _semantic(text: str, cfg: ClassifierConfig) -> tuple[Tier, list[str], dict[s
     return zs_tier, triggered_short, raw_scores_short
 
 
-def classify(text: str, cfg: ClassifierConfig | None = None) -> ClassifyResult:
+def classify(
+    text: str, cfg: ClassifierConfig | None = None, trace: list[dict[str, Any]] | None = None
+) -> ClassifyResult:
     """Run the semantic engine + Presidio on *text* and return the combined tier."""
     cfg = cfg or ClassifierConfig.from_settings()
-    zs_tier, triggered_short, raw_scores_short = _semantic(text, cfg)
+    zs_tier, triggered_short, raw_scores_short = _semantic(text, cfg, trace)
 
     if cfg.presidio:
         analyzer = _ensure_presidio()

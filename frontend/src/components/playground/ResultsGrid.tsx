@@ -42,7 +42,7 @@ export default function ResultsGrid({ rows }: { rows: Row[] }) {
         </thead>
         <tbody>
           {rows.map((r) => {
-            const res = r.result;
+            const res = r.result?.final_tier ? r.result : null; // a failed LLM row keeps only llm_output
             const views = res?.config.view_tiers;
             const score = res?.config.detector_score;
             const isOpen = open === r.id;
@@ -166,7 +166,29 @@ function RowDetail({ row }: { row: Row }) {
           Explanation failed: {ex.error}
         </p>
       )}
-      {res && (
+      {res?.llm_output?.map((o) => (
+        <details key={o.view}>
+          <summary>
+            <strong>Model's answer</strong>
+            {res.llm_output!.length > 1 && ` (${o.view === "full" ? "full text" : "visible text"})`}
+            {o.reasoning ? " and reasoning" : ""}
+            {o.truncated && <span className="text-muted"> · document cut to the word limit</span>}
+          </summary>
+          {o.reasoning && (
+            <>
+              <p className="text-muted" style={{ margin: "var(--space-2) 0 0" }}>
+                Reasoning
+              </p>
+              <pre className="pg-raw">{o.reasoning}</pre>
+            </>
+          )}
+          <p className="text-muted" style={{ margin: "var(--space-2) 0 0" }}>
+            Raw answer
+          </p>
+          <pre className="pg-raw">{o.raw || "(empty)"}</pre>
+        </details>
+      ))}
+      {res?.final_tier && (
         <p style={{ margin: 0 }}>
           <strong>Categories:</strong>{" "}
           {res.categories_triggered.length ? res.categories_triggered.join(", ") : "none"}
