@@ -104,7 +104,7 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="new-password"
-              placeholder="Min. 12 characters"
+              placeholder="Min. 15 characters"
             />
           </div>
           <div className="field">

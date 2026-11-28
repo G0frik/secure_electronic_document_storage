@@ -29,6 +29,14 @@ def test_policy_rejects_short_password() -> None:
     assert exc_info.value.code == "too_short"
 
 
+def test_policy_minimum_is_15_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "hibp_enabled", False)
+    assert settings.password_min_length == 15
+    with pytest.raises(WeakPasswordError):
+        passwords.validate_password_policy("a" * 14)
+    passwords.validate_password_policy("a" * 15)
+
+
 def _hibp_response_for(password: str, count: int = 5) -> tuple[str, str]:
     sha1 = hashlib.sha1(password.encode(), usedforsecurity=False).hexdigest().upper()
     prefix, suffix = sha1[:5], sha1[5:]

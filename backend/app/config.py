@@ -77,7 +77,7 @@ class Settings(BaseSettings):
 
     # Auth (Phase 1)
     allow_public_registration: bool = Field(default=True, alias="ALLOW_PUBLIC_REGISTRATION")
-    password_min_length: int = Field(default=12, alias="PASSWORD_MIN_LENGTH")
+    password_min_length: int = Field(default=15, alias="PASSWORD_MIN_LENGTH")  # NIST SP 800-63B-4: 15 for single-factor; TOTP is optional
     hibp_user_agent: str = Field(default="secure-docstore-dev", alias="HIBP_USER_AGENT")
     hibp_timeout_seconds: float = Field(default=5.0, alias="HIBP_TIMEOUT_SECONDS")
     hibp_enabled: bool = Field(default=True, alias="HIBP_ENABLED")
