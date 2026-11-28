@@ -573,12 +573,23 @@ function CorpusPicker({
 }) {
   const [docs, setDocs] = useState<CorpusDoc[]>([]);
   const [q, setQ] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (enabled)
       fetchCorpus()
         .then(setDocs)
         .catch(() => setDocs([]));
   }, [enabled]);
+  // Bring the selected document into view inside the list only: scrollIntoView would move the
+  // page, and on every re-render (setup edits, run polls) it pulled the page back here.
+  useEffect(() => {
+    const list = listRef.current;
+    const el = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !el) return;
+    const top = el.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    if (top < 0 || top + el.offsetHeight > list.clientHeight)
+      list.scrollTop += top - (list.clientHeight - el.offsetHeight) / 2;
+  }, [value, docs]);
   if (!enabled) return <p className="text-muted">The research corpus is not on this machine.</p>;
   const shown = docs.filter(
     (d) => !q || `${d.pair_id} ${d.tier} ${d.lang}`.includes(q.toLowerCase()),
@@ -591,7 +602,7 @@ function CorpusPicker({
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
-      <div className="pg-list" role="listbox" aria-label="Corpus documents">
+      <div ref={listRef} className="pg-list" role="listbox" aria-label="Corpus documents">
         {shown.map((d) => (
           <button
             key={d.ref}
@@ -599,7 +610,6 @@ function CorpusPicker({
             role="option"
             aria-selected={value === d.ref}
             className="pg-list-item"
-            ref={value === d.ref ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
             onClick={() => onChange(d.ref)}
           >
             <span className="text-mono">{d.pair_id}</span>

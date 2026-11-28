@@ -20,7 +20,11 @@ export default function SetupsEditor({ catalog, setups, onChange }: Props) {
 
   function toggleDefense(i: number, d: Defense) {
     const cur = setups[i]?.defenses ?? [];
-    update(i, { defenses: cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d].sort() });
+    const on = !cur.includes(d);
+    update(i, {
+      defenses: on ? [...cur, d].sort() : cur.filter((x) => x !== d),
+      ...(d === "D1" && on ? { prompt_text: null } : {}), // D1 runs the hardened prompt as is
+    });
   }
 
   return (
@@ -141,7 +145,9 @@ function SetupSettings({
   setup: Setup;
   onChange: (p: Partial<Setup>) => void;
 }) {
-  const promptText = s.prompt_text ?? catalog.prompts[s.prompt ?? "classify_v1"] ?? "";
+  const d1 = !!s.defenses?.includes("D1");
+  const prompt = d1 ? "classify_hardened_v1" : (s.prompt ?? "classify_v1");
+  const promptText = (!d1 && s.prompt_text) || catalog.prompts[prompt] || "";
   return (
     <div className="pg-settings">
       <label className="field">
@@ -178,7 +184,8 @@ function SetupSettings({
             <span className="field-label">Prompt</span>
             <select
               className="select"
-              value={s.prompt ?? "classify_v1"}
+              value={prompt}
+              disabled={d1}
               onChange={(e) => onChange({ prompt: e.target.value, prompt_text: null })}
             >
               {Object.keys(catalog.prompts).map((p) => (
@@ -226,15 +233,16 @@ function SetupSettings({
           </label>
           <label className="field" style={{ gridColumn: "1 / -1" }}>
             <span className="field-label">
-              Prompt text {s.prompt_text ? "(edited)" : ""}
-              {s.defenses?.includes("D1") && " — D1 replaces it with the hardened prompt"}
+              Prompt text{" "}
+              {d1 ? "— locked: D1 uses the hardened prompt" : s.prompt_text ? "(edited)" : ""}
             </span>
             <textarea
               className="textarea pg-prompt"
               value={promptText}
+              readOnly={d1}
               onChange={(e) => onChange({ prompt_text: e.target.value })}
             />
-            {s.prompt_text && (
+            {!d1 && s.prompt_text && (
               <button
                 type="button"
                 className="btn btn-sm btn-ghost"
