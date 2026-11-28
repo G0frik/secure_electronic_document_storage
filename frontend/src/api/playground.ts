@@ -121,8 +121,6 @@ export interface RowResult {
   raw_scores: Record<string, number>;
   presidio_entities: Record<string, { count?: number }>;
   needs_review: boolean;
-  /** LLM rows: what the model returned for each classified view (D2 adds the visible text). */
-  llm_output?: { view: "full" | "visible"; raw: string; reasoning: string; truncated: boolean }[];
   config: {
     view_tiers?: { full: Tier; visible: Tier };
     detector_score?: number;
@@ -140,6 +138,15 @@ export interface Row {
   explanation: { tier?: Tier; reason?: string; same_tier?: boolean; error?: string } | null;
   error: string | null;
   latency_ms: number | null;
+  has_llm_output: boolean;
+}
+
+/** What an LLM returned for one classified view (D2 adds the visible text). */
+export interface LlmOutput {
+  view: "full" | "visible";
+  raw: string;
+  reasoning: string;
+  truncated: boolean;
 }
 
 export interface RunSummary {
@@ -171,6 +178,12 @@ export interface SavedSetup {
 const BASE = "/api/admin/playground";
 
 /** True when the stack runs in playground mode (the routes exist only then). */
+export async function fetchLlmOutput(runId: string, rowId: string): Promise<LlmOutput[]> {
+  return (
+    await apiClient.get<{ items: LlmOutput[] }>(`${BASE}/runs/${runId}/rows/${rowId}/llm-output`)
+  ).data.items;
+}
+
 export async function playgroundEnabled(): Promise<boolean> {
   try {
     await apiClient.get(`${BASE}/status`);

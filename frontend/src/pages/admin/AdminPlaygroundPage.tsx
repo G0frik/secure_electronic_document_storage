@@ -521,7 +521,7 @@ export default function AdminPlaygroundPage() {
             </span>
           </div>
           <div className="card-body">
-            <ResultsGrid rows={run.rows} />
+            <ResultsGrid runId={run.id} rows={run.rows} />
           </div>
         </div>
       )}

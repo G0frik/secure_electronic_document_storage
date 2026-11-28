@@ -8,6 +8,7 @@ host NLI server (GPU). Only one of them holds the GPU at a time: the task frees 
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 import time
@@ -479,7 +480,7 @@ def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
         try:
             fn = partial(classify, cfg=cfg, trace=trace)
             res = classify_views(text_views, classifier_fn=fn, cfg=cfg)
-            row.result = res.to_jsonable() | ({"llm_output": _label(trace)} if trace else {})
+            row.result = res.to_jsonable()
             row.latency_ms = int((time.perf_counter() - t0) * 1000)
             if run.explain and setup.engine == "llm":
                 try:
@@ -491,9 +492,9 @@ def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
             row.status = "done"
         except Exception as exc:  # noqa: BLE001 — one failed setup must not stop the others
             row.status, row.error = "failed", f"{type(exc).__name__}: {exc}"[:2000]
-            if trace:  # an unusable answer: keep what the model said, so the failure can be read
-                row.result = {"llm_output": _label(trace)}
             row.latency_ms = int((time.perf_counter() - t0) * 1000)
+        if trace:  # kept for failed rows too: an unusable answer is easier to read than its error
+            row.llm_output = _seal(_label(trace))
         row.finished_at = datetime.now(UTC)
         db.session.commit()
 
@@ -501,6 +502,31 @@ def _execute_rows(run: PlaygroundRun, text_views: Any) -> None:
 def _label(trace: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """classify_views classifies the full text first, then (D2) the visible text."""
     return [{"view": v} | t for v, t in zip(("full", "visible"), trace, strict=False)]
+
+
+_SEALED = ("ciphertext", "wrapped_dek", "nonce", "auth_tag")
+
+
+def _seal(value: Any) -> dict[str, Any]:
+    blob = crypto.encrypt_file(json.dumps(value).encode())
+    sealed: dict[str, Any] = {k: base64.b64encode(getattr(blob, k)).decode() for k in _SEALED}
+    return sealed | {"kek_version": blob.kek_version}
+
+
+def llm_output(row: PlaygroundRow) -> list[dict[str, Any]] | None:
+    """The row's decrypted LLM output (loaded only when a row is opened, not on every poll)."""
+    if row.llm_output is None:
+        return None
+    sealed = row.llm_output
+    plain = crypto.decrypt_file(
+        ciphertext=base64.b64decode(sealed["ciphertext"]),
+        wrapped_dek=base64.b64decode(sealed["wrapped_dek"]),
+        nonce=base64.b64decode(sealed["nonce"]),
+        auth_tag=base64.b64decode(sealed["auth_tag"]),
+        kek_version=sealed["kek_version"],
+    )
+    out: list[dict[str, Any]] = json.loads(plain)
+    return out
 
 
 # ---------- payloads ----------
@@ -520,6 +546,6 @@ def run_payload(run: PlaygroundRun, detail: bool = False) -> dict[str, Any]:
         out["rows"] = [{
             "id": str(r.id), "position": r.position, "setup": r.setup, "status": r.status,
             "result": r.result, "explanation": r.explanation, "error": r.error,
-            "latency_ms": r.latency_ms,
+            "latency_ms": r.latency_ms, "has_llm_output": r.llm_output is not None,
         } for r in run.rows]  # fmt: skip
     return out
