@@ -49,6 +49,8 @@ Set `CLASSIFIER_ENGINE=llm`, `LLM_BASE_URL` and `LLM_MODEL` in `.env` and run `l
 
 `make playground` starts the stack with an admin-only page that runs one document through several classifier setups and attacks side by side; `make playground-down` returns to the normal stack. It needs the same host servers as the LLM mode. Playground runs never change real files.
 
+![Playground: the same attacked document classified without defenses (PUBLIC) and with D2 (CONFIDENTIAL)](docs/images/playground.png)
+
 ## Development
 
 ```bash
